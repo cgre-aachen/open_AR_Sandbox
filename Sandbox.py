@@ -147,7 +147,7 @@ class Projector:
         self.html_text = None
         self.frame_file = None
         self.drawdate = "false"  # Boolean as string for html, only used for testing.
-        self.refresh = 100  # wait time in ms for html file to load image
+        self.refresh = 250  # wait time in ms for html file to load image
         self.input_rescale=True
         if resolution is None:
             resolution = (800, 600)
@@ -160,6 +160,31 @@ class Projector:
 
     def calibrate(self):
         self.calibration.create()
+
+    from PyQt5.QtWidgets import QApplication, QWidget
+    from PyQt5.QtGui import QIcon
+
+    class App(QWidget):
+
+        def __init__(self):
+            super().__init__()
+            self.title = 'PyQt5 simple window - pythonspot.com'
+            self.left = 10
+            self.top = 10
+            self.width = 640
+            self.height = 480
+            self.initUI()
+
+        def initUI(self):
+            self.setWindowTitle(self.title)
+            self.setGeometry(self.left, self.top, self.width, self.height)
+            self.show()
+
+    def start_stream_qt(self):
+        self.App()
+
+    def show_qt(selfself):
+        pass
 
     def start_stream(self):
         # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
@@ -223,6 +248,7 @@ class Projector:
         self.html_file.close()
 
         webbrowser.open_new('file://' + str(os.path.join(self.work_directory, self.html_filename)))
+
 
     def show(self, input=None, legend_filename=None, profile_filename=None,
              hot_filename=None, rescale=None):
@@ -807,7 +833,7 @@ class Module:
             self.projector.show()
 
     def run(self):
-        self.stop_threat= False
+        self.stop_thread = False
         self.module.setup()
         self.lock.acquire()
         self.thread = threading.Thread(target=self.loop, daemon=None)
@@ -822,7 +848,7 @@ class Module:
         self.lock.acquire()
 
     def kill(self):
-        self.stop_threat=True
+        self.stop_thread = True
         try:
             self.lock.release()
         except:
