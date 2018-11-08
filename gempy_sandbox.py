@@ -1,17 +1,19 @@
+import sys
+sys.path.append('/home/miguel/PycharmProjects/gempy')
 import weakref
 import numpy
 import scipy
 import gempy
 import matplotlib.pyplot as plt
 from itertools import count
-from sandbox import Calibration
+from Sandbox import Calibration
 
 #TODO: use Descriptors
 class Model:
     _ids = count(0)
     _instances = []
 
-    def __init__(self, model, extent=None, associated_calibration=None, xy_isometric=True, lock=None):
+    def __init__(self, model: gempy.core.model.Model, extent=None, associated_calibration=None, xy_isometric=True, lock=None):
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
         self.xy_isometric = xy_isometric
@@ -21,7 +23,7 @@ class Model:
 
         self.legend = True
         self.model = model
-        gempy.compute_model(self.model)
+       # gempy.compute_model(self.model)
         self.empty_depth_grid = None
         self.depth_grid = None
         self.cmap = None
@@ -52,7 +54,7 @@ class Model:
         else:
             self.associated_calibration = associated_calibration
         if extent == None:  # extent should be array with shape (6,) or convert to list?
-            self.extent = self.model._geo_data.extent
+            self.extent = self.model.grid.extent
 
         else:
             self.extent = extent  # check: array with 6 entries!
@@ -119,11 +121,11 @@ class Model:
 
     def set_cmap(self, cmap=None, norm=None):
         if cmap is None:
-            plotter = gempy.PlotData2D(self.model._geo_data)
-            self.cmap = plotter._cmap
+            #plotter = gempy.PlotData2D(self.model._geo_data)
+            self.cmap = gempy.plot.cmap#plotter._cmap
         if norm is None:
-            self.norm = plotter._norm
-            self.lot = plotter._color_lot
+            self.norm = gempy.plot.norm#plotter._norm
+            self.lot = gempy.plot.color_lot#plotter._color_lot
 
     def render_frame(self, depth, outfile=None):
         self.update_grid(depth)
@@ -131,12 +133,13 @@ class Model:
             self.set_cmap()
         if self.lock is not None:
             self.lock.acquire()
-            lith_block, fault_block = gempy.compute_model_at(self.depth_grid, self.model)
+            sol = gempy.compute_model_at(self.depth_grid, self.model)
+            #lith_block, fault_block =
             self.lock.release()
         else:
-            lith_block, fault_block = gempy.compute_model_at(self.depth_grid, self.model)
-        scalar_field = lith_block[1].reshape((self.output_res[1], self.output_res[0]))
-        block = lith_block[0].reshape((self.output_res[1], self.output_res[0]))
+            sol = gempy.compute_model_at(self.depth_grid, self.model)
+        scalar_field = sol.scalar_field_lith.reshape((self.output_res[1], self.output_res[0]))
+        block = sol.lith_block.reshape((self.output_res[1], self.output_res[0]))
         h = self.associated_calibration.calibration_data['scale_factor'] * (self.output_res[1]) / 100.0
         w = self.associated_calibration.calibration_data['scale_factor'] * (self.output_res[0]) / 100.0
 
@@ -147,7 +150,8 @@ class Model:
         ax.pcolormesh(block, cmap=self.cmap, norm=self.norm)
 
         if self.show_faults is True:
-            plt.contour(fault_block[0].reshape((self.output_res[1], self.output_res[0])), levels=self.fault_contours, linewidths=3.0, colors=[(1.0, 1.0, 1.0, 1.0)])
+            plt.contour(sol.fault_blocks[0].reshape((self.output_res[1], self.output_res[0])),
+                        levels=self.fault_contours, linewidths=3.0, colors=[(1.0, 1.0, 1.0, 1.0)])
 
         if self.contours is True:
             x = range(self.output_res[0])
@@ -166,7 +170,6 @@ class Model:
             main_contours = plt.contour(x, y, z, levels=self.scalar_main_contours, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
            # plt.contour(lith_block[1].reshape((self.output_res[1], self.output_res[0])) levels=main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
-
 
         if outfile == None:
             plt.show()
@@ -232,7 +235,7 @@ class Model:
             xs = numpy.arange(px[0], px[1], dx)
             ys = numpy.arange(py[0], py[1], dy)
 
-        zs = numpy.arange(self.model._geo_data.extent[4], self.model._geo_data.extent[5] + 1, s)
+        zs = numpy.arange(self.extent[4], self.extent.extent[5] + 1, s)
 
         a = numpy.tile([xs, ys], len(zs)).T
         b = numpy.repeat(zs, len(xs))
@@ -253,7 +256,7 @@ class Model:
             numpy.ndarray: grid (n, 3) for use with gempy.compute_model_at
 
         """
-        zs = numpy.arange(self.model._geo_data.extent[4], self.model._geo_data.extent[5], s)
+        zs = numpy.arange(self.extent[4], self.extent[5], s)
         grid = numpy.array([numpy.repeat(x, len(zs)), numpy.repeat(y, len(zs)), zs]).T
         return grid
 
