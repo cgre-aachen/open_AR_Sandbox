@@ -15,6 +15,7 @@ import pickle
 import weakref
 import numpy
 import scipy
+import scipy.ndimage
 
 from itertools import count
 from PIL import Image, ImageDraw
@@ -326,8 +327,6 @@ class Projector:
             cv2.imwrite(self.frame_file, img)
         else:
             return img
-
-
 
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
@@ -782,6 +781,7 @@ class Terrain:
         plt.savefig('current_frame.png', pad_inches=0)
         plt.close(fig)
 
+
 class Module:
     """
     container for modules that handles threading. any kind of module can be loaded, as long as it contains a 'setup' and 'render_frame" method!
@@ -798,7 +798,8 @@ class Module:
             except:
                 print("no kinect found")
                 self.kinect = kinect
-
+        else:
+            self.kinect = kinect
 
         if calibration is None:
             try:
@@ -823,8 +824,6 @@ class Module:
         self.thread = None
         self.lock = threading.Lock()
         self.stop_thread = False
-
-
 
     def loop(self):
         while self.stop_thread is False:
@@ -854,8 +853,6 @@ class Module:
         except:
             pass
 
-
-
 def detect_shapes(kinect, model, calibration, frame=None):
     if frame is None:
         frame = kinect.get_RGB_frame()
@@ -866,10 +863,6 @@ def detect_shapes(kinect, model, calibration, frame=None):
 
     for square in squares:
         print(square)
-
-
-
-
 
 
 def render_depth_frame(calibration=None, kinect=None, projector=None, filter_depth=True, n_frames=5, sigma_gauss=4,
