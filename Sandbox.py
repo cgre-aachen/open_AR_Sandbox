@@ -40,7 +40,7 @@ class Kinect:  # add dummy
         self.rgb_frame = None
 
         #TODO: include filter self.-filter parameters as function defaults
-        self.n_frames = 5 #filter parameters
+        self.n_frames = 3 #filter parameters
         self.sigma_gauss = 3
         self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
 
@@ -126,9 +126,11 @@ class Kinect:  # add dummy
         return cropped
 
 
+
 def Beamer(*args, **kwargs):
     warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
     return Projector(*args, **kwargs)
+
 
 class Projector:
     _ids = count(0)
@@ -138,11 +140,11 @@ class Projector:
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
         self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filenamne = "frame" + str(self.id) + ".png"
-        self.input_filename = 'current_frame.png'
-        self.legend_filename = 'legend.png'
-        self.hot_filename = 'hot.png'
-        self.profile_filename = 'profile.png'
+        self.frame_filenamne = "frame" + str(self.id) + ".jpeg"
+        self.input_filename = 'current_frame.jpeg'
+        self.legend_filename = 'legend.jpeg'
+        self.hot_filename = 'hot.jpeg'
+        self.profile_filename = 'profile.jpeg'
         self.work_directory = None
         self.html_file = None
         self.html_text = None
@@ -162,30 +164,8 @@ class Projector:
     def calibrate(self):
         self.calibration.create()
 
-    from PyQt5.QtWidgets import QApplication, QWidget
-    from PyQt5.QtGui import QIcon
 
-    class App(QWidget):
 
-        def __init__(self):
-            super().__init__()
-            self.title = 'PyQt5 simple window - pythonspot.com'
-            self.left = 10
-            self.top = 10
-            self.width = 640
-            self.height = 480
-            self.initUI()
-
-        def initUI(self):
-            self.setWindowTitle(self.title)
-            self.setGeometry(self.left, self.top, self.width, self.height)
-            self.show()
-
-    def start_stream_qt(self):
-        self.App()
-
-    def show_qt(selfself):
-        pass
 
     def start_stream(self):
         # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
@@ -200,7 +180,7 @@ class Projector:
                     body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
                 </style>
             <script type="text/JavaScript">
-            var url = "output.png"; //url to load image from
+            var url = "output.jpeg"; //url to load image from
             var refreshInterval = {0} ; //in ms
             var drawDate = {1}; //draw date string
             var img;
@@ -289,7 +269,10 @@ class Projector:
             projector_output.paste(hot, (
             self.calibration.calibration_data['hot_x_lim'][0], self.calibration.calibration_data['hot_y_lim'][0]))
 
-        projector_output.save('output.png')  # TODO: Projector specific outputs
+        projector_output.save('output_temp.jpeg')
+        os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
+
+        # TODO: Projector specific outputs
 
     # TODO: threaded runloop exporting filtered and unfiltered depth
 
@@ -415,7 +398,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             ax.pcolormesh(depth_masked, vmin=self.calibration_data['z_range'][0],
                           vmax=self.calibration_data['z_range'][1])
             plt.contour(depth_masked, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
-            plt.savefig('current_frame.png', pad_inches=0)
+            plt.savefig('current_frame.jpeg', pad_inches=0)
             plt.close(fig)
 
             self.calibration_data = {'rot_angle': rot_angle,
@@ -443,19 +426,19 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                 self.calibration_data['legend_x_lim'][1] - self.calibration_data['legend_x_lim'][0],
                 self.calibration_data['legend_y_lim'][1] - self.calibration_data['legend_y_lim'][0]), color='white')
                 ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save('legend.png')
+                legend.save('legend.jpeg')
             if self.calibration_data['profile_area'] is not False:
                 profile = Image.new('RGB', (
                 self.calibration_data['profile_x_lim'][1] - self.calibration_data['profile_x_lim'][0],
                 self.calibration_data['profile_y_lim'][1] - self.calibration_data['profile_y_lim'][0]), color='blue')
                 ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save('profile.png')
+                profile.save('profile.jpeg')
             if self.calibration_data['hot_area'] is not False:
                 hot = Image.new('RGB', (self.calibration_data['hot_x_lim'][1] - self.calibration_data['hot_x_lim'][0],
                                         self.calibration_data['hot_y_lim'][1] - self.calibration_data['hot_y_lim'][0]),
                                 color='red')
                 ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
-                hot.save('hot.png')
+                hot.save('hot.jpeg')
             self.associated_projector.show()
             if close_click == True:
                 calibration_widget.close()
@@ -778,7 +761,7 @@ class Terrain:
             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
         ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data['z_range'][0],
                       vmax=self.calibration.calibration_data['z_range'][1], cmap=self.cmap)
-        plt.savefig('current_frame.png', pad_inches=0)
+        plt.savefig('current_frame.jpeg', pad_inches=0)
         plt.close(fig)
 
 
@@ -828,9 +811,9 @@ class Module:
     def loop(self):
         while self.stop_thread is False:
             depth=self.kinect.get_filtered_frame()
-            self.module.render_frame(depth, outfile="current_frame.png")
+            self.module.render_frame(depth, outfile="current_frame.jpeg")
             self.projector.show()
-
+            
     def run(self):
         self.stop_thread = False
         self.module.setup()
@@ -902,7 +885,7 @@ def run():
 
     def render_frame_old(self, outfile=None):
         lith_block, fault_block = gempy.compute_model_at(self.depth_grid, self.model)
-        #gp.plot_section(geo_data, lith_block[0], cell_number=0, direction='z', ar_output='current_out.png')
+        #gp.plot_section(geo_data, lith_block[0], cell_number=0, direction='z', ar_output='current_out.jpeg')
         cell_number = 0
         direction = 'z'
         plotter=gempy.PlotData2D(self.model._geo_data)

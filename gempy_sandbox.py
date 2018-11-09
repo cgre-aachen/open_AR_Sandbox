@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/miguel/PycharmProjects/gempy')
+#sys.path.append('/home/miguel/PycharmProjects/gempy')
 import weakref
 import numpy
 import scipy
@@ -7,6 +7,7 @@ import gempy
 import matplotlib.pyplot as plt
 from itertools import count
 from Sandbox import Calibration
+import time
 
 #TODO: use Descriptors
 class Model:
@@ -23,7 +24,7 @@ class Model:
 
         self.legend = True
         self.model = model
-       # gempy.compute_model(self.model)
+        gempy.compute_model(self.model)
         self.empty_depth_grid = None
         self.depth_grid = None
         self.cmap = None
@@ -39,10 +40,12 @@ class Model:
         self.scalar_sub_contours = numpy.arange(0.0, 1.0, 0.02)
 
         self.show_faults=True
-        self.fault_contours= numpy.arange(0.0, 50, 0.5)
+        self.fault_contours= numpy.arange(0.5, 50.5, 1.0)
 
         self.stop_threat = False
         self.lock = lock
+        self.delay = 0.0
+        self.show_framerate = False
 
         if associated_calibration is None:
             try:
@@ -101,6 +104,7 @@ class Model:
     # return self.empty_depth_grid
 
     def update_grid(self, depth):
+        depth=numpy.fliplr(depth) ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.associated_calibration.calibration_data['z_range'][0],
                                                  self.associated_calibration.calibration_data['z_range'][1])
         scaled_depth = self.extent[5] - (
@@ -116,6 +120,7 @@ class Model:
 
         flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
         depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
+      #  depth_grid = numpy.fliplr(depth_grid)  ##dirty workaround to get the it running with new gempy version. did not work
         self.depth_grid = depth_grid
 
 
@@ -128,6 +133,7 @@ class Model:
             self.lot = gempy.plot.color_lot#plotter._color_lot
 
     def render_frame(self, depth, outfile=None):
+        t0=time.clock()
         self.update_grid(depth)
         if self.cmap is None:
             self.set_cmap()
@@ -177,6 +183,10 @@ class Model:
         else:
             plt.savefig(outfile, pad_inches=0)
             plt.close(fig)
+        t1=time.clock()
+        if self.show_framerate is True:
+            print("frame took "+str(t1-t0)+" s")
+
 
 
 
@@ -260,7 +270,7 @@ class Model:
         grid = numpy.array([numpy.repeat(x, len(zs)), numpy.repeat(y, len(zs)), zs]).T
         return grid
 
-    def drill_image(self,lb, n_rep=100, fp="well.png"): #is lb lego brick?
+    def drill_image(self,lb, n_rep=100, fp="well.jpeg"): #is lb lego brick?
         p = numpy.repeat(lb[0, numpy.newaxis].astype(int), n_rep, axis=0)
         plt.figure(figsize=(2, 6))
         im = plt.imshow(p.T, origin="lower", cmap=self.cmap, norm=self.norm)
@@ -289,7 +299,9 @@ def run_model(model, calibration=None, kinect=None, projector=None, filter_depth
             depth = kinect.get_frame()
 
         model.update_grid(depth)
-        model.render_frame(depth, outfile="current_frame.png")
-        projector.show(input="current_frame.png", rescale=False)
+        model.render_frame(depth, outfile="current_frame.jpeg")
+        #time.sleep(self.delay)
+        projector.show(input="current_frame.jpeg", rescale=False)
+
         if model.stop_threat is True:
             raise Exception('Threat stopped')
