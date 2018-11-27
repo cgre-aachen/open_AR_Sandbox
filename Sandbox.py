@@ -8,7 +8,8 @@ except ImportError:
 try:
     import cv2
 except ImportError:
-    warn('opencv is not installed. Object detection will not work')
+   # warn('opencv is not installed. Object detection will not work')
+    pass
 
 import webbrowser
 import pickle
