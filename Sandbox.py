@@ -344,6 +344,11 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                                  }
 
         self.cmap = None
+        self.contours = True
+        self.n_contours = 20
+        self.contour_levels = numpy.arange(self.calibration_data['z_range'][0],
+                                           self.calibration_data['z_range'][1],
+                                           float(self.calibration_data['z_range'][1]-self.calibration_data['z_range'][0])/self.n_contours)
 
     # ...
 
@@ -384,7 +389,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             depth_cropped = depth_rotated[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
             depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration_data['z_range'][0],
                                                    self.calibration_data['z_range'][
-                                                       1])  # depth pixels outside of range are white, no data pixe;ls are black.
+                                                       1])  # depth pixels outside of range are white, no data pixels are black.
 
             self.cmap = matplotlib.colors.Colormap('viridis')
             self.cmap.set_bad('white', 800)
@@ -398,7 +403,9 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             fig.add_axes(ax)
             ax.pcolormesh(depth_masked, vmin=self.calibration_data['z_range'][0],
                           vmax=self.calibration_data['z_range'][1])
-            plt.contour(depth_masked, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
+            if self.contours is True: # draw contours
+                plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
+
             plt.savefig('current_frame.jpeg', pad_inches=0)
             plt.close(fig)
 
