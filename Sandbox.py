@@ -151,7 +151,7 @@ class Projector:
         self.html_text = None
         self.frame_file = None
         self.drawdate = "false"  # Boolean as string for html, only used for testing.
-        self.refresh = 250  # wait time in ms for html file to load image
+        self.refresh = 100  # wait time in ms for html file to load image
         self.input_rescale=True
         if resolution is None:
             resolution = (800, 600)

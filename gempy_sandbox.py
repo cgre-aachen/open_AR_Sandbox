@@ -32,8 +32,8 @@ class Model:
         self.lot = None
 
         self.contours = True
-        self.main_contours = numpy.arange(0, 2000, 50)
-        self.sub_contours = numpy.arange(0, 2000, 10)
+        self.main_contours = numpy.arange(0, 5000, 100)
+        self.sub_contours = numpy.arange(0, 5000, 25)
 
         self.scalar_contours = False
         self.scalar_main_contours = numpy.arange(0.0, 1.0, 0.1)
