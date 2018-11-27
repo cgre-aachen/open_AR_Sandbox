@@ -348,7 +348,8 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         self.n_contours = 20
         self.contour_levels = numpy.arange(self.calibration_data['z_range'][0],
                                            self.calibration_data['z_range'][1],
-                                           float(self.calibration_data['z_range'][1]-self.calibration_data['z_range'][0])/self.n_contours)
+                                           float(self.calibration_data['z_range'][1] - self.calibration_data['z_range'][
+                                               0]) / self.n_contours)
 
     # ...
 
@@ -403,7 +404,13 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             fig.add_axes(ax)
             ax.pcolormesh(depth_masked, vmin=self.calibration_data['z_range'][0],
                           vmax=self.calibration_data['z_range'][1])
+
             if self.contours is True: # draw contours
+                self.contour_levels = numpy.arange(self.calibration_data['z_range'][0],
+                                                   self.calibration_data['z_range'][1],
+                                                   float(self.calibration_data['z_range'][1] -
+                                                         self.calibration_data['z_range'][
+                                                             0]) / self.n_contours) # update contour levels
                 plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
 
             plt.savefig('current_frame.jpeg', pad_inches=0)
