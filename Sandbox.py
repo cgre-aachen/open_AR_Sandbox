@@ -159,7 +159,7 @@ class Projector:
             self.calibration = calibration
         else:
             self.calibration = Calibration(associated_projector=self)
-            print("calibration not provided or invalid. a new calibration was created:", self.calibration)
+            print("created new calibration:", self.calibration)
 
     def calibrate(self):
         self.calibration.create()
