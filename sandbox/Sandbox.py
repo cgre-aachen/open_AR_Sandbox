@@ -27,7 +27,6 @@ import matplotlib
 import IPython
 import threading
 
-
 class Kinect:  # add dummy
     _ids = count(0)
     _instances = []
@@ -44,7 +43,6 @@ class Kinect:  # add dummy
         self.n_frames = 3 #filter parameters
         self.sigma_gauss = 3
         self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
-
 
         if self.dummy == False:
             print("looking for kinect...")

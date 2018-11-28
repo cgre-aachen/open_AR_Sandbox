@@ -1,4 +1,3 @@
-import sys
 #sys.path.append('/home/miguel/PycharmProjects/gempy')
 import weakref
 import numpy
@@ -6,7 +5,7 @@ import scipy
 import gempy
 import matplotlib.pyplot as plt
 from itertools import count
-from Sandbox import Calibration
+from sandbox.Sandbox import Calibration
 import time
 
 #TODO: use Descriptors
