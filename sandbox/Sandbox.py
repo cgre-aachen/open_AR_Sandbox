@@ -273,40 +273,29 @@ class Projector:
 
     # TODO: threaded runloop exporting filtered and unfiltered depth
 
-    def draw_markers(self, coords,image=None):
-        """
-        Draw markers onto an image at the given coordinates
-        if image is a filename, the file will be overwritten. if image is an cv2 image object (numpy.ndarray), function will return an image object
-        :param image:
-        :param coords:
-        :return:
-        """
-        if image is None:
-            image=self.frame_file
-        if type(image) is str:
-            img = cv2.imread(image)
-        if type(image) is numpy.ndarray:
-            img=image
-        for point in coords:
-            cv2.circle(img, tuple(point), 6, (255, 255, 255), -1)
-        if type(image) is str:
-            cv2.imwrite(self.frame_file, img)
-        else:
-            return img
+class Calibration_Data:
+    def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
+                      legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
+                      hot_y_lim=(400,450)):
+        self.rot_angle = rot_angle
+        self.x_lim = x_lim
+        self.y_lim = y_lim
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.scale_factor = scale_factor
+        self.z_range = z_range
+        self.box_width = box_width
+        self.box_height = box_height
+        self.legend_area = legend_area
+        self.legend_x_lim = legend_x_lim
+        self.legend_y_lim = legend_y_lim
+        self.profile_area = profile_area
+        self.profile_x_lim = profile_x_lim
+        self.profile_y_lim = profile_y_lim
+        self.hot_area = hot_area
+        self.hot_x_lim = hot_x_lim
+        self.hot_y_lim = hot_y_lim
 
-    def draw_line(self, coords, image=None):  # takes list of exactly 2 coordinate pairs
-        if image is None:
-            image=self.frame_file
-        if type(image) is str:
-            img = cv2.imread(image)
-        if type(image) is numpy.ndarray:
-            img=image
-        lineThickness = 2
-        cv2.line(img, tuple(coords[0]), tuple(coords[1]), (255, 255, 255), lineThickness)
-        if type(image) is str:
-            cv2.imwrite(self.frame_file, img)
-        else:
-            return img
 
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
@@ -322,26 +311,19 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         self.associated_projector = associated_projector
         self.projector_resolution = associated_projector.resolution
         self.associated_kinect = associated_kinect
-        self.calibration_file = "calibration" + str(self.id) + ".dat"
-        self.calibration_data = {'rot_angle': 0,  # TODO: refactor calibration_data as an inner class for type safety
-                                 'x_lim': (0, 640),
-                                 'y_lim': (0, 480),
-                                 'x_pos': 0,
-                                 'y_pos': 0,
-                                 'scale_factor': 1.0,
-                                 'z_range': (800, 1400),
-                                 'box_dim': (400, 300),
-                                 'legend_area': False,
-                                 'legend_x_lim': (self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
-                                 'legend_y_lim': (self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
-                                 'profile_area': False,
-                                 'profile_x_lim': (self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-                                 'profile_y_lim': (self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
-                                 'hot_area': False,
-                                 'hot_x_lim': (self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-                                 'hot_y_lim': (self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
-                                 }
+        if calibration_file is None:
+            self.calibration_file = "calibration" + str(self.id) + ".dat"
 
+        self.calibration_data = Calibration_Data(
+             legend_x_lim=(self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
+             legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
+             profile_area=False,
+             profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
+             profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
+             hot_area=False,
+             hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
+             hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
+                             )
         self.cmap = None
         self.contours = True
         self.n_contours = 20
@@ -357,24 +339,27 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             calibration_file = self.calibration_file
         try:
             self.calibration_data = pickle.load(open(calibration_file, 'rb'))
+            if not isinstance(self.calibration_data, Calibration_Data):
+                raise TypeError("loaded data is not a Calibration File object")
         except OSError:
             print("calibration data file not found")
 
+
     def save(self, calibration_file=None):
-        if calibration_file == None:
+        if calibration_file is None:
             calibration_file = self.calibration_file
         pickle.dump(self.calibration_data, open(calibration_file, 'wb'))
         print("calibration saved to " + str(calibration_file))
 
     def create(self):
-        if self.associated_projector == None:
+        if self.associated_projector is None:
             try:
                 self.associated_projector = Projector._instances[-1]
                 print("no associated projector specified, using last projector instance created")
             except:
                 print("Error: no Projector instance found.")
 
-        if self.associated_kinect == None:
+        if self.associated_kinect is None:
             try:
                 self.associated_kinect = Kinect._instances[-1]
                 print("no associated kinect specified, using last kinect instance created")
@@ -387,9 +372,8 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             depth = self.associated_kinect.get_frame()
             depth_rotated = scipy.ndimage.rotate(depth, rot_angle, reshape=False)
             depth_cropped = depth_rotated[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
-            depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration_data['z_range'][0],
-                                                   self.calibration_data['z_range'][
-                                                       1])  # depth pixels outside of range are white, no data pixels are black.
+            depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration_data.z_range[0],
+                                                   self.calibration_data.z_range[1])  # depth pixels outside of range are white, no data pixe;ls are black.
 
             self.cmap = matplotlib.colors.Colormap('viridis')
             self.cmap.set_bad('white', 800)
@@ -415,41 +399,41 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             plt.savefig('current_frame.jpeg', pad_inches=0)
             plt.close(fig)
 
-            self.calibration_data = {'rot_angle': rot_angle,
-                                     'x_lim': x_lim,
-                                     # TODO: refactor calibration_data as an inner class for type safety
-                                     'y_lim': y_lim,
-                                     'x_pos': x_pos,
-                                     'y_pos': y_pos,
-                                     'scale_factor': scale_factor,
-                                     'z_range': z_range,
-                                     'box_dim': (box_width, box_height),
-                                     'legend_area': legend_area,
-                                     'legend_x_lim': legend_x_lim,
-                                     'legend_y_lim': legend_y_lim,
-                                     'profile_area': profile_area,
-                                     'profile_x_lim': profile_x_lim,
-                                     'profile_y_lim': profile_y_lim,
-                                     'hot_area': hot_area,
-                                     'hot_x_lim': hot_x_lim,
-                                     'hot_y_lim': hot_y_lim
-                                     }
+            self.calibration_data(
+                                    rot_angle=rot_angle,
+                                    x_lim=x_lim,
+                                    y_lim=y_lim,
+                                    x_pos=x_pos,
+                                    y_pos=y_pos,
+                                    scale_factor=scale_factor,
+                                    z_range=z_range,
+                                    box_dim=(box_width, box_height),
+                                    legend_area=legend_area,
+                                    legend_x_lim=legend_x_lim,
+                                    legend_y_lim=legend_y_lim,
+                                    profile_area=profile_area,
+                                    profile_x_lim=profile_x_lim,
+                                    profile_y_lim=profile_y_lim,
+                                    hot_area=hot_area,
+                                    hot_x_lim=hot_x_lim,
+                                    hot_y_lim=hot_y_lim
+                                  )
 
-            if self.calibration_data['legend_area'] is not False:
+            if self.calibration_data.legend_area is not False:
                 legend = Image.new('RGB', (
-                self.calibration_data['legend_x_lim'][1] - self.calibration_data['legend_x_lim'][0],
-                self.calibration_data['legend_y_lim'][1] - self.calibration_data['legend_y_lim'][0]), color='white')
+                self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
+                self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
                 ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save('legend.jpeg')
-            if self.calibration_data['profile_area'] is not False:
+                legend.save('legend.png')
+            if self.calibration_data.profile_area is not False:
                 profile = Image.new('RGB', (
-                self.calibration_data['profile_x_lim'][1] - self.calibration_data['profile_x_lim'][0],
-                self.calibration_data['profile_y_lim'][1] - self.calibration_data['profile_y_lim'][0]), color='blue')
+                self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
+                self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
                 ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save('profile.jpeg')
-            if self.calibration_data['hot_area'] is not False:
-                hot = Image.new('RGB', (self.calibration_data['hot_x_lim'][1] - self.calibration_data['hot_x_lim'][0],
-                                        self.calibration_data['hot_y_lim'][1] - self.calibration_data['hot_y_lim'][0]),
+                profile.save('profile.png')
+            if self.calibration_data.hot_area is not False:
+                hot = Image.new('RGB', (self.calibration_data.hot_x_lim[1] - self.calibration_data.hot_x_lim[0],
+                                        self.calibration_data.hot_y_lim[1] - self.calibration_data.hot_y_lim[0]),
                                 color='red')
                 ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
                 hot.save('hot.jpeg')
@@ -459,82 +443,82 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
 
         calibration_widget = widgets.interactive(calibrate,
                                                  rot_angle=widgets.IntSlider(
-                                                     value=self.calibration_data['rot_angle'], min=-180, max=180,
+                                                     value=self.calibration_data.rot_angle, min=-180, max=180,
                                                      step=1, continuous_update=False),
                                                  x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['x_lim'][0],
-                                                            self.calibration_data['x_lim'][1]],
+                                                     value=[self.calibration_data.x_lim[0],
+                                                            self.calibration_data.x_lim[1]],
                                                      min=0, max=640, step=1, continuous_update=False),
                                                  y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['y_lim'][0],
-                                                            self.calibration_data['y_lim'][1]],
+                                                     value=[self.calibration_data.y_lim[0],
+                                                            self.calibration_data.y_lim[1]],
                                                      min=0, max=480, step=1, continuous_update=False),
-                                                 x_pos=widgets.IntSlider(value=self.calibration_data['x_pos'], min=0,
+                                                 x_pos=widgets.IntSlider(value=self.calibration_data.x_pos, min=0,
                                                                          max=self.projector_resolution[0]),
-                                                 y_pos=widgets.IntSlider(value=self.calibration_data['y_pos'], min=0,
+                                                 y_pos=widgets.IntSlider(value=self.calibration_data.y_pos, min=0,
                                                                          max=self.projector_resolution[1]),
                                                  scale_factor=widgets.FloatSlider(
-                                                     value=self.calibration_data['scale_factor'], min=0.1, max=4.0,
+                                                     value=self.calibration_data.scale_factor, min=0.1, max=4.0,
                                                      step=0.01, continuous_update=False),
                                                  z_range=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['z_range'][0],
-                                                            self.calibration_data['z_range'][1]],
+                                                     value=[self.calibration_data.z_range[0],
+                                                            self.calibration_data.z_range[1]],
                                                      min=500, max=2000, step=1, continuous_update=False),
-                                                 box_width=widgets.IntSlider(value=self.calibration_data['box_dim'][0],
+                                                 box_width=widgets.IntSlider(value=self.calibration_data.box_dim[0],
                                                                              min=0,
                                                                              max=2000, continuous_update=False),
-                                                 box_height=widgets.IntSlider(value=self.calibration_data['box_dim'][1],
+                                                 box_height=widgets.IntSlider(value=self.calibration_data.box_dim[1],
                                                                               min=0,
                                                                               max=2000, continuous_update=False),
                                                  legend_area=widgets.ToggleButton(
-                                                     value=self.calibration_data['legend_area'],
+                                                     value=self.calibration_data.legend_area,
                                                      description='display a legend',
                                                      disabled=False,
                                                      button_style='',  # 'success', 'info', 'warning', 'danger' or ''
                                                      tooltip='Description',
                                                      icon='check'),
                                                  legend_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['legend_x_lim'][0],
-                                                            self.calibration_data['legend_x_lim'][1]],
+                                                     value=[self.calibration_data.legend_x_lim[0],
+                                                            self.calibration_data.legend_x_lim[1]],
                                                      min=0, max=self.projector_resolution[0], step=1,
                                                      continuous_update=False),
                                                  legend_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['legend_y_lim'][0],
-                                                            self.calibration_data['legend_y_lim'][1]],
+                                                     value=[self.calibration_data.legend_y_lim[0],
+                                                            self.calibration_data.legend_y_lim[1]],
                                                      min=0, max=self.projector_resolution[1], step=1,
                                                      continuous_update=False),
                                                  profile_area=widgets.ToggleButton(
-                                                     value=self.calibration_data['profile_area'],
+                                                     value=self.calibration_data.profile_area,
                                                      description='display a profile area',
                                                      disabled=False,
                                                      button_style='',  # 'success', 'info', 'warning', 'danger' or ''
                                                      tooltip='Description',
                                                      icon='check'),
                                                  profile_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['profile_x_lim'][0],
-                                                            self.calibration_data['profile_x_lim'][1]],
+                                                     value=[self.calibration_data.profile_x_lim[0],
+                                                            self.calibration_data.profile_x_lim[1]],
                                                      min=0, max=self.projector_resolution[0], step=1,
                                                      continuous_update=False),
                                                  profile_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['profile_y_lim'][0],
-                                                            self.calibration_data['profile_y_lim'][1]],
+                                                     value=[self.calibration_data.profile_y_lim[0],
+                                                            self.calibration_data.profile_y_lim[1]],
                                                      min=0, max=self.projector_resolution[1], step=1,
                                                      continuous_update=False),
                                                  hot_area=widgets.ToggleButton(
-                                                     value=self.calibration_data['hot_area'],
+                                                     value=self.calibration_data.hot_area,
                                                      description='display a hot area for qr codes',
                                                      disabled=False,
                                                      button_style='',  # 'success', 'info', 'warning', 'danger' or ''
                                                      tooltip='Description',
                                                      icon='check'),
                                                  hot_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['hot_x_lim'][0],
-                                                            self.calibration_data['hot_x_lim'][1]],
+                                                     value=[self.calibration_data.hot_x_lim[0],
+                                                            self.calibration_data.hot_x_lim[1]],
                                                      min=0, max=self.projector_resolution[0], step=1,
                                                      continuous_update=False),
                                                  hot_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data['hot_y_lim'][0],
-                                                            self.calibration_data['hot_y_lim'][1]],
+                                                     value=[self.calibration_data.hot_y_lim[0],
+                                                            self.calibration_data.hot_y_lim[1]],
                                                      min=0, max=self.projector_resolution[1], step=1,
                                                      continuous_update=False),
                                                  close_click=widgets.ToggleButton(
