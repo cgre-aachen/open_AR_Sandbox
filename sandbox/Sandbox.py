@@ -27,7 +27,12 @@ import matplotlib
 import IPython
 import threading
 
+
 class Kinect:  # add dummy
+    '''
+    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
+    blurring to get smoother lines.
+    '''
     _ids = count(0)
     _instances = []
 
@@ -44,7 +49,7 @@ class Kinect:  # add dummy
         self.sigma_gauss = 3
         self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
 
-        if self.dummy == False:
+        if self.dummy is False:
             print("looking for kinect...")
             self.ctx = freenect.init()
             self.dev = freenect.open_device(self.ctx, self.id)
@@ -101,7 +106,6 @@ class Kinect:  # add dummy
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
             return self.depth
 
-
     def get_rgb_frame(self):
         if self.dummy == False:
             self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
@@ -123,8 +127,6 @@ class Kinect:  # add dummy
                   calibration.calibration_data['x_lim'][0]: calibration.calibration_data['x_lim'][1]]
         cropped = numpy.flipud(cropped)
         return cropped
-
-
 
 def Beamer(*args, **kwargs):
     warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
@@ -162,9 +164,6 @@ class Projector:
 
     def calibrate(self):
         self.calibration.create()
-
-
-
 
     def start_stream(self):
         # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
@@ -228,7 +227,6 @@ class Projector:
         self.html_file.close()
 
         webbrowser.open_new('file://' + str(os.path.join(self.work_directory, self.html_filename)))
-
 
     def show(self, input=None, legend_filename=None, profile_filename=None,
              hot_filename=None, rescale=None):
@@ -312,6 +310,9 @@ class Projector:
 
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
+    """
+    Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
+    """
     _ids = count(0)
     _instances = []
 
@@ -606,7 +607,6 @@ class Detector:
                 contour_coords.append([cX, cY])
         self.shapes=numpy.array(contour_coords)
 
-
     def where_circles(self, image, thresh_value=None):
         """Get the coordinates for all detected circles.
 
@@ -834,7 +834,6 @@ class Module:
         self.thread = threading.Thread(target=self.loop, daemon=None)
         self.thread.start()
         # with thread and thread lock move these to main sandbox
-
 
     def pause(self):
         self.lock.release()

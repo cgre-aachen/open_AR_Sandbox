@@ -13,7 +13,7 @@ class Model:
     _ids = count(0)
     _instances = []
 
-    def __init__(self, model: gempy.core.model.Model, extent=None, associated_calibration=None, xy_isometric=True, lock=None):
+    def __init__(self, model, extent=None, associated_calibration=None, xy_isometric=True, lock=None):
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
         self.xy_isometric = xy_isometric
@@ -185,9 +185,6 @@ class Model:
         t1=time.clock()
         if self.show_framerate is True:
             print("frame took "+str(t1-t0)+" s")
-
-
-
 
     def create_legend(self):
         # ...
