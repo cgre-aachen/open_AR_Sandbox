@@ -6,91 +6,37 @@ import gempy
 import matplotlib.pyplot as plt
 from itertools import count
 from sandbox.Sandbox import Calibration
-import time
 
-class scale:
-    def __init__(self, associated_calibration=None, xy_isometric=True):
-        if associated_calibration is None:
-            try:
-                self.associated_calibration = Calibration._instances[-1]
-                print("no calibration specified, using last calibration instance created: ",self.associated_calibration)
-            except:
-                print("ERROR: no calibration instance found. please create a calibration")
+#TODO: make calibrations a mandatory argument in ALL Classes!!!
+
+class Scale:
+    def __init__(self, associated_calibration=None, xy_isometric=True, extent=None):
+        if isinstance(associated_calibration, Calibration):
+            self.associated_calibration = associated_calibration
+        else:
+            print("you must pass a ")
         self.xy_isometric = xy_isometric
         self.scale = [None, None, None]
         self.pixel_size = [None, None]
         self.output_res = None
 
         if extent == None:  # extent should be array with shape (6,) or convert to list?
-            self.extent = self.model.grid.extent
+            self.extent = self.model.grid.extent # try, except: put scale to pixel scale of sandbox
 
         else:
             self.extent = extent  # check: array with 6 entries!
 
-
-
     def calculate_scales(self):
+        """
+        calculates the factors for the coordinates transformation kinect-extent
+        :return:
+        """
         self.output_res = (self.associated_calibration.calibration_data['x_lim'][1] -
                            self.associated_calibration.calibration_data['x_lim'][0],
                            self.associated_calibration.calibration_data['y_lim'][1] -
                            self.associated_calibration.calibration_data['y_lim'][0])
         self.pixel_size[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
         self.pixel_size[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
-
-
-class plot:
-    def __init__(self):
-        self.cmap = None
-        self.norm = None
-        self.lot = None
-
-        self.contours = True
-        self.main_contours = numpy.arange(0, 5000, 100)
-        self.sub_contours = numpy.arange(0, 5000, 25)
-
-        self.scalar_contours = False
-        self.scalar_main_contours = numpy.arange(0.0, 1.0, 0.1)
-        self.scalar_sub_contours = numpy.arange(0.0, 1.0, 0.02)
-
-        self.show_faults=True
-        self.fault_contours= numpy.arange(0.5, 50.5, 1.0)
-
-#TODO: use Descriptors
-class Model:
-    _ids = count(0)
-    _instances = []
-
-    def __init__(self, model, extent=None, associated_calibration=None, lock=None):
-        self.id = next(self._ids)
-        self.__class__._instances.append(weakref.proxy(self))
-
-
-        self.legend = True
-        self.model = model
-        gempy.compute_model(self.model)
-        self.empty_depth_grid = None
-        self.depth_grid = None
-
-
-
-
-        self.stop_threat = False
-        self.lock = lock
-        self.delay = 0.0
-        self.show_framerate = False
-
-        if associated_calibration is None:
-            try:
-                self.associated_calibration = Calibration._instances[-1]
-                print("no calibration specified, using last calibration instance created: ",self.associated_calibration)
-            except:
-                print("ERROR: no calibration instance found. please create a calibration")
-                # parameters from the model:
-        else:
-            self.associated_calibration = associated_calibration
-
-
-
 
         if self.xy_isometric == True:  # model is scaled to fit into box
             print("Aspect ratio of the model is fixed in XY")
@@ -104,13 +50,22 @@ class Model:
         self.scale[0] = self.pixel_size[0]
         self.scale[1] = self.pixel_size[1]
         self.scale[2] = float(self.extent[5] - self.extent[4]) / (
-                    self.associated_calibration.calibration_data['z_range'][1] -
-                    self.associated_calibration.calibration_data['z_range'][0])
+                self.associated_calibration.calibration_data['z_range'][1] -
+                self.associated_calibration.calibration_data['z_range'][0])
         print("scale in Model units/ mm (X,Y,Z): " + str(self.scale))
 
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
 
+class Grid:
+    def __init__(self, calibration=None, scale=None,):
+
+
+
     def create_empty_depth_grid(self):
+        """
+        sets up XY grid (Z is empty that is the name coming from)
+        :return:
+        """
         grid_list = []
         self.output_res = (self.associated_calibration.calibration_data['x_lim'][1] -
                            self.associated_calibration.calibration_data['x_lim'][0],
@@ -123,16 +78,16 @@ class Model:
         empty_depth_grid = numpy.array(grid_list)
         self.empty_depth_grid = empty_depth_grid
 
-    # return self.empty_depth_grid
+        # return self.empty_depth_grid
 
     def update_grid(self, depth):
-        depth=numpy.fliplr(depth) ##dirty workaround to get the it running with new gempy version.
+        depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.associated_calibration.calibration_data['z_range'][0],
                                                  self.associated_calibration.calibration_data['z_range'][1])
         scaled_depth = self.extent[5] - (
-                    (filtered_depth - self.associated_calibration.calibration_data['z_range'][0]) / (
-                        self.associated_calibration.calibration_data['z_range'][1] -
-                        self.associated_calibration.calibration_data['z_range'][0]) * (self.extent[5] - self.extent[4]))
+                (filtered_depth - self.associated_calibration.calibration_data['z_range'][0]) / (
+                self.associated_calibration.calibration_data['z_range'][1] -
+                self.associated_calibration.calibration_data['z_range'][0]) * (self.extent[5] - self.extent[4]))
         rotated_depth = scipy.ndimage.rotate(scaled_depth, self.associated_calibration.calibration_data['rot_angle'],
                                              reshape=False)
         cropped_depth = rotated_depth[self.associated_calibration.calibration_data['y_lim'][0]:
@@ -142,30 +97,39 @@ class Model:
 
         flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
         depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
-      #  depth_grid = numpy.fliplr(depth_grid)  ##dirty workaround to get the it running with new gempy version. did not work
+
         self.depth_grid = depth_grid
 
 
+class Plot:
+    def __init__(self ,cmap = None, norm = None, lot = None):
+        self.cmap = cmap
+        self.norm = norm
+        self.lot = lot
+
+        self.contours = True
+        self.main_contours = numpy.arange(0, 5000, 100)
+        self.sub_contours = numpy.arange(0, 5000, 25)
+
+        self.scalar_contours = False
+        self.scalar_main_contours = numpy.arange(0.0, 1.0, 0.1)
+        self.scalar_sub_contours = numpy.arange(0.0, 1.0, 0.02)
+
+        self.show_faults = True
+        self.fault_contours = numpy.arange(0.5, 50.5, 1.0)
+
     def set_cmap(self, cmap=None, norm=None):
         if cmap is None:
-            #plotter = gempy.PlotData2D(self.model._geo_data)
-            self.cmap = gempy.plot.cmap#plotter._cmap
+            # plotter = gempy.PlotData2D(self.model._geo_data)
+            self.cmap = gempy.plot.cmap  # plotter._cmap
         if norm is None:
-            self.norm = gempy.plot.norm#plotter._norm
-            self.lot = gempy.plot.color_lot#plotter._color_lot
+            self.norm = gempy.plot.norm  # plotter._norm
+            self.lot = gempy.plot.color_lot  # plotter._color_lot
 
     def render_frame(self, depth, outfile=None):
-        t0=time.clock()
         self.update_grid(depth)
-        if self.cmap is None:
-            self.set_cmap()
-        if self.lock is not None:
-            self.lock.acquire()
-            sol = gempy.compute_model_at(self.depth_grid, self.model)
-            #lith_block, fault_block =
-            self.lock.release()
-        else:
-            sol = gempy.compute_model_at(self.depth_grid, self.model)
+
+        sol = gempy.compute_model_at(self.depth_grid, self.model)
         scalar_field = sol.scalar_field_lith.reshape((self.output_res[1], self.output_res[0]))
         block = sol.lith_block.reshape((self.output_res[1], self.output_res[0]))
         h = self.associated_calibration.calibration_data['scale_factor'] * (self.output_res[1]) / 100.0
@@ -194,9 +158,11 @@ class Model:
             x = range(self.output_res[0])
             y = range(self.output_res[1])
             z = scalar_field
-            sub_contours = plt.contour(x, y, z, levels=self.scalar_sub_contours, linewidths=0.5, colors=[(0, 0, 0, 0.8)])
-            main_contours = plt.contour(x, y, z, levels=self.scalar_main_contours, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
-           # plt.contour(lith_block[1].reshape((self.output_res[1], self.output_res[0])) levels=main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
+            sub_contours = plt.contour(x, y, z, levels=self.scalar_sub_contours, linewidths=0.5,
+                                       colors=[(0, 0, 0, 0.8)])
+            main_contours = plt.contour(x, y, z, levels=self.scalar_main_contours, linewidths=1.0,
+                                        colors=[(0, 0, 0, 1.0)])
+            # plt.contour(lith_block[1].reshape((self.output_res[1], self.output_res[0])) levels=main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
 
         if outfile == None:
@@ -205,13 +171,41 @@ class Model:
         else:
             plt.savefig(outfile, pad_inches=0)
             plt.close(fig)
-        t1=time.clock()
-        if self.show_framerate is True:
-            print("frame took "+str(t1-t0)+" s")
+
 
     def create_legend(self):
         # ...
         pass
+
+
+#TODO: use Descriptors
+class Model:
+    _ids = count(0)
+    _instances = []
+
+    def __init__(self, model, associated_calibration=None, lock=None):
+        self.id = next(self._ids)
+        self.__class__._instances.append(weakref.proxy(self))
+
+        self.legend = True
+        self.model = model
+        gempy.compute_model(self.model)
+        self.empty_depth_grid = None
+        self.depth_grid = None
+
+        self.stop_threat = False
+        self.lock = lock
+
+        if associated_calibration is None:
+            try:
+                self.associated_calibration = Calibration._instances[-1]
+                print("no calibration specified, using last calibration instance created: ",self.associated_calibration)
+            except:
+                print("ERROR: no calibration instance found. please create a calibration")
+                # parameters from the model:
+        else:
+            self.associated_calibration = associated_calibration
+
 
     def setup(self, start_stream=False):
         if start_stream == True:
