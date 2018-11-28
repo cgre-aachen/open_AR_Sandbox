@@ -826,7 +826,7 @@ class Module:
             depth = self.kinect.get_filtered_frame()
             with self.lock:
                 self.module.render_frame(depth, outfile="current_frame.jpeg")
-            self.projector.show()
+                self.projector.show()
             
     def run(self):
         self.stop_thread = False
