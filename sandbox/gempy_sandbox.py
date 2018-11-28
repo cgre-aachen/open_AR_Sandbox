@@ -8,7 +8,7 @@ from itertools import count
 from sandbox.Sandbox import Calibration
 import time
 
-#TODO: use Descriptors
+#TODO: use Descriptors h
 class Model:
     _ids = count(0)
     _instances = []
@@ -55,13 +55,18 @@ class Model:
                 # parameters from the model:
         else:
             self.associated_calibration = associated_calibration
-        if extent == None:  # extent should be array with shape (6,) or convert to list?
+
+        if extent is None:  # extent should be array with shape (6,) or convert to list?
             self.extent = self.model.grid.extent
 
         else:
             self.extent = extent  # check: array with 6 entries!
 
     def calculate_scales(self):
+        """
+        calculates the factors for the coordinates transformation kinect-extent
+        :return:
+        """
         self.output_res = (self.associated_calibration.calibration_data['x_lim'][1] -
                            self.associated_calibration.calibration_data['x_lim'][0],
                            self.associated_calibration.calibration_data['y_lim'][1] -
@@ -88,6 +93,10 @@ class Model:
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
 
     def create_empty_depth_grid(self):
+        """
+        sets up XY grid (Z is empty that is the name coming from)
+        :return:
+        """
         grid_list = []
         self.output_res = (self.associated_calibration.calibration_data['x_lim'][1] -
                            self.associated_calibration.calibration_data['x_lim'][0],
@@ -103,6 +112,11 @@ class Model:
     # return self.empty_depth_grid
 
     def update_grid(self, depth):
+        """
+        Here we set up the new Z transformed to the new_extent domain and update depth_grid
+        :param depth:
+        :return:
+        """
         depth=numpy.fliplr(depth) ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.associated_calibration.calibration_data['z_range'][0],
                                                  self.associated_calibration.calibration_data['z_range'][1])
@@ -110,8 +124,10 @@ class Model:
                     (filtered_depth - self.associated_calibration.calibration_data['z_range'][0]) / (
                         self.associated_calibration.calibration_data['z_range'][1] -
                         self.associated_calibration.calibration_data['z_range'][0]) * (self.extent[5] - self.extent[4]))
+
         rotated_depth = scipy.ndimage.rotate(scaled_depth, self.associated_calibration.calibration_data['rot_angle'],
                                              reshape=False)
+
         cropped_depth = rotated_depth[self.associated_calibration.calibration_data['y_lim'][0]:
                                       self.associated_calibration.calibration_data['y_lim'][1],
                         self.associated_calibration.calibration_data['x_lim'][0]:
@@ -121,7 +137,6 @@ class Model:
         depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
       #  depth_grid = numpy.fliplr(depth_grid)  ##dirty workaround to get the it running with new gempy version. did not work
         self.depth_grid = depth_grid
-
 
     def set_cmap(self, cmap=None, norm=None):
         if cmap is None:

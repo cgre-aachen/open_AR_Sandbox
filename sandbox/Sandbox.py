@@ -823,14 +823,15 @@ class Module:
 
     def loop(self):
         while self.stop_thread is False:
-            depth=self.kinect.get_filtered_frame()
-            self.module.render_frame(depth, outfile="current_frame.jpeg")
+            depth = self.kinect.get_filtered_frame()
+            with self.lock:
+                self.module.render_frame(depth, outfile="current_frame.jpeg")
             self.projector.show()
             
     def run(self):
         self.stop_thread = False
         self.module.setup()
-        self.lock.acquire()
+      #  self.lock.acquire()
         self.thread = threading.Thread(target=self.loop, daemon=None)
         self.thread.start()
         # with thread and thread lock move these to main sandbox
