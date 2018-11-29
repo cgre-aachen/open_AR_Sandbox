@@ -643,11 +643,9 @@ class Grid:
 
         self.depth_grid = depth_grid
 
+
 class Contour:
-    def __init__(self, x,y,z, start, end,step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)]):
-        self.x = x
-        self.y = y
-        self.z = z
+    def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)]):
         self.start = start
         self.end = end
         self.step = step
@@ -655,14 +653,12 @@ class Contour:
         self.show_labels = show_labels
         self.linewidth = linewidth
         self.colors = colors
+        self.levels = numpy.arange(self.start, self.end, self.step)
         self.contours = None
+        self.data = None #Data has to be updated for each frame
 
 
-    def add_contours(self):
-        if self.show is True:
-            self.contours=plt.contour(self.x, self.y, sewlf.z, levels=self.sub_contours, linewidths=self.linewidth, colors=self.colors)
-            if self.show_labels is True:
-                plt.clabel(self.contours,inline=0, fontsize=15, fmt='%3.0f')
+
 
 
 class Plot:
@@ -670,12 +666,12 @@ class Plot:
     handles the plotting of a sandbox model
     add contours by providing a list of contour objects
     """
-    def __init__(self, rasterdata=None, calibration=None, cmap=None, norm=None, lot=None, contours=None, outfile=None):
+    def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, contours=[], outfile=None):
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
             raise TypeError("you must pass a valid calibration instance")
-        self.rasterdata=rasterdata
+
         self.cmap = cmap
         self.norm = norm
         self.lot = lot
@@ -686,22 +682,32 @@ class Plot:
             self.calibration.calibration_data.y_lim[1] -
             self.calibration.calibration_data.y_lim[0]
                            )
-        self.block = self.rasterdata.reshape((self.output_res[1], self.output_res[0]))
+
         self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
         self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
+        self.fig = None
+        self.ax = None
 
-        self.fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
+        self.outfile = outfile
+
+    def add_contours(self, contour, data):
+        if contour.show is True:
+            contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
+                                           linewidths=contour.linewidth, colors=contour.colors)
+            if contour.show_labels is True:
+                self.ax.clabel(contour.contours, inline=0, fontsize=15, fmt='%3.0f')
+
+    def render_frame(self, rasterdata):
+        self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
         self.ax.set_axis_off()
         self.fig.add_axes(self.ax)
-        self.outfile = outfile
 
-    def render_frame(self):
+        self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
         self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
         for contour in self.contours:
-            contour.add_contours()
-
+            self.add_contours(contour, data)
 
         if self.outfile is None:
             plt.show()
