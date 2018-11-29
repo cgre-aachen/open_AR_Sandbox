@@ -295,6 +295,7 @@ class Calibration_Data:
         self.hot_area = hot_area
         self.hot_x_lim = hot_x_lim
         self.hot_y_lim = hot_y_lim
+        self.box_dim=(self.box_width, self.box_height)
 
 
 
