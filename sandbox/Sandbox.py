@@ -122,9 +122,9 @@ class Kinect:  # add dummy
                 print("using last calibration instance created: ",calibration)
             except:
                 print("no calibration found")
-        rotated = scipy.ndimage.rotate(frame, calibration.calibration_data['rot_angle'], reshape=False)
-        cropped = rotated[calibration.calibration_data['y_lim'][0]: calibration.calibration_data['y_lim'][1],
-                  calibration.calibration_data['x_lim'][0]: calibration.calibration_data['x_lim'][1]]
+        rotated = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
+        cropped = rotated[calibration.calibration_data.y_lim[0]: calibration.calibration_data.y_lim[1],
+                  calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
         cropped = numpy.flipud(cropped)
         return cropped
 
@@ -246,25 +246,25 @@ class Projector:
         frame = Image.open(input)
 
         if rescale is True:
-            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data['scale_factor']),
-                                              int(frame.height * self.calibration.calibration_data['scale_factor']))),
+            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data.scale_factor),
+                                              int(frame.height * self.calibration.calibration_data.scale_factor))),
                                 (
-                                self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
+                                self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
         else:
-            projector_output.paste(frame, (self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
+            projector_output.paste(frame, (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
 
-        if self.calibration.calibration_data['legend_area'] is not False:
+        if self.calibration.calibration_data.legend_area is not False:
             legend = Image.open(legend_filename)
             projector_output.paste(legend, (
-            self.calibration.calibration_data['legend_x_lim'][0], self.calibration.calibration_data['legend_y_lim'][0]))
-        if self.calibration.calibration_data['profile_area'] is not False:
+            self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
+        if self.calibration.calibration_data.profile_area is not False:
             profile = Image.open(profile_filename)
-            projector_output.paste(profile, (self.calibration.calibration_data['profile_x_lim'][0],
-                                          self.calibration.calibration_data['profile_y_lim'][0]))
-        if self.calibration.calibration_data['hot_area'] is not False:
+            projector_output.paste(profile, (self.calibration.calibration_data.profile_x_lim[0],
+                                          self.calibration.calibration_data.profile_y_lim[0]))
+        if self.calibration.calibration_data.hot_area is not False:
             hot = Image.open(hot_filename)
             projector_output.paste(hot, (
-            self.calibration.calibration_data['hot_x_lim'][0], self.calibration.calibration_data['hot_y_lim'][0]))
+            self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
 
         projector_output.save('output_temp.jpeg')
         os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
@@ -305,7 +305,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     _ids = count(0)
     _instances = []
 
-    def __init__(self, associated_projector=None, associated_kinect=None):
+    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None):
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
         self.associated_projector = associated_projector
@@ -327,10 +327,9 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         self.cmap = None
         self.contours = True
         self.n_contours = 20
-        self.contour_levels = numpy.arange(self.calibration_data['z_range'][0],
-                                           self.calibration_data['z_range'][1],
-                                           float(self.calibration_data['z_range'][1] - self.calibration_data['z_range'][
-                                               0]) / self.n_contours)
+        self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
+                                           self.calibration_data.z_range[1],
+                                           float(self.calibration_data.z_range[1] - self.calibration_data.z_range[0]) / self.n_contours)
 
     # ...
 
@@ -385,14 +384,14 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             ax = plt.Axes(fig, [0., 0., 1., 1.])
             ax.set_axis_off()
             fig.add_axes(ax)
-            ax.pcolormesh(depth_masked, vmin=self.calibration_data['z_range'][0],
-                          vmax=self.calibration_data['z_range'][1])
+            ax.pcolormesh(depth_masked, vmin=self.calibration_data.z_range[0],
+                          vmax=self.calibration_data.z_range[1])
 
             if self.contours is True: # draw contours
-                self.contour_levels = numpy.arange(self.calibration_data['z_range'][0],
-                                                   self.calibration_data['z_range'][1],
-                                                   float(self.calibration_data['z_range'][1] -
-                                                         self.calibration_data['z_range'][
+                self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
+                                                   self.calibration_data.z_range[1],
+                                                   float(self.calibration_data.z_range[1] -
+                                                         self.calibration_data.z_range[
                                                              0]) / self.n_contours) # update contour levels
                 plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
 
@@ -733,17 +732,17 @@ class Terrain:
         pass
 
     def render_frame(self,depth):
-        depth_rotated = scipy.ndimage.rotate(depth, self.calibration.calibration_data['rot_angle'], reshape=False)
-        depth_cropped = depth_rotated[self.calibration.calibration_data['y_lim'][0]:self.calibration.calibration_data['y_lim'][1],
-                        self.calibration.calibration_data['x_lim'][0]:self.calibration.calibration_data['x_lim'][1]]
-        depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration.calibration_data['z_range'][0],
-                                               self.calibration.calibration_data['z_range'][
+        depth_rotated = scipy.ndimage.rotate(depth, self.calibration.calibration_data.rot_angle, reshape=False)
+        depth_cropped = depth_rotated[self.calibration.calibration_data.y_lim[0]:self.calibration.calibration_data.y_lim[1],
+                        self.calibration.calibration_data.x_lim[0]:self.calibration.calibration_data.x_lim[1]]
+        depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration.calibration_data.z_range[0],
+                                               self.calibration.calibration_data.z_range[
                                                    1])  # depth pixels outside of range are white, no data pixe;ls are black.
 
-        h = self.calibration.calibration_data['scale_factor'] * (
-                    self.calibration.calibration_data['y_lim'][1] - self.calibration.calibration_data['y_lim'][0]) / 100.0
-        w = self.calibration.calibration_data['scale_factor'] * (
-                self.calibration.calibration_data['x_lim'][1] - self.calibration.calibration_data['x_lim'][0]) / 100.0
+        h = self.calibration.calibration_data.scale_factor * (
+                    self.calibration.calibration_data.y_lim[1] - self.calibration.calibration_data.y_lim[0]) / 100.0
+        w = self.calibration.calibration_data.scale_factor * (
+                self.calibration.calibration_data.x_lim[1] - self.calibration.calibration_data.x_lim[0]) / 100.0
 
         fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -756,8 +755,8 @@ class Terrain:
             sub_contours = plt.contour(x, y, z, levels=self.sub_levels, linewidths=0.5, colors=[(0, 0, 0, 0.8)])
             main_contours = plt.contour(x, y, z, levels=self.main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
-        ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data['z_range'][0],
-                      vmax=self.calibration.calibration_data['z_range'][1], cmap=self.cmap)
+        ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data.z_range[0],
+                      vmax=self.calibration.calibration_data.z_range[1], cmap=self.cmap)
         plt.savefig('current_frame.jpeg', pad_inches=0)
         plt.close(fig)
 
@@ -836,9 +835,9 @@ class Module:
 def detect_shapes(kinect, model, calibration, frame=None):
     if frame is None:
         frame = kinect.get_RGB_frame()
-    rotated_frame = scipy.ndimage.rotate(frame, calibration.calibration_data['rot_angle'], reshape=False)
-    cropped_frame = rotated_frame[calibration.calibration_data['y_lim'][0]:calibration.calibration_data['y_lim'][1],
-                    calibration.calibration_data['x_lim'][0]:calibration.calibration_data['x_lim'][1]]
+    rotated_frame = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
+    cropped_frame = rotated_frame[calibration.calibration_data.y_lim[0]:calibration.calibration_data.y_lim[1],
+                    calibration.calibration_data.x_lim[0]:calibration.calibration_data.x_lim[1]]
     squares, circles = Detector.get_shape_coords(cropped_frame)
 
     for square in squares:
@@ -890,15 +889,15 @@ def run():
         block=lith_block[0]
         print(block)
         plot_block = block.reshape(plotter._data.resolution[0], plotter._data.resolution[1], plotter._data.resolution[2])
-        #plot_block = block.reshape((self.associated_calibration.calibration_data['x_lim'][1] - self.associated_calibration.calibration_data['x_lim'][0],self.associated_calibration.calibration_data['y_lim'][1] - self.associated_calibration.calibration_data['y_lim'][0], 1)) ##check ihere first when sequence is wrong
+        #plot_block = block.reshape((self.associated_calibration.calibration_data.x_lim[1] - self.associated_calibration.calibration_data.x_lim[0],self.associated_calibration.calibration_data.y_lim[1] - self.associated_calibration.calibration_data.y_lim[0], 1)) ##check ihere first when sequence is wrong
         print(numpy.shape(plot_block))
         _a, _b, _c, extent_val, x, y = plotter._slice(direction, cell_number)[:-2]
 
 
-        h = (self.associated_calibration.calibration_data['y_lim'][1] -
-             self.associated_calibration.calibration_data['y_lim'][0]) / 100.0
-        w = (self.associated_calibration.calibration_data['x_lim'][1] -
-             self.associated_calibration.calibration_data['x_lim'][0]) / 100.0
+        h = (self.associated_calibration.calibration_data.y_lim[1] -
+             self.associated_calibration.calibration_data.y_lim[0]) / 100.0
+        w = (self.associated_calibration.calibration_data.x_lim[1] -
+             self.associated_calibration.calibration_data.x_lim[0]) / 100.0
         print(h,w)
         fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
