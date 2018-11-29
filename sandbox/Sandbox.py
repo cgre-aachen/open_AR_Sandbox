@@ -596,7 +596,7 @@ class Grid:
         else:
             raise TypeError("you must pass a valid calibration instance")
         if isinstance(scale, Scale):
-            self.scale= scale
+            self.scale = scale
         else:
             self.scale = Scale(calibration=self.calibration)
             print("no scale provided or scale invalid. A default scale instance is used")
@@ -615,10 +615,11 @@ class Grid:
                            self.calibration.calibration_data.y_lim[0])
         for x in range(self.output_res[1]):
             for y in range(self.output_res[0]):
-                grid_list.append([y * self.pixel_size[1] + self.extent[2], x * self.pixel_size[0] + self.extent[0]])
+                grid_list.append([y * self.scale.pixel_size[1] + self.scale.extent[2], x * self.scale.pixel_size[0] + self.scale.extent[0]])
 
         empty_depth_grid = numpy.array(grid_list)
         self.empty_depth_grid = empty_depth_grid
+        self.depth_grid = None #I know, this should have thew right type.. anyway.
 
         # return self.empty_depth_grid
 
@@ -626,10 +627,10 @@ class Grid:
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data.z_range[0],
                                                  self.calibration.calibration_data.z_range[1])
-        scaled_depth = self.extent[5] - (
+        scaled_depth = self.scale.extent[5] - (
                 (filtered_depth - self.calibration.calibration_data.z_range[0]) / (
                 self.calibration.calibration_data.z_range[1] -
-                self.calibration.calibration_data.z_range[0]) * (self.extent[5] - self.extent[4]))
+                self.calibration.calibration_data.z_range[0]) * (self.scale.extent[5] - self.scale.extent[4]))
         rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
                                              reshape=False)
         cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
