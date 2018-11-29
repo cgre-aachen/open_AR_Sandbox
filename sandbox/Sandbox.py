@@ -547,12 +547,12 @@ class Scale:
 
         if extent is None:  # extent should be array with shape (6,) or convert to list?
             self.extent = numpy.asarray([
-                self.calibration.calibration_data['x_lim'][0],
-                self.calibration.calibration_data['x_lim'][1],
-                self.calibration.calibration_data['y_lim'][0],
-                self.calibration.calibration_data['y_lim'][1],
-                self.calibration.calibration_data['z_range'][0],
-                self.calibration.calibration_data['x_range'][1],
+                self.calibration.calibration_data.x_lim[0],
+                self.calibration.calibration_data.x_lim[1],
+                self.calibration.calibration_data.y_lim[0],
+                self.calibration.calibration_data.y_lim[1],
+                self.calibration.calibration_data.z_range[0],
+                self.calibration.calibration_data.x_range[1],
                 ])
 
         else:
@@ -563,10 +563,10 @@ class Scale:
         calculates the factors for the coordinates transformation kinect-extent
         :return:
         """
-        self.output_res = (self.calibration.calibration_data['x_lim'][1] -
-                           self.calibration.calibration_data['x_lim'][0],
-                           self.calibration.calibration_data['y_lim'][1] -
-                           self.calibration.calibration_data['y_lim'][0])
+        self.output_res = (self.calibration.calibration_data.x_lim[1] -
+                           self.calibration.calibration_data.x_lim[0],
+                           self.calibration.calibration_data.y_lim[1] -
+                           self.calibration.calibration_data.y_lim[0])
         self.pixel_size[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
         self.pixel_size[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
 
@@ -582,8 +582,8 @@ class Scale:
         self.scale[0] = self.pixel_size[0]
         self.scale[1] = self.pixel_size[1]
         self.scale[2] = float(self.extent[5] - self.extent[4]) / (
-                self.calibration.calibration_data['z_range'][1] -
-                self.calibration.calibration_data['z_range'][0])
+                self.calibration.calibration_data.z_range[1] -
+                self.calibration.calibration_data.z_range[0])
         print("scale in Model units/ mm (X,Y,Z): " + str(self.scale))
 
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
@@ -609,10 +609,10 @@ class Grid:
         :return:
         """
         grid_list = []
-        self.output_res = (self.calibration.calibration_data['x_lim'][1] -
-                           self.calibration.calibration_data['x_lim'][0],
-                           self.calibration.calibration_data['y_lim'][1] -
-                           self.calibration.calibration_data['y_lim'][0])
+        self.output_res = (self.calibration.calibration_data.x_lim[1] -
+                           self.calibration.calibration_data.x_lim[0],
+                           self.calibration.calibration_data.y_lim[1] -
+                           self.calibration.calibration_data.y_lim[0])
         for x in range(self.output_res[1]):
             for y in range(self.output_res[0]):
                 grid_list.append([y * self.pixel_size[1] + self.extent[2], x * self.pixel_size[0] + self.extent[0]])
@@ -624,18 +624,18 @@ class Grid:
 
     def update_grid(self, depth):
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
-        filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data['z_range'][0],
-                                                 self.calibration.calibration_data['z_range'][1])
+        filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data.z_range[0],
+                                                 self.calibration.calibration_data.z_range[1])
         scaled_depth = self.extent[5] - (
-                (filtered_depth - self.calibration.calibration_data['z_range'][0]) / (
-                self.calibration.calibration_data['z_range'][1] -
-                self.calibration.calibration_data['z_range'][0]) * (self.extent[5] - self.extent[4]))
-        rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data['rot_angle'],
+                (filtered_depth - self.calibration.calibration_data.z_range[0]) / (
+                self.calibration.calibration_data.z_range[1] -
+                self.calibration.calibration_data.z_range[0]) * (self.extent[5] - self.extent[4]))
+        rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
                                              reshape=False)
-        cropped_depth = rotated_depth[self.calibration.calibration_data['y_lim'][0]:
-                                      self.calibration.calibration_data['y_lim'][1],
-                        self.calibration.calibration_data['x_lim'][0]:
-                        self.calibration.calibration_data['x_lim'][1]]
+        cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
+                                      self.calibration.calibration_data.y_lim[1],
+                        self.calibration.calibration_data.x_lim[0]:
+                        self.calibration.calibration_data.x_lim[1]]
 
         flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
         depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
@@ -680,14 +680,14 @@ class Plot:
         self.lot = lot
         self.contours=contours
         self.output_res = (
-            self.calibration.calibration_data['x_lim'][1] -
-            self.calibration.calibration_data['x_lim'][0],
-            self.calibration.calibration_data['y_lim'][1] -
-            self.calibration.calibration_data['y_lim'][0]
+            self.calibration.calibration_data.x_lim[1] -
+            self.calibration.calibration_data.x_lim[0],
+            self.calibration.calibration_data.y_lim[1] -
+            self.calibration.calibration_data.y_lim[0]
                            )
         self.block = self.rasterdata.reshape((self.output_res[1], self.output_res[0]))
-        self.h = self.calibration.calibration_data['scale_factor'] * (self.output_res[1]) / 100.0
-        self.w = self.calibration.calibration_data['scale_factor'] * (self.output_res[0]) / 100.0
+        self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
+        self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
 
         self.fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
