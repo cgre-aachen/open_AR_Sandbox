@@ -535,6 +535,9 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         IPython.display.display(calibration_widget)
 
 class Scale:
+    """
+    class that handles the scaling of whatever the sandbox shows and the real world sandbox
+    """
     def __init__(self, calibration=None, xy_isometric=True, extent=None):
         if isinstance(calibration, Calibration):
             self.calibration = calibration
@@ -590,6 +593,9 @@ class Scale:
 
 
 class Grid:
+    """
+    class for grid objects. a grid stores the 3D coordinate of each pixel recorded by the kinect in model coordinates
+    """
     def __init__(self, calibration=None, scale=None,):
         if isinstance(calibration, Calibration):
             self.calibration = calibration
@@ -624,6 +630,14 @@ class Grid:
         # return self.empty_depth_grid
 
     def update_grid(self, depth):
+        """
+        appends the z (depth) coordinate to the empty depth grid. 
+        this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed. 
+        For performance reasons these steps are therefore separated. 
+         
+        :param depth: 
+        :return: 
+        """
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data.z_range[0],
                                                  self.calibration.calibration_data.z_range[1])
@@ -644,8 +658,13 @@ class Grid:
         self.depth_grid = depth_grid
 
 
-class Contour:
-    def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)]):
+class Contour: #TODO: change the whole thing to use keyword arguments!!
+    """
+    class to handle contour lines in the sandbox. contours can shpow depth or anything else.
+    TODO: pass on keyword arguments to the plot and label functions for more flexibility
+
+    """
+    def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)], inline=0, fontsize=15, label_format='%3.0f'):
         self.start = start
         self.end = end
         self.step = step
@@ -657,6 +676,11 @@ class Contour:
         self.contours = None
         self.data = None #Data has to be updated for each frame
 
+        # label arttributes:
+        self.inline = inline
+        self.fontsize = fontsize
+        self.label_format = label_format
+
 
 
 
@@ -666,7 +690,7 @@ class Plot:
     handles the plotting of a sandbox model
     add contours by providing a list of contour objects
     """
-    def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, contours=[], outfile=None):
+    def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, outfile=None):
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
@@ -675,7 +699,6 @@ class Plot:
         self.cmap = cmap
         self.norm = norm
         self.lot = lot
-        self.contours=contours
         self.output_res = (
             self.calibration.calibration_data.x_lim[1] -
             self.calibration.calibration_data.x_lim[0],
@@ -691,11 +714,27 @@ class Plot:
         self.outfile = outfile
 
     def add_contours(self, contour, data):
+        """
+        renders contours to the current plot object. \
+        The data has to come in a specific shape as needed by the matplotlib contour function.
+        we explicity enforce to provide X and Y at this stage (you are welcome to change this)
+
+        Args:
+            contour: a contour instance
+            data:  a list with the form x,y,z
+                x: list of the coordinates in x direction (e.g. range(Scale.output_res[0])
+                y: list of the coordinates in y direction (e.g. range(Scale.output_res[1])
+                z: 2D array-like with the values to be contoured
+
+        Returns:
+
+        """
+
         if contour.show is True:
             contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
                                            linewidths=contour.linewidth, colors=contour.colors)
             if contour.show_labels is True:
-                self.ax.clabel(contour.contours, inline=0, fontsize=15, fmt='%3.0f')
+                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize, fmt=contour.label_format)
 
     def render_frame(self, rasterdata):
         self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
@@ -706,16 +745,29 @@ class Plot:
         self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
         self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
-        for contour in self.contours:
-            self.add_contours(contour, data)
+#        for contour in self.contours:
+#            self.add_contours(contour, data)
 
-        if self.outfile is None:
-            plt.show()
-            plt.close()
-        else:
-            plt.savefig(self.outfile, pad_inches=0)
-            plt.close(self.fig)
+#        if self.outfile is None:
+#            plt.show(self.)
+#            plt.close()
+#        else:
+#            plt.savefig(self.outfile, pad_inches=0)
+#            plt.close(self.fig)
 
+    def save(self, outfile=None):
+        if outfile is None:
+            if self.outfile is None:
+                print("no outfile provided")
+                plt.show(self.fig)
+                plt.close()
+                pass
+            else:
+                outfile = self.outfile
+
+        self.outfile = outfile
+        self.fig.savefig (self.outfile, pad_inches=0)
+        plt.close(self.fig)
 
     def create_legend(self):
         # ...

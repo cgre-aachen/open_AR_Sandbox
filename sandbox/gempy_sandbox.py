@@ -117,7 +117,7 @@ class Model:
         :param depth:
         :return:
         """
-        depth=numpy.fliplr(depth) ##dirty workaround to get the it running with new gempy version.
+        depth = numpy.fliplr(depth) ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.associated_calibration.calibration_data['z_range'][0],
                                                  self.associated_calibration.calibration_data['z_range'][1])
         scaled_depth = self.extent[5] - (
@@ -222,75 +222,9 @@ class Model:
             converted_coords.append([x, y])
         return converted_coords
 
-    #### from hackathon:
-    def get_arbitrary_2d_grid(self, px, py, s):
-        """Creates arbitrary 2d grid given two input points.
 
-        Args:
 
-            px (list): x coordinates of the two input points (e.g. [0, 2000])
-            py (list: y coordinates of the two input points (e.g. [0, 2000])
-            s (int): pixel/voxel edge length
 
-        Returns:
-            numpy.ndarray: grid (n, 3) for use with gempy.compute_model_at function
-            tuple: shape information to reshape into 2d array
-
-        """
-        px = numpy.array(px)
-        py = numpy.array(py)
-
-        gradient, *_ = scipy.stats.linregress(px, py)
-
-        theta = numpy.arctan(gradient)
-        dy = numpy.sin(theta) * s
-        dx = numpy.cos(theta) * s
-
-        if px[1] - px[0] == 0:
-            ys = numpy.arange(py[0], py[1], s)
-            xs = numpy.repeat(px[0], len(ys))
-        elif py[1] - py[0] == 0:
-            xs = numpy.arange(px[0], px[1], s)
-            ys = numpy.repeat(py[0], len(xs))
-        else:
-            xs = numpy.arange(px[0], px[1], dx)
-            ys = numpy.arange(py[0], py[1], dy)
-
-        zs = numpy.arange(self.extent[4], self.extent.extent[5] + 1, s)
-
-        a = numpy.tile([xs, ys], len(zs)).T
-        b = numpy.repeat(zs, len(xs))
-        grid = numpy.concatenate((a, b[:, numpy.newaxis]), axis=1)
-
-        return grid, (len(zs), len(ys))
-
-    def drill(self, x, y, s=1):
-        """Creates 1d vertical grid at given x,y location.
-
-        Args:
-            geo_data: gempy geo_data object
-            x (int): x coordinate of the drill location
-            y (int): y coordinate of the drill location
-            s (int, optional): pixel/voxel edge length (default: 1)
-
-        Returns:
-            numpy.ndarray: grid (n, 3) for use with gempy.compute_model_at
-
-        """
-        zs = numpy.arange(self.extent[4], self.extent[5], s)
-        grid = numpy.array([numpy.repeat(x, len(zs)), numpy.repeat(y, len(zs)), zs]).T
-        return grid
-
-    def drill_image(self,lb, n_rep=100, fp="well.jpeg"): #is lb lego brick?
-        p = numpy.repeat(lb[0, numpy.newaxis].astype(int), n_rep, axis=0)
-        plt.figure(figsize=(2, 6))
-        im = plt.imshow(p.T, origin="lower", cmap=self.cmap, norm=self.norm)
-        plt.ylabel("z")
-        im.axes.get_xaxis().set_ticks([])
-        plt.tight_layout()
-        plt.title("Lego well")
-        plt.savefig(fp, dpi=100)
-        return im
 
 
 ## global functions to run the model in loop.
