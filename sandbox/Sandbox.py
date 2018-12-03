@@ -142,11 +142,11 @@ class Projector:
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
         self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filename = "frame" + str(self.id) + ".jpeg"
-        self.input_filename = 'current_frame.jpeg'
-        self.legend_filename = 'legend.jpeg'
-        self.hot_filename = 'hot.jpeg'
-        self.profile_filename = 'profile.jpeg'
+        self.frame_filename = "frame" + str(self.id) + ".png"
+        self.input_filename = 'current_frame.png'
+        self.legend_filename = 'legend.png'
+        self.hot_filename = 'hot.png'
+        self.profile_filename = 'profile.png'
         self.work_directory = None
         self.html_file = None
         self.html_text = None
@@ -178,7 +178,7 @@ class Projector:
                     body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
                 </style>
             <script type="text/JavaScript">
-            var url = "output.jpeg"; //url to load image from
+            var url = "output.png"; //url to load image from
             var refreshInterval = {0} ; //in ms
             var drawDate = {1}; //draw date string
             var img;
@@ -266,8 +266,8 @@ class Projector:
             projector_output.paste(hot, (
             self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
 
-        projector_output.save(os.path.join(self.work_directory, 'output_temp.jpeg'))
-        os.rename(os.path.join(self.work_directory, 'output_temp.jpeg'), os.path.join(self.work_directory, 'output.jpeg')) #workaround to supress artifacts
+        projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
+        os.rename(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
 
 
 
@@ -392,7 +392,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                                                              0]) / self.n_contours) # update contour levels
                 plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
 
-            plt.savefig(os.path.join(self.associated_projector.work_directory,'current_frame.jpeg'), pad_inches=0)
+            plt.savefig(os.path.join(self.associated_projector.work_directory,'current_frame.png'), pad_inches=0)
             plt.close(fig)
 
             self.calibration_data = Calibration_Data(
@@ -421,19 +421,19 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                 self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
                 self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
                 ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save(os.path.join(self.associated_projector.work_directory,'legend.jpeg'))
+                legend.save(os.path.join(self.associated_projector.work_directory,'legend.png'))
             if self.calibration_data.profile_area is not False:
                 profile = Image.new('RGB', (
                 self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
                 self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
                 ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save(os.path.join(self.associated_projector.work_directory,'profile.jpeg'))
+                profile.save(os.path.join(self.associated_projector.work_directory,'profile.png'))
             if self.calibration_data.hot_area is not False:
                 hot = Image.new('RGB', (self.calibration_data.hot_x_lim[1] - self.calibration_data.hot_x_lim[0],
                                         self.calibration_data.hot_y_lim[1] - self.calibration_data.hot_y_lim[0]),
                                 color='red')
                 ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
-                hot.save(os.path.join(self.associated_projector.work_directory,'hot.jpeg'))
+                hot.save(os.path.join(self.associated_projector.work_directory,'hot.png'))
             self.associated_projector.show()
             if close_click == True:
                 calibration_widget.close()
@@ -1024,7 +1024,7 @@ class Terrain:
             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
         ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data.z_range[0],
                       vmax=self.calibration.calibration_data.z_range[1], cmap=self.cmap)
-        plt.savefig('current_frame.jpeg', pad_inches=0)
+        plt.savefig('current_frame.png', pad_inches=0)
         plt.close(fig)
 
 
@@ -1075,7 +1075,7 @@ class Module:
         while self.stop_thread is False:
             depth = self.kinect.get_filtered_frame()
             with self.lock:
-                self.module.render_frame(depth, outfile="current_frame.jpeg")
+                self.module.render_frame(depth, outfile="current_frame.png")
                 self.projector.show()
 
     def run(self):
@@ -1150,7 +1150,7 @@ def run():
 
     def render_frame_old(self, outfile=None):
         lith_block, fault_block = gempy.compute_model_at(self.depth_grid, self.model)
-        #gp.plot_section(geo_data, lith_block[0], cell_number=0, direction='z', ar_output='current_out.jpeg')
+        #gp.plot_section(geo_data, lith_block[0], cell_number=0, direction='z', ar_output='current_out.png')
         cell_number = 0
         direction = 'z'
         plotter=gempy.PlotData2D(self.model._geo_data)
