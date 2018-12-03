@@ -142,7 +142,7 @@ class Projector:
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
         self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filenamne = "frame" + str(self.id) + ".jpeg"
+        self.frame_filename = "frame" + str(self.id) + ".jpeg"
         self.input_filename = 'current_frame.jpeg'
         self.legend_filename = 'legend.jpeg'
         self.hot_filename = 'hot.jpeg'
@@ -153,7 +153,7 @@ class Projector:
         self.frame_file = None
         self.drawdate = "false"  # Boolean as string for html, only used for testing.
         self.refresh = 100  # wait time in ms for html file to load image
-        self.input_rescale=True
+        self.input_rescale = True
         if resolution is None:
             print("no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
             resolution = (800, 600) #resolution of the beamer that is changeds later is not passed to the calibration!
@@ -226,21 +226,21 @@ class Projector:
         self.html_file.write(self.html_text)
         self.html_file.close()
 
-        webbrowser.open_new('file://' + str(os.path.join(self.work_directory, self.html_filename)))
+        webbrowser.open_new('file://' + str(os.path.abspath((os.path.join(self.work_directory, self.html_filename)))))
 
     def show(self, input=None, legend_filename=None, profile_filename=None,
              hot_filename=None, rescale=None):
 
         if input is None:
-            input = self.input_filename
+            input = os.path.join(self.work_directory, self.input_filename)
         if legend_filename is None:
-            legend_filename = self.legend_filename
+            legend_filename = os.path.join(self.work_directory, self.legend_filename)
         if profile_filename is None:
-            profile_filename = self.profile_filename
+            profile_filename = os.path.join(self.work_directory,self.profile_filename)
         if hot_filename is None:
-            hot_filename = self.hot_filename
+            hot_filename = os.path.join(self.work_directory,self.hot_filename)
         if rescale is None: #
-            rescale=self.input_rescale
+            rescale = self.input_rescale
 
         projector_output = Image.new('RGB', self.resolution)
         frame = Image.open(input)
@@ -266,12 +266,9 @@ class Projector:
             projector_output.paste(hot, (
             self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
 
-        projector_output.save('output_temp.jpeg')
-        os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
+        projector_output.save(os.path.join(self.work_directory, 'output_temp.jpeg'))
+        os.rename(os.path.join(self.work_directory, 'output_temp.jpeg'), os.path.join(self.work_directory, 'output.jpeg')) #workaround to supress artifacts
 
-        # TODO: Projector specific outputs
-
-    # TODO: threaded runloop exporting filtered and unfiltered depth
 
 
 class Calibration_Data:
@@ -395,7 +392,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                                                              0]) / self.n_contours) # update contour levels
                 plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
 
-            plt.savefig('current_frame.jpeg', pad_inches=0)
+            plt.savefig(os.path.join(self.associated_projector.work_directory,'current_frame.jpeg'), pad_inches=0)
             plt.close(fig)
 
             self.calibration_data = Calibration_Data(
@@ -424,19 +421,19 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                 self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
                 self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
                 ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save('legend.jpeg')
+                legend.save(os.path.join(self.associated_projector.work_directory,'legend.jpeg'))
             if self.calibration_data.profile_area is not False:
                 profile = Image.new('RGB', (
                 self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
                 self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
                 ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save('profile.jpeg')
+                profile.save(os.path.join(self.associated_projector.work_directory,'profile.jpeg'))
             if self.calibration_data.hot_area is not False:
                 hot = Image.new('RGB', (self.calibration_data.hot_x_lim[1] - self.calibration_data.hot_x_lim[0],
                                         self.calibration_data.hot_y_lim[1] - self.calibration_data.hot_y_lim[0]),
                                 color='red')
                 ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
-                hot.save('hot.jpeg')
+                hot.save(os.path.join(self.associated_projector.work_directory,'hot.jpeg'))
             self.associated_projector.show()
             if close_click == True:
                 calibration_widget.close()
