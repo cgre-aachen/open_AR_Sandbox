@@ -344,7 +344,6 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         except OSError:
             print("calibration data file not found")
 
-
     def save(self, calibration_file=None):
         if calibration_file is None:
             calibration_file = self.calibration_file
@@ -534,9 +533,12 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                                                  )
         IPython.display.display(calibration_widget)
 
+
 class Scale:
     """
     class that handles the scaling of whatever the sandbox shows and the real world sandbox
+    self.extent: 3d extent of the model in the sandbox in model units.
+
     """
     def __init__(self, calibration=None, xy_isometric=True, extent=None):
         if isinstance(calibration, Calibration):
@@ -546,16 +548,17 @@ class Scale:
         self.xy_isometric = xy_isometric
         self.scale = [None, None, None]
         self.pixel_size = [None, None]
+        self.pixel_scale = [None, None]
         self.output_res = None
 
         if extent is None:  # extent should be array with shape (6,) or convert to list?
             self.extent = numpy.asarray([
-                self.calibration.calibration_data.x_lim[0],
-                self.calibration.calibration_data.x_lim[1],
-                self.calibration.calibration_data.y_lim[0],
-                self.calibration.calibration_data.y_lim[1],
+                0.0,
+                self.calibration.calibration_data.box_width,
+                0.0,
+                self.calibration.calibration_data.box_height,
                 self.calibration.calibration_data.z_range[0],
-                self.calibration.calibration_data.x_range[1],
+                self.calibration.calibration_data.z_range[1],
                 ])
 
         else:
@@ -564,26 +567,36 @@ class Scale:
     def calculate_scales(self):
         """
         calculates the factors for the coordinates transformation kinect-extent
-        :return:
+
+        Returns:
+        nothing, but changes in place:
+        self.output_res [pixels]: width and height of sandbox image
+        self.pixel_scale [modelunits/pixel]: XY scaling factor
+        pixel_size [mm/pixel]
+        self.scale
+
         """
+
         self.output_res = (self.calibration.calibration_data.x_lim[1] -
                            self.calibration.calibration_data.x_lim[0],
                            self.calibration.calibration_data.y_lim[1] -
                            self.calibration.calibration_data.y_lim[0])
-        self.pixel_size[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
-        self.pixel_size[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
+        self.pixel_scale[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
+        self.pixel_scale[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
+        self.pixel_size[0] = float(self.calibration.calibration_data.box_width) / float(self.output_res[0])
+        self.pixel_size[1] = float(self.calibration.calibration_data.box_height) / float(self.output_res[1])
 
-        if self.xy_isometric == True:  # model is scaled to fit into box
+        if self.xy_isometric == True:  # model is extended in one horizontal direction to fit  into box while the scale in both directions is maintained #TODO: change the extrent in place!! or create a new extent object that stores the extent after that modification.
             print("Aspect ratio of the model is fixed in XY")
-            if self.pixel_size[0] >= self.pixel_size[1]:
-                self.pixel_size[1] = self.pixel_size[0]
+            if self.pixel_scale[0] >= self.pixel_scale[1]:
+                self.pixel_scale[1] = self.pixel_scale[0]
                 print("Model size is limited by X dimension")
             else:
-                self.pixel_size[0] = self.pixel_size[1]
+                self.pixel_scale[0] = self.pixel_scale[1]
                 print("Model size is limited by Y dimension")
 
-        self.scale[0] = self.pixel_size[0]
-        self.scale[1] = self.pixel_size[1]
+        self.scale[0] = self.pixel_scale[0]/self.pixel_size[0]
+        self.scale[1] = self.pixel_scale[1]/self.pixel_size[1]
         self.scale[2] = float(self.extent[5] - self.extent[4]) / (
                 self.calibration.calibration_data.z_range[1] -
                 self.calibration.calibration_data.z_range[0])
@@ -619,13 +632,24 @@ class Grid:
                            self.calibration.calibration_data.x_lim[0],
                            self.calibration.calibration_data.y_lim[1] -
                            self.calibration.calibration_data.y_lim[0])
+        """compare:
         for x in range(self.output_res[1]):
             for y in range(self.output_res[0]):
-                grid_list.append([y * self.scale.pixel_size[1] + self.scale.extent[2], x * self.scale.pixel_size[0] + self.scale.extent[0]])
+                grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + self.scale.extent[0]])
+        """
+
+        for y in range(self.output_res[1]):
+            for x in range(self.output_res[0]):
+                grid_list.append([x * self.scale.pixel_scale[0] + self.scale.extent[0], y * self.scale.pixel_scale[1] + self.scale.extent[2]])
 
         empty_depth_grid = numpy.array(grid_list)
         self.empty_depth_grid = empty_depth_grid
         self.depth_grid = None #I know, this should have thew right type.. anyway.
+        print("the shown extent is ["+str(self.empty_depth_grid[0, 0]) + ", " +
+                                      str(self.empty_depth_grid[-1, 0]) + ", " +
+                                      str(self.empty_depth_grid[0, 1]) + ", " +
+                                      str(self.empty_depth_grid[-1, 1]) + "] "
+              )
 
         # return self.empty_depth_grid
 
@@ -680,9 +704,6 @@ class Contour: #TODO: change the whole thing to use keyword arguments!!
         self.inline = inline
         self.fontsize = fontsize
         self.label_format = label_format
-
-
-
 
 
 class Plot:
