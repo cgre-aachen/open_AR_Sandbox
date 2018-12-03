@@ -43,6 +43,7 @@ class Kinect:  # add dummy
         self.dummy = dummy
         self.mirror = mirror
         self.rgb_frame = None
+        self.angle = None
 
         #TODO: include filter self.-filter parameters as function defaults
         self.n_frames = 3 #filter parameters
@@ -56,13 +57,12 @@ class Kinect:  # add dummy
             print(self.id)
             freenect.close_device(self.dev)  # TODO Test if this has to be done!
 
-            self.angle = None
-            self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[
-                0]  # get the first Depth frame already (the first one takes much longer than the following)
+
+            self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]  # get the first Depth frame already (the first one takes much longer than the following)
             self.filtered_depth = None
             print("kinect initialized")
         else:
-            self.angle = None
+
             self.filtered_depth = None
             self.depth = self.get_frame()
             print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
