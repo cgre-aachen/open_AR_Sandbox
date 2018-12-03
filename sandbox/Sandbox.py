@@ -776,7 +776,7 @@ class Plot:
     def save(self, outfile=None):
         if outfile is None:
             if self.outfile is None:
-                print("no outfile provided")
+                print("no outfile provided. try the default output file name 'current_frame.png' ")
                 plt.show(self.fig)
                 plt.close()
                 pass
