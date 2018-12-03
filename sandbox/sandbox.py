@@ -27,6 +27,8 @@ import matplotlib
 import IPython
 import threading
 
+warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden kernel death. Be sure no other'
+     ' kernel is running before initialize a kinect object.', RuntimeWarning)
 
 class Kinect:  # add dummy
     '''
@@ -57,7 +59,6 @@ class Kinect:  # add dummy
             print(self.id)
             freenect.close_device(self.dev)  # TODO Test if this has to be done!
 
-
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]  # get the first Depth frame already (the first one takes much longer than the following)
             self.filtered_depth = None
             print("kinect initialized")
@@ -80,7 +81,7 @@ class Kinect:  # add dummy
             synth_depth = numpy.zeros((480, 640))
             for x in range(640):
                 for y in range(480):
-                    if horizontal_slice == None:
+                    if horizontal_slice is None:
                         synth_depth[y, x] = int(800 + 200 * (numpy.sin(2 * numpy.pi * x / 320)))
                     else:
                         synth_depth[y, x] = horizontal_slice
@@ -88,12 +89,12 @@ class Kinect:  # add dummy
             return self.depth
 
     def get_filtered_frame(self, n_frames=None, sigma_gauss=None): #TODO: deprecate?
-        if n_frames==None:
-            n_frames=self.n_frames
-        if sigma_gauss==None:
-            sigma_gauss=self.sigma_gauss
+        if n_frames is None:
+            n_frames = self.n_frames
+        if sigma_gauss is None:
+            sigma_gauss = self.sigma_gauss
 
-        if self.dummy == True:
+        if self.dummy is True:
             self.get_frame()
             return self.depth
         elif self.filter=='gaussian':
@@ -107,7 +108,7 @@ class Kinect:  # add dummy
             return self.depth
 
     def get_rgb_frame(self):
-        if self.dummy == False:
+        if self.dummy is False:
             self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
             self.rgb_frame = numpy.fliplr(self.rgb_frame)
 

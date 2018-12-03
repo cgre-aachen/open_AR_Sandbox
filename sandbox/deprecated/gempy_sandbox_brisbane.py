@@ -5,7 +5,7 @@ import scipy
 import gempy
 import matplotlib.pyplot as plt
 from itertools import count
-from sandbox.Sandbox import Calibration
+from sandbox.sandbox import Calibration
 
 #TODO: make calibrations a mandatory argument in ALL Classes!!!
 
