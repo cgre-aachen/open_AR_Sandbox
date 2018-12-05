@@ -706,7 +706,7 @@ class Contour: #TODO: change the whole thing to use keyword arguments!!
 class Plot:
     """
     handles the plotting of a sandbox model
-    add contours by providing a list of contour objects
+
     """
     def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, outfile=None):
         if isinstance(calibration, Calibration):
@@ -753,25 +753,19 @@ class Plot:
                                            linewidths=contour.linewidth, colors=contour.colors)
             if contour.show_labels is True:
                 self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize, fmt=contour.label_format)
-
-    def render_frame(self, rasterdata):
+    def create_empty_frame(self):
         self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
         self.ax.set_axis_off()
         self.fig.add_axes(self.ax)
 
+    def render_frame(self, rasterdata):
+        self.create_empty_frame()
         self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
-        self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
-#        for contour in self.contours:
-#            self.add_contours(contour, data)
-
-#        if self.outfile is None:
-#            plt.show(self.)
-#            plt.close()
-#        else:
-#            plt.savefig(self.outfile, pad_inches=0)
-#            plt.close(self.fig)
+    def add_lith_contours(self, block, levels=None):
+      #  plt.tricontourf(block[0],block[1],block[2], cmap='viridis')
+        plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
 
     def save(self, outfile=None):
         if outfile is None:
