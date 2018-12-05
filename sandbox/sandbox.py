@@ -27,6 +27,9 @@ import matplotlib
 import IPython
 import threading
 
+# TODO: When we move GeoMapModule import gempy just there
+import gempy as gp
+
 warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
      'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
 
@@ -136,166 +139,6 @@ def Beamer(*args, **kwargs):
     return Projector(*args, **kwargs)
 
 
-class Projector:
-    _ids = count(0)
-    _instances = []
-
-    def __init__(self, resolution=None):
-        self.__class__._instances.append(weakref.proxy(self))
-        self.id = next(self._ids)
-        self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filename = "frame" + str(self.id) + ".png"
-        self.input_filename = 'current_frame.png'
-        self.legend_filename = 'legend.png'
-        self.hot_filename = 'hot.png'
-        self.profile_filename = 'profile.png'
-        self.work_directory = None
-        self.html_file = None
-        self.html_text = None
-        self.frame_file = None
-        self.drawdate = "false"  # Boolean as string for html, only used for testing.
-        self.refresh = 100  # wait time in ms for html file to load image
-        self.input_rescale = True
-        if resolution is None:
-            print("no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
-            resolution = (800, 600) #resolution of the beamer that is changeds later is not passed to the calibration!
-        self.resolution = resolution
-        self.calibration = Calibration(associated_projector=self)
-        print("created new calibration:", self.calibration)
-
-    def calibrate(self):
-        self.calibration.create()
-
-    def start_stream(self):
-        # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
-        if self.work_directory is None:
-            self.work_directory = os.getcwd()
-        self.html_file = open(os.path.join(self.work_directory, self.html_filename), "w")
-
-        self.html_text = """
-            <html>
-            <head>
-                <style>
-                    body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
-                </style>
-            <script type="text/JavaScript">
-            var url = "output.png"; //url to load image from
-            var refreshInterval = {0} ; //in ms
-            var drawDate = {1}; //draw date string
-            var img;
-
-            function init() {{
-                var canvas = document.getElementById("canvas");
-                var context = canvas.getContext("2d");
-                img = new Image();
-                img.onload = function() {{
-                    canvas.setAttribute("width", img.width)
-                    canvas.setAttribute("height", img.height)
-                    context.drawImage(this, 0, 0);
-                    if(drawDate) {{
-                        var now = new Date();
-                        var text = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-                        var maxWidth = 100;
-                        var x = img.width-10-maxWidth;
-                        var y = img.height-10;
-                        context.strokeStyle = 'black';
-                        context.lineWidth = 2;
-                        context.strokeText(text, x, y, maxWidth);
-                        context.fillStyle = 'white';
-                        context.fillText(text, x, y, maxWidth);
-                    }}
-                }};
-                refresh();
-            }}
-            function refresh()
-            {{
-                img.src = url + "?t=" + new Date().getTime();
-                setTimeout("refresh()",refreshInterval);
-            }}
-
-            </script>
-            <title>AR Sandbox output</title>
-            </head>
-
-            <body onload="JavaScript:init();">
-            <canvas id="canvas"/>
-            </body>
-            </html>
-
-            """
-        self.html_text = self.html_text.format(self.refresh, self.drawdate)
-        self.html_file.write(self.html_text)
-        self.html_file.close()
-
-        webbrowser.open_new('file://' + str(os.path.abspath((os.path.join(self.work_directory, self.html_filename)))))
-
-    def show(self, input=None, legend_filename=None, profile_filename=None,
-             hot_filename=None, rescale=None):
-
-        if input is None:
-            input = os.path.join(self.work_directory, self.input_filename)
-        if legend_filename is None:
-            legend_filename = os.path.join(self.work_directory, self.legend_filename)
-        if profile_filename is None:
-            profile_filename = os.path.join(self.work_directory,self.profile_filename)
-        if hot_filename is None:
-            hot_filename = os.path.join(self.work_directory,self.hot_filename)
-        if rescale is None: #
-            rescale = self.input_rescale
-
-        projector_output = Image.new('RGB', self.resolution)
-        frame = Image.open(input)
-
-        if rescale is True:
-            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data.scale_factor),
-                                              int(frame.height * self.calibration.calibration_data.scale_factor))),
-                                (
-                                self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
-        else:
-            projector_output.paste(frame, (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
-
-        if self.calibration.calibration_data.legend_area is not False:
-            legend = Image.open(legend_filename)
-            projector_output.paste(legend, (
-            self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
-        if self.calibration.calibration_data.profile_area is not False:
-            profile = Image.open(profile_filename)
-            projector_output.paste(profile, (self.calibration.calibration_data.profile_x_lim[0],
-                                          self.calibration.calibration_data.profile_y_lim[0]))
-        if self.calibration.calibration_data.hot_area is not False:
-            hot = Image.open(hot_filename)
-            projector_output.paste(hot, (
-            self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
-
-        projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
-        os.rename(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
-
-
-class CalibrationData:
-    def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
-                      legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
-                      hot_y_lim=(400,450)):
-        self.rot_angle = rot_angle
-        self.x_lim = x_lim
-        self.y_lim = y_lim
-        self.x_pos = x_pos
-        self.y_pos = y_pos
-        self.scale_factor = scale_factor
-        self.z_range = z_range
-        self.box_width = box_width
-        self.box_height = box_height
-        self.legend_area = legend_area
-        self.legend_x_lim = legend_x_lim
-        self.legend_y_lim = legend_y_lim
-        self.profile_area = profile_area
-        self.profile_x_lim = profile_x_lim
-        self.profile_y_lim = profile_y_lim
-        self.hot_area = hot_area
-        self.hot_x_lim = hot_x_lim
-        self.hot_y_lim = hot_y_lim
-        self.box_dim=(self.box_width, self.box_height)
-
-
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     """
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
@@ -339,7 +182,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             if not isinstance(self.calibration_data, CalibrationData):
                 raise TypeError("loaded data is not a Calibration File object")
         except OSError:
-            print("calibration data file not found")
+            print("calibration data file not found. Using default values")
 
     def save(self, calibration_file=None):
         if calibration_file is None:
@@ -529,6 +372,175 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
 
                                                  )
         IPython.display.display(calibration_widget)
+
+
+class Projector:
+    _ids = count(0)
+    _instances = []
+
+    def __init__(self, resolution=None, create_calibration=False, work_directory='./', refresh=100, input_rescale=True):
+        self.__class__._instances.append(weakref.proxy(self))
+        self.id = next(self._ids)
+        self.html_filename = "projector" + str(self.id) + ".html"
+        self.frame_filename = "frame" + str(self.id) + ".png"
+        self.input_filename = 'current_frame.png'
+        self.legend_filename = 'legend.png'
+        self.hot_filename = 'hot.png'
+        self.profile_filename = 'profile.png'
+        self.work_directory = work_directory
+        self.html_file = None
+        self.html_text = None
+        self.frame_file = None
+        self.drawdate = "false"  # Boolean as string for html, only used for testing.
+        self.refresh = refresh  # wait time in ms for html file to load image
+        self.input_rescale = input_rescale
+        if resolution is None:
+            print("no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
+            resolution = (800, 600) #resolution of the beamer that is changeds later is not passed to the calibration!
+        self.resolution = resolution
+        if create_calibration is True:
+            self.calibration = Calibration(associated_projector=self)
+            print("created new calibration:", self.calibration)
+        else:
+            self.calibration = None
+
+    def set_calibration(self, calibration: Calibration):
+        self.calibration = calibration
+
+    def calibrate(self):
+        # TODO This method should be in the calibration class
+        self.calibration.create()
+
+    def start_stream(self):
+        # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
+        if self.work_directory is None:
+            self.work_directory = os.getcwd()
+        self.html_file = open(os.path.join(self.work_directory, self.html_filename), "w")
+
+        self.html_text = """
+            <html>
+            <head>
+                <style>
+                    body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
+                </style>
+            <script type="text/JavaScript">
+            var url = "output.png"; //url to load image from
+            var refreshInterval = {0} ; //in ms
+            var drawDate = {1}; //draw date string
+            var img;
+
+            function init() {{
+                var canvas = document.getElementById("canvas");
+                var context = canvas.getContext("2d");
+                img = new Image();
+                img.onload = function() {{
+                    canvas.setAttribute("width", img.width)
+                    canvas.setAttribute("height", img.height)
+                    context.drawImage(this, 0, 0);
+                    if(drawDate) {{
+                        var now = new Date();
+                        var text = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+                        var maxWidth = 100;
+                        var x = img.width-10-maxWidth;
+                        var y = img.height-10;
+                        context.strokeStyle = 'black';
+                        context.lineWidth = 2;
+                        context.strokeText(text, x, y, maxWidth);
+                        context.fillStyle = 'white';
+                        context.fillText(text, x, y, maxWidth);
+                    }}
+                }};
+                refresh();
+            }}
+            function refresh()
+            {{
+                img.src = url + "?t=" + new Date().getTime();
+                setTimeout("refresh()",refreshInterval);
+            }}
+
+            </script>
+            <title>AR Sandbox output</title>
+            </head>
+
+            <body onload="JavaScript:init();">
+            <canvas id="canvas"/>
+            </body>
+            </html>
+
+            """
+        self.html_text = self.html_text.format(self.refresh, self.drawdate)
+        self.html_file.write(self.html_text)
+        self.html_file.close()
+
+        webbrowser.open_new('file://' + str(os.path.abspath((os.path.join(self.work_directory, self.html_filename)))))
+
+    def show(self, input=None, legend_filename=None, profile_filename=None,
+             hot_filename=None, rescale=None):
+
+        assert self.calibration is not None, 'Calibration is not set yet. See set_calibration.'
+
+        if input is None:
+            input = os.path.join(self.work_directory, self.input_filename)
+        if legend_filename is None:
+            legend_filename = os.path.join(self.work_directory, self.legend_filename)
+        if profile_filename is None:
+            profile_filename = os.path.join(self.work_directory,self.profile_filename)
+        if hot_filename is None:
+            hot_filename = os.path.join(self.work_directory,self.hot_filename)
+        if rescale is None: #
+            rescale = self.input_rescale
+
+        projector_output = Image.new('RGB', self.resolution)
+        frame = Image.open(input)
+
+        if rescale is True:
+            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data.scale_factor),
+                                              int(frame.height * self.calibration.calibration_data.scale_factor))),
+                                (
+                                self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
+        else:
+            projector_output.paste(frame, (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
+
+        if self.calibration.calibration_data.legend_area is not False:
+            legend = Image.open(legend_filename)
+            projector_output.paste(legend, (
+            self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
+        if self.calibration.calibration_data.profile_area is not False:
+            profile = Image.open(profile_filename)
+            projector_output.paste(profile, (self.calibration.calibration_data.profile_x_lim[0],
+                                          self.calibration.calibration_data.profile_y_lim[0]))
+        if self.calibration.calibration_data.hot_area is not False:
+            hot = Image.open(hot_filename)
+            projector_output.paste(hot, (
+            self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
+
+        projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
+        os.rename(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
+
+
+class CalibrationData:
+    def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
+                      legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
+                      hot_y_lim=(400,450)):
+        self.rot_angle = rot_angle
+        self.x_lim = x_lim
+        self.y_lim = y_lim
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.scale_factor = scale_factor
+        self.z_range = z_range
+        self.box_width = box_width
+        self.box_height = box_height
+        self.legend_area = legend_area
+        self.legend_x_lim = legend_x_lim
+        self.legend_y_lim = legend_y_lim
+        self.profile_area = profile_area
+        self.profile_x_lim = profile_x_lim
+        self.profile_y_lim = profile_y_lim
+        self.hot_area = hot_area
+        self.hot_x_lim = hot_x_lim
+        self.hot_y_lim = hot_y_lim
+        self.box_dim=(self.box_width, self.box_height)
 
 
 class Scale:
@@ -799,274 +811,440 @@ class Plot:
 deprecated Methods:
 """
 
-class Detector:
-    """
-    Detector for Objects or Markers in a specified Region, based on the RGB image from a kinect
-    """
-    #TODO: implement area of interest!
-    def __init__(self):
+# class Detector:
+#     """
+#     Detector for Objects or Markers in a specified Region, based on the RGB image from a kinect
+#     """
+#     #TODO: implement area of interest!
+#     def __init__(self):
+#
+#         self.shapes=None
+#         self.circles=None
+#         self.circle_coords=None
+#         self.shape_coords=None
+#
+#         #default parameters for the detection function:
+#         self.thresh_value=80
+#         self.min_area=30
+#
+#
+#     def where_shapes(self,image, thresh_value=None, min_area=None):
+#         """Get the coordinates for all detected shapes.
+#
+#                 Args:
+#                     image (image file): Image input.
+#                     min_area (int, float): Minimal area for a shape to be detected.
+#                 Returns:
+#                     x- and y- coordinates for all detected shapes as a 2D array.
+#
+#             """
+#         if thresh_value is None:
+#             thresh_value = self.thresh_value
+#         if min_area is None:
+#             min_area=self.min_area
+#
+#         bilateral_filtered_image = cv2.bilateralFilter(image, 5, 175, 175)
+#         gray = cv2.cvtColor(bilateral_filtered_image, cv2.COLOR_BGR2GRAY)
+#         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+#         thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY)[1]
+#         edge_detected_image = cv2.Canny(thresh, 75, 200)
+#
+#         _, contours, hierarchy = cv2.findContours(edge_detected_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+#         contour_list = []
+#         contour_coords = []
+#         for contour in contours:
+#             M = cv2.moments(contour)
+#             if M["m00"] != 0:
+#                 cX = int(M["m10"] / M["m00"])
+#                 cY = int(M["m01"] / M["m00"])
+#             else:
+#                 cX = 0
+#                 cY = 0
+#
+#             approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True)
+#             area = cv2.contourArea(contour)
+#             if ((len(approx) > 8) & (len(approx) < 23) & (area > min_area)):
+#                 contour_list.append(contour)
+#                 contour_coords.append([cX, cY])
+#         self.shapes=numpy.array(contour_coords)
+#
+#     def where_circles(self, image, thresh_value=None):
+#         """Get the coordinates for all detected circles.
+#
+#                     Args:
+#                         image (image file): Image input.
+#                         thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
+#                     Returns:
+#                         x- and y- coordinates for all detected circles as a 2D array.
+#
+#                 """
+#         if thresh_value is None:
+#             thresh_value = self.thresh_value
+#         #output = image.copy()
+#         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+#         thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY)[1]
+#         # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.2 100)
+#         circles = cv2.HoughCircles(thresh, cv2.HOUGH_GRADIENT, 1, 2, numpy.array([]), 200, 8, 4, 8)
+#
+#         if circles != [] and circles is not None:
+#             # convert the (x, y) coordinates and radius of the circles to integers
+#             circles = numpy.round(circles[0, :]).astype("int")
+#             # print(circles)
+#             circle_coords = numpy.array(circles)[:, :2]
+#             dist = scipy.spatial.distance.cdist(circle_coords, circle_coords, 'euclidean')
+#             #minima = np.min(dist, axis=1)
+#             dist_bool = (dist > 0) & (dist < 5)
+#             pos = numpy.where(dist_bool == True)[0]
+#             grouped = circle_coords[pos]
+#             mean_grouped = (numpy.sum(grouped, axis=0) / 2).astype(int)
+#             circle_coords = numpy.delete(circle_coords, list(pos), axis=0)
+#             circle_coords = numpy.vstack((circle_coords, mean_grouped))
+#
+#             self.circles = circle_coords.tolist()
+#
+#
+#
+#     def filter_circles(self, shape_coords, circle_coords):
+#         dist = scipy.spatial.distance.cdist(shape_coords, circle_coords, 'euclidean')
+#         minima = numpy.min(dist, axis=1)
+#         non_circle_pos = numpy.where(minima > 10)
+#         return non_circle_pos
+#
+#     def where_non_circles(self, image, thresh_value=None, min_area=None):
+#         if thresh_value is None:
+#             thresh_value = self.thresh_value
+#         if min_area is None:
+#             min_area=self.min_area
+#         shape_coords = self.where_shapes(image, thresh_value, min_area)
+#         circle_coords = self.where_circles(image, thresh_value)
+#         if len(circle_coords)>0:
+#             non_circles = self.filter_circles(shape_coords, circle_coords)
+#             return shape_coords[non_circles].tolist()  #ToDo: what is this output?
+#         else:
+#             return shape_coords.tolist()
+#
+#     def get_shape_coords(self, image, thresh_value=None, min_area=None):
+#         """Get the coordinates for all shapes, classified as circles and non-circles.
+#
+#                         Args:
+#                             image (image file): Image input.
+#                             thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
+#                             min_area (int, float): Minimal area for a non-circle shape to be detected.
+#                         Returns:
+#                             x- and y- coordinates for all detected shapes as 2D arrays.
+#                             [0]: non-circle shapes
+#                             [1]: circle shapes
+#
+#                     """
+#         if thresh_value is None:
+#             thresh_value = self.thresh_value
+#         if min_area is None:
+#             min_area=self.min_area
+#         non_circles = self.where_non_circles(image, thresh_value, min_area)
+#         circles = self.where_circles(image, thresh_value)
+#
+#         return non_circles, circles
+#
+#
+#     def plot_all_shapes(self, image, thresh_value=None, min_area=None):
+#         """Plot detected shapes onto image.
+#
+#                             Args:
+#                                 image (image file): Image input.
+#                                 thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
+#                                 min_area (int, float): Minimal area for a non-circle shape to be detected.
+#
+#                         """
+#         if thresh_value is None:
+#             thresh_value = self.thresh_value
+#         if min_area is None:
+#             min_area=self.min_area
+#
+#         output = image.copy()
+#         non_circles, circles = self.get_shape_coords(image, thresh_value, min_area)
+#         for (x, y) in circles:
+#             cv2.circle(output, (x, y), 5, (0, 255, 0), 3)
+#             # cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+#         for (x, y) in non_circles:
+#             cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+#         out_image = numpy.hstack([image, output])
+#         plt.imshow(out_image)
+#
+#     def non_circles_fillmask(self, image, th1=60, th2=80):   #TODO: what is this function?
+#         bilateral_filtered_image = cv2.bilateralFilter(image, 5, 175, 175)
+#         gray = cv2.cvtColor(bilateral_filtered_image, cv2.COLOR_BGR2GRAY)
+#         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+#         thresh = cv2.threshold(blurred, th1, 1, cv2.THRESH_BINARY)[1]
+#         circle_coords = self.where_circles(image, th2)
+#         for (x, y) in circle_coords:           cv2.circle(thresh, (x, y), 20, 1, -1)
+#         return numpy.invert(thresh.astype(bool))
+#
+#
+# class Terrain:
+#     """
+#     simple module to visualize the topography in the sandbox with contours and a colormap.
+#     """
+#     def __init__(self,calibration=None, cmap='terrain', contours=True):
+#         """
+#         :type contours: boolean
+#         :type cmap: matplotlib colormap object or keyword
+#         :type calibration: Calibration object. By default the last created calibration is used.
+#
+#         """
+#         if calibration is None:
+#             try:
+#                 self.calibration = Calibration._instances[-1]
+#                 print("using last calibration instance created: ", calibration)
+#             except:
+#                 print("no calibration found")
+#                 self.calibration = calibration
+#
+#         self.cmap = cmap
+#         self.contours = contours
+#         self.main_levels = numpy.arange(0, 2000, 50)
+#         self.sub_levels = numpy.arange(0, 2000, 10)
+#
+#
+#     def setup(self):
+#         pass
+#
+#     def render_frame(self,depth):
+#         depth_rotated = scipy.ndimage.rotate(depth, self.calibration.calibration_data.rot_angle, reshape=False)
+#         depth_cropped = depth_rotated[self.calibration.calibration_data.y_lim[0]:self.calibration.calibration_data.y_lim[1],
+#                         self.calibration.calibration_data.x_lim[0]:self.calibration.calibration_data.x_lim[1]]
+#         depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration.calibration_data.z_range[0],
+#                                                self.calibration.calibration_data.z_range[
+#                                                    1])  # depth pixels outside of range are white, no data pixe;ls are black.
+#
+#         h = self.calibration.calibration_data.scale_factor * (
+#                     self.calibration.calibration_data.y_lim[1] - self.calibration.calibration_data.y_lim[0]) / 100.0
+#         w = self.calibration.calibration_data.scale_factor * (
+#                 self.calibration.calibration_data.x_lim[1] - self.calibration.calibration_data.x_lim[0]) / 100.0
+#
+#         fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
+#         ax = plt.Axes(fig, [0., 0., 1., 1.])
+#         ax.set_axis_off()
+#         fig.add_axes(ax)
+#         if self.contours is True:
+#             x = range(numpy.shape(depth_cropped)[1])
+#             y = range(numpy.shape(depth_cropped)[0])
+#             z = depth_cropped
+#             sub_contours = plt.contour(x, y, z, levels=self.sub_levels, linewidths=0.5, colors=[(0, 0, 0, 0.8)])
+#             main_contours = plt.contour(x, y, z, levels=self.main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
+#             plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
+#         ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data.z_range[0],
+#                       vmax=self.calibration.calibration_data.z_range[1], cmap=self.cmap)
+#         plt.savefig('current_frame.png', pad_inches=0)
+#         plt.close(fig)
+#
+#
+# class Module:
+#     """
+#     container for modules that handles threading. any kind of module can be loaded, as long as it contains a 'setup' and 'render_frame" method!
+#     """
+#     _ids = count(0)
+#     _instances = []
+#
+#     def __init__(self, module, kinect=None, calibration=None, projector=None):
+#
+#         if kinect is None:
+#             try:
+#                 self.kinect = Kinect._instances[-1]
+#                 print("using last kinect instance created: ", self.kinect)
+#             except:
+#                 print("no kinect found")
+#                 self.kinect = kinect
+#         else:
+#             self.kinect = kinect
+#
+#         if calibration is None:
+#             try:
+#                 self.calibration = Calibration._instances[-1]
+#                 print("using last calibration instance created: ", self.calibration)
+#             except:
+#                 print("no calibration found")
+#                 self.calibration = calibration
+#
+#         if projector is None:
+#             try:
+#                 self.projector = Projector._instances[-1]
+#                 print("using last projector instance created: ", self.projector)
+#             except:
+#                 print("no projector found")
+#                 self.projector=projector
+#
+#         self.id = next(self._ids)
+#         self.__class__._instances.append(weakref.proxy(self))
+#
+#         self.module = module
+#         self.thread = None
+#         self.lock = threading.Lock()
+#         self.stop_thread = False
+#
+#     def loop(self):
+#         while self.stop_thread is False:
+#             depth = self.kinect.get_filtered_frame()
+#             with self.lock:
+#                 self.module.render_frame(depth, outfile="current_frame.png")
+#                 self.projector.show()
+#
+#     def run(self):
+#         self.stop_thread = False
+#         self.module.setup()
+#       #  self.lock.acquire()
+#         self.thread = threading.Thread(target=self.loop, daemon=None)
+#         self.thread.start()
+#         # with thread and thread lock move these to main sandbox
+#
+#     def pause(self):
+#         self.lock.release()
+#
+#     def resume(self):
+#         self.lock.acquire()
+#
+#     def kill(self):
+#         self.stop_thread = True
+#         try:
+#             self.lock.release()
+#         except:
+#             pass
 
-        self.shapes=None
-        self.circles=None
-        self.circle_coords=None
-        self.shape_coords=None
 
-        #default parameters for the detection function:
-        self.thresh_value=80
-        self.min_area=30
+class GeoMapModule:
+    # TODO: When we move GeoMapModule import gempy just there
+    _ids = count(0)
+    _instances = []
 
+    def __init__(self, geo_model, grid: Grid, geol_map: Plot):
 
-    def where_shapes(self,image, thresh_value=None, min_area=None):
-        """Get the coordinates for all detected shapes.
+        self.id = next(self._ids)
+        self.__class__._instances.append(weakref.proxy(self))
 
-                Args:
-                    image (image file): Image input.
-                    min_area (int, float): Minimal area for a shape to be detected.
-                Returns:
-                    x- and y- coordinates for all detected shapes as a 2D array.
+        self.geo_model = geo_model
+        self.kinect_grid = grid
+        self.geol_map = geol_map
 
-            """
-        if thresh_value is None:
-            thresh_value = self.thresh_value
-        if min_area is None:
-            min_area=self.min_area
+        self.fault_line = self.create_fault_line()
+        self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
+                                                       self.kinect_grid.scale.extent[5])
+        self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
+                                                     self.kinect_grid.scale.extent[5])
 
-        bilateral_filtered_image = cv2.bilateralFilter(image, 5, 175, 175)
-        gray = cv2.cvtColor(bilateral_filtered_image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY)[1]
-        edge_detected_image = cv2.Canny(thresh, 75, 200)
+        self.x_grid = range(self.kinect_grid.scale.output_res[0])
+        self.y_grid = range(self.kinect_grid.scale.output_res[1])
+        #
+        # self.legend = True
+        # self.model = model
+        # gempy.compute_model(self.model)
+        # self.empty_depth_grid = None
+        # self.depth_grid = None
+        #
+        # self.stop_threat = False
+        # self.lock = lock
 
-        _, contours, hierarchy = cv2.findContours(edge_detected_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    def compute_model(self, kinect_grid):
+        self.kinect_grid.update_grid(kinect_grid)
+        sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
+        lith_block = sol[0][0]
+        fault_blocks = sol[1][0::2]
+        block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
+                                    self.kinect_grid.scale.output_res[0]))
 
-        contour_list = []
-        contour_coords = []
-        for contour in contours:
-            M = cv2.moments(contour)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-            else:
-                cX = 0
-                cY = 0
+        return block, fault_blocks
 
-            approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True)
-            area = cv2.contourArea(contour)
-            if ((len(approx) > 8) & (len(approx) < 23) & (area > min_area)):
-                contour_list.append(contour)
-                contour_coords.append([cX, cY])
-        self.shapes=numpy.array(contour_coords)
+    def render_geo_map(self, block, fault_blocks, outfile="./temp/current_frame.png"):
+        if outfile is None:
+            outfile = "./temp/current_frame.png"
 
-    def where_circles(self, image, thresh_value=None):
-        """Get the coordinates for all detected circles.
+     #   block, fault_blocks = self.compute_model()
+        self.geol_map.render_frame(block)
 
-                    Args:
-                        image (image file): Image input.
-                        thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
-                    Returns:
-                        x- and y- coordinates for all detected circles as a 2D array.
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        # fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1], scale.output_res[0]))
+        for fault in fault_blocks:
+            fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+            self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
 
-                """
-        if thresh_value is None:
-            thresh_value = self.thresh_value
-        #output = image.copy()
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blurred, thresh_value, 255, cv2.THRESH_BINARY)[1]
-        # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.2 100)
-        circles = cv2.HoughCircles(thresh, cv2.HOUGH_GRADIENT, 1, 2, numpy.array([]), 200, 8, 4, 8)
+        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.save(outfile=outfile)
 
-        if circles != [] and circles is not None:
-            # convert the (x, y) coordinates and radius of the circles to integers
-            circles = numpy.round(circles[0, :]).astype("int")
-            # print(circles)
-            circle_coords = numpy.array(circles)[:, :2]
-            dist = scipy.spatial.distance.cdist(circle_coords, circle_coords, 'euclidean')
-            #minima = np.min(dist, axis=1)
-            dist_bool = (dist > 0) & (dist < 5)
-            pos = numpy.where(dist_bool == True)[0]
-            grouped = circle_coords[pos]
-            mean_grouped = (numpy.sum(grouped, axis=0) / 2).astype(int)
-            circle_coords = numpy.delete(circle_coords, list(pos), axis=0)
-            circle_coords = numpy.vstack((circle_coords, mean_grouped))
+    def create_fault_line(self,
+                          start=0.5,
+                          end=2.5,
+                          step=1.0,
+                          linewidth=3.0,
+                          colors=[(1.0, 1.0, 1.0, 1.0)]):
 
-            self.circles = circle_coords.tolist()
+        self.fault_line = Contour(start=start, end=end, step=step, linewidth=linewidth,
+                                  colors=colors)
 
+        return self.fault_line
 
+    def create_main_contours(self, start, end, step=100, show_labels=True):
 
-    def filter_circles(self, shape_coords, circle_coords):
-        dist = scipy.spatial.distance.cdist(shape_coords, circle_coords, 'euclidean')
-        minima = numpy.min(dist, axis=1)
-        non_circle_pos = numpy.where(minima > 10)
-        return non_circle_pos
+        self.main_contours = Contour(start=start, end=end, step=step, show_labels=show_labels)
+        return self.main_contours
 
-    def where_non_circles(self, image, thresh_value=None, min_area=None):
-        if thresh_value is None:
-            thresh_value = self.thresh_value
-        if min_area is None:
-            min_area=self.min_area
-        shape_coords = self.where_shapes(image, thresh_value, min_area)
-        circle_coords = self.where_circles(image, thresh_value)
-        if len(circle_coords)>0:
-            non_circles = self.filter_circles(shape_coords, circle_coords)
-            return shape_coords[non_circles].tolist()  #ToDo: what is this output?
-        else:
-            return shape_coords.tolist()
+    def create_sub_contours(self,
+                            start,
+                            end,
+                            step=25,
+                            linewidth=0.8,
+                            colors=[(1.0, 1.0, 1.0, 1.0)]):
 
-    def get_shape_coords(self, image, thresh_value=None, min_area=None):
-        """Get the coordinates for all shapes, classified as circles and non-circles.
+        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth,
+                                    colors=colors)
+        return self.sub_contours
 
-                        Args:
-                            image (image file): Image input.
-                            thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
-                            min_area (int, float): Minimal area for a non-circle shape to be detected.
-                        Returns:
-                            x- and y- coordinates for all detected shapes as 2D arrays.
-                            [0]: non-circle shapes
-                            [1]: circle shapes
-
-                    """
-        if thresh_value is None:
-            thresh_value = self.thresh_value
-        if min_area is None:
-            min_area=self.min_area
-        non_circles = self.where_non_circles(image, thresh_value, min_area)
-        circles = self.where_circles(image, thresh_value)
-
-        return non_circles, circles
+    # def run(self):
+    #     run_model(self)
 
 
-    def plot_all_shapes(self, image, thresh_value=None, min_area=None):
-        """Plot detected shapes onto image.
-
-                            Args:
-                                image (image file): Image input.
-                                thresh_value (int, optional, default = 80): Define the lower threshold value for shape recognition.
-                                min_area (int, float): Minimal area for a non-circle shape to be detected.
-
-                        """
-        if thresh_value is None:
-            thresh_value = self.thresh_value
-        if min_area is None:
-            min_area=self.min_area
-
-        output = image.copy()
-        non_circles, circles = self.get_shape_coords(image, thresh_value, min_area)
-        for (x, y) in circles:
-            cv2.circle(output, (x, y), 5, (0, 255, 0), 3)
-            # cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
-        for (x, y) in non_circles:
-            cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
-        out_image = numpy.hstack([image, output])
-        plt.imshow(out_image)
-
-    def non_circles_fillmask(self, image, th1=60, th2=80):   #TODO: what is this function?
-        bilateral_filtered_image = cv2.bilateralFilter(image, 5, 175, 175)
-        gray = cv2.cvtColor(bilateral_filtered_image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blurred, th1, 1, cv2.THRESH_BINARY)[1]
-        circle_coords = self.where_circles(image, th2)
-        for (x, y) in circle_coords:           cv2.circle(thresh, (x, y), 20, 1, -1)
-        return numpy.invert(thresh.astype(bool))
+## global functions to run the model in loop.
+# def run_model(model, calibration=None, kinect=None, projector=None, filter_depth=True, n_frames=5,
+#               sigma_gauss=4):  # continous run functions with exit handling
+#     if calibration == None:
+#         calibration = model.calibration
+#     if kinect == None:
+#         kinect = calibration.associated_kinect
+#     if projector == None:
+#         projector = calibration.associated_projector
+#
+#     while True:
+#         if filter_depth == True:
+#             depth = kinect.get_filtered_frame(n_frames=n_frames, sigma_gauss=sigma_gauss)
+#         else:
+#             depth = kinect.get_frame()
+#
+#         model.update_grid(depth)
+#         model.render_frame(depth, outfile="current_frame.jpeg")
+#         # time.sleep(self.delay)
+#         projector.show(input="current_frame.jpeg", rescale=False)
+#
+#         if model.stop_threat is True:
+#             raise Exception('Threat stopped')
 
 
-class Terrain:
-    """
-    simple module to visualize the topography in the sandbox with contours and a colormap.
-    """
-    def __init__(self,calibration=None, cmap='terrain', contours=True):
-        """
-        :type contours: boolean
-        :type cmap: matplotlib colormap object or keyword
-        :type calibration: Calibration object. By default the last created calibration is used.
-
-        """
-        if calibration is None:
-            try:
-                self.calibration = Calibration._instances[-1]
-                print("using last calibration instance created: ", calibration)
-            except:
-                print("no calibration found")
-                self.calibration = calibration
-
-        self.cmap = cmap
-        self.contours = contours
-        self.main_levels = numpy.arange(0, 2000, 50)
-        self.sub_levels = numpy.arange(0, 2000, 10)
-
-
-    def setup(self):
-        pass
-
-    def render_frame(self,depth):
-        depth_rotated = scipy.ndimage.rotate(depth, self.calibration.calibration_data.rot_angle, reshape=False)
-        depth_cropped = depth_rotated[self.calibration.calibration_data.y_lim[0]:self.calibration.calibration_data.y_lim[1],
-                        self.calibration.calibration_data.x_lim[0]:self.calibration.calibration_data.x_lim[1]]
-        depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration.calibration_data.z_range[0],
-                                               self.calibration.calibration_data.z_range[
-                                                   1])  # depth pixels outside of range are white, no data pixe;ls are black.
-
-        h = self.calibration.calibration_data.scale_factor * (
-                    self.calibration.calibration_data.y_lim[1] - self.calibration.calibration_data.y_lim[0]) / 100.0
-        w = self.calibration.calibration_data.scale_factor * (
-                self.calibration.calibration_data.x_lim[1] - self.calibration.calibration_data.x_lim[0]) / 100.0
-
-        fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
-        ax = plt.Axes(fig, [0., 0., 1., 1.])
-        ax.set_axis_off()
-        fig.add_axes(ax)
-        if self.contours is True:
-            x = range(numpy.shape(depth_cropped)[1])
-            y = range(numpy.shape(depth_cropped)[0])
-            z = depth_cropped
-            sub_contours = plt.contour(x, y, z, levels=self.sub_levels, linewidths=0.5, colors=[(0, 0, 0, 0.8)])
-            main_contours = plt.contour(x, y, z, levels=self.main_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
-            plt.clabel(main_contours, inline=0, fontsize=15, fmt='%3.0f')
-        ax.pcolormesh(depth_masked, vmin=self.calibration.calibration_data.z_range[0],
-                      vmax=self.calibration.calibration_data.z_range[1], cmap=self.cmap)
-        plt.savefig('current_frame.png', pad_inches=0)
-        plt.close(fig)
-
-
-class Module:
+class SandboxThread:
     """
     container for modules that handles threading. any kind of module can be loaded, as long as it contains a 'setup' and 'render_frame" method!
     """
     _ids = count(0)
     _instances = []
 
-    def __init__(self, module, kinect=None, calibration=None, projector=None):
-
-        if kinect is None:
-            try:
-                self.kinect = Kinect._instances[-1]
-                print("using last kinect instance created: ", self.kinect)
-            except:
-                print("no kinect found")
-                self.kinect = kinect
-        else:
-            self.kinect = kinect
-
-        if calibration is None:
-            try:
-                self.calibration = Calibration._instances[-1]
-                print("using last calibration instance created: ", self.calibration)
-            except:
-                print("no calibration found")
-                self.calibration = calibration
-
-        if projector is None:
-            try:
-                self.projector = Projector._instances[-1]
-                print("using last projector instance created: ", self.projector)
-            except:
-                print("no projector found")
-                self.projector=projector
+    def __init__(self, module, kinect, projector, path=None):
 
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
 
         self.module = module
+        self.kinect = kinect
+        self.projector = projector
+        self.path = path
         self.thread = None
         self.lock = threading.Lock()
         self.stop_thread = False
@@ -1075,12 +1253,13 @@ class Module:
         while self.stop_thread is False:
             depth = self.kinect.get_filtered_frame()
             with self.lock:
-                self.module.render_frame(depth, outfile="current_frame.png")
+                lith, fault = self.module.compute_model(depth)
+                self.module.render_geo_map(lith, fault, outfile=self.path)
                 self.projector.show()
 
     def run(self):
         self.stop_thread = False
-        self.module.setup()
+       # self.module.setup()
       #  self.lock.acquire()
         self.thread = threading.Thread(target=self.loop, daemon=None)
         self.thread.start()
@@ -1099,32 +1278,33 @@ class Module:
         except:
             pass
 
-def detect_shapes(kinect, model, calibration, frame=None):
-    if frame is None:
-        frame = kinect.get_RGB_frame()
-    rotated_frame = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
-    cropped_frame = rotated_frame[calibration.calibration_data.y_lim[0]:calibration.calibration_data.y_lim[1],
-                    calibration.calibration_data.x_lim[0]:calibration.calibration_data.x_lim[1]]
-    squares, circles = Detector.get_shape_coords(cropped_frame)
-
-    for square in squares:
-        print(square)
-
-
-def render_depth_frame(calibration=None, kinect=None, projector=None, filter_depth=True, n_frames=5, sigma_gauss=4,
-                       cmap='terrain'):  ##TODO:remove duplicates in run_depth
-    pass
-
-
-def render_depth_diff_frame(target_depth, kinect, projector):
-    pass
-
-
-def run_depth_diff(target_depth, kinect, projector):
-    pass
-
-
-
+#
+# def detect_shapes(kinect, model, calibration, frame=None):
+#     if frame is None:
+#         frame = kinect.get_RGB_frame()
+#     rotated_frame = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
+#     cropped_frame = rotated_frame[calibration.calibration_data.y_lim[0]:calibration.calibration_data.y_lim[1],
+#                     calibration.calibration_data.x_lim[0]:calibration.calibration_data.x_lim[1]]
+#     squares, circles = Detector.get_shape_coords(cropped_frame)
+#
+#     for square in squares:
+#         print(square)
+#
+#
+# def render_depth_frame(calibration=None, kinect=None, projector=None, filter_depth=True, n_frames=5, sigma_gauss=4,
+#                        cmap='terrain'):  ##TODO:remove duplicates in run_depth
+#     pass
+#
+#
+# def render_depth_diff_frame(target_depth, kinect, projector):
+#     pass
+#
+#
+# def run_depth_diff(target_depth, kinect, projector):
+#     pass
+#
+#
+#
 
 """
 
