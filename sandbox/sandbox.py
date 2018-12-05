@@ -1130,6 +1130,9 @@ class GeoMapModule:
 
         self.x_grid = range(self.kinect_grid.scale.output_res[0])
         self.y_grid = range(self.kinect_grid.scale.output_res[1])
+
+        self.plot_topology = True
+        self.plot_faults = True
         #
         # self.legend = True
         # self.model = model
@@ -1160,12 +1163,15 @@ class GeoMapModule:
         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
         # fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1], scale.output_res[0]))
-        for fault in fault_blocks:
-            fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
-            self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
 
-        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        if self.plot_faults is True:
+            for fault in fault_blocks:
+                fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+                self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+        if self.plot_topology is True:
+            self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+            self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+
         self.geol_map.save(outfile=outfile)
 
     def create_fault_line(self,
@@ -1220,12 +1226,16 @@ class GeoMapModule:
         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
         # fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1], scale.output_res[0]))
-        for fault in fault_blocks:
-            fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
-            self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
 
-        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        if self.plot_faults is True:
+            for fault in fault_blocks:
+                fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+                self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+
+        if self.plot_topology is True:
+            self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+            self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+
         self.geol_map.save(outfile=output)
 
 
