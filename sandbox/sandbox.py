@@ -317,7 +317,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
              legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
              profile_area=False,
              profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-             profile_y_lim=(seCalibrationDatalf.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
+             profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
              hot_area=False,
              hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
              hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
