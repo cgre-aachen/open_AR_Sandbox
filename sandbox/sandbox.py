@@ -765,6 +765,7 @@ class Plot:
                                            linewidths=contour.linewidth, colors=contour.colors)
             if contour.show_labels is True:
                 self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize, fmt=contour.label_format)
+
     def create_empty_frame(self):
         self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
@@ -774,6 +775,7 @@ class Plot:
     def render_frame(self, rasterdata):
         self.create_empty_frame()
         self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
+        self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
     def add_lith_contours(self, block, levels=None):
       #  plt.tricontourf(block[0],block[1],block[2], cmap='viridis')
@@ -1138,8 +1140,8 @@ class GeoMapModule:
         # self.stop_threat = False
         # self.lock = lock
 
-    def compute_model(self, kinect_grid):
-        self.kinect_grid.update_grid(kinect_grid)
+    def compute_model(self, kinect_array):
+        self.kinect_grid.update_grid(kinect_array)
         sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
         lith_block = sol[0][0]
         fault_blocks = sol[1][0::2]
@@ -1194,7 +1196,40 @@ class GeoMapModule:
                                     colors=colors)
         return self.sub_contours
 
-    # def run(self):
+    def export_topographic_map(self, output="./temp/topographic_map.pdf"):
+        # self.kinect_gridupdate_grid(kinect.get_filtered_frame(n_frames=3, sigma_gauss=4))
+        self.geol_map.create_empty_frame()
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.save(outfile=output)
+
+    def export_geological_map(self, kinect_array, output="./temp/geological_map.pdf"):
+        print(
+            "there is still a bug in the map that causes the uppermost lithology to be displayed in the basement color. Unfortunately we do not have a quick fix for this currently... Sorry! Please fix the map yourself, for example using illustrator")
+        #sol = gp.compute_model_at(grid.depth_grid, geo_model)
+
+        lith_block, fault_blocks = self.compute_model(kinect_array)
+        #lith_block = sol.lith_block.reshape((scale.output_res[1], scale.output_res[0]))
+        self.geol_map.create_empty_frame()
+        #lith_levels = sol.scalar_field_at_interfaces[-1].sort()
+        lith_levels = self.geo_model.potential_at_interfaces[-1].sort()
+        self.geol_map.add_lith_contours(lith_block, levels=lith_levels)
+
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        # fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1], scale.output_res[0]))
+        for fault in fault_blocks:
+            fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+            self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+
+        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.save(outfile=output)
+
+
+        # def run(self):
     #     run_model(self)
 
 
@@ -1247,6 +1282,7 @@ class SandboxThread:
         while self.stop_thread is False:
             depth = self.kinect.get_filtered_frame()
             with self.lock:
+                # TODO: Making the next two lines agnostic from GemPy
                 lith, fault = self.module.compute_model(depth)
                 self.module.render_geo_map(lith, fault, outfile=self.path)
                 self.projector.show()
