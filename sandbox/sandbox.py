@@ -92,7 +92,7 @@ class Kinect:  # add dummy
             self.depth = synth_depth
             return self.depth
 
-    def get_filtered_frame(self, n_frames=None, sigma_gauss=None): #TODO: deprecate?
+    def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
         if n_frames is None:
             n_frames = self.n_frames
         if sigma_gauss is None:
@@ -1113,7 +1113,7 @@ class GeoMapModule:
     _ids = count(0)
     _instances = []
 
-    def __init__(self, geo_model, grid: Grid, geol_map: Plot):
+    def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
 
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
@@ -1121,6 +1121,7 @@ class GeoMapModule:
         self.geo_model = geo_model
         self.kinect_grid = grid
         self.geol_map = geol_map
+        self.work_directory = work_directory
 
         self.fault_line = self.create_fault_line()
         self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
@@ -1153,9 +1154,10 @@ class GeoMapModule:
 
         return block, fault_blocks
 
-    def render_geo_map(self, block, fault_blocks, outfile="./temp/current_frame.png"):
+#TODO: Miguel: outfile folder should follow by default whatever is set in ptojection!
+    def render_geo_map(self, block, fault_blocks, outfile=None):
         if outfile is None:
-            outfile = "./temp/current_frame.png"
+            outfile =  os.path.join(self.work_directory),"current_frame.png"
 
      #   block, fault_blocks = self.compute_model()
         self.geol_map.render_frame(block)
@@ -1176,7 +1178,7 @@ class GeoMapModule:
 
     def create_fault_line(self,
                           start=0.5,
-                          end=2.5,
+                          end=2.5, #TODO Miguel:increase?
                           step=1.0,
                           linewidth=3.0,
                           colors=[(1.0, 1.0, 1.0, 1.0)]):
@@ -1202,7 +1204,7 @@ class GeoMapModule:
                                     colors=colors)
         return self.sub_contours
 
-    def export_topographic_map(self, output="./temp/topographic_map.pdf"):
+    def export_topographic_map(self, output="topographic_map.pdf"):
         # self.kinect_gridupdate_grid(kinect.get_filtered_frame(n_frames=3, sigma_gauss=4))
         self.geol_map.create_empty_frame()
         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
@@ -1211,7 +1213,8 @@ class GeoMapModule:
         self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
         self.geol_map.save(outfile=output)
 
-    def export_geological_map(self, kinect_array, output="./temp/geological_map.pdf"):
+    def export_geological_map(self, kinect_array, output="geological_map.pdf"):
+
         print(
             "there is still a bug in the map that causes the uppermost lithology to be displayed in the basement color. Unfortunately we do not have a quick fix for this currently... Sorry! Please fix the map yourself, for example using illustrator")
         #sol = gp.compute_model_at(grid.depth_grid, geo_model)
