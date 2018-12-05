@@ -782,7 +782,7 @@ class Plot:
         plt.close(self.fig)
 
     def create_legend(self):
-        # ...
+        #
         pass
 
 
