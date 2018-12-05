@@ -1132,7 +1132,7 @@ class GeoMapModule:
         self.x_grid = range(self.kinect_grid.scale.output_res[0])
         self.y_grid = range(self.kinect_grid.scale.output_res[1])
 
-        self.plot_topology = True
+        self.plot_topography = True
         self.plot_faults = True
         #
         # self.legend = True
@@ -1157,7 +1157,7 @@ class GeoMapModule:
 #TODO: Miguel: outfile folder should follow by default whatever is set in ptojection!
     def render_geo_map(self, block, fault_blocks, outfile=None):
         if outfile is None:
-            outfile =  os.path.join(self.work_directory),"current_frame.png"
+            outfile = os.path.join(self.work_directory,"current_frame.png")
 
      #   block, fault_blocks = self.compute_model()
         self.geol_map.render_frame(block)
@@ -1170,7 +1170,7 @@ class GeoMapModule:
             for fault in fault_blocks:
                 fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
                 self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
-        if self.plot_topology is True:
+        if self.plot_topography is True:
             self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
@@ -1235,7 +1235,7 @@ class GeoMapModule:
                 fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
                 self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
 
-        if self.plot_topology is True:
+        if self.plot_topography is True:
             self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
