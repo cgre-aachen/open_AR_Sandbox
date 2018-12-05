@@ -27,14 +27,15 @@ import matplotlib
 import IPython
 import threading
 
-warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden kernel death. Be sure no other'
-     ' kernel is running before initialize a kinect object.', RuntimeWarning)
+warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
+     'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
+
 
 class Kinect:  # add dummy
-    '''
+    """
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
-    '''
+    """
     _ids = count(0)
     _instances = []
 
@@ -97,7 +98,7 @@ class Kinect:  # add dummy
         if self.dummy is True:
             self.get_frame()
             return self.depth
-        elif self.filter=='gaussian':
+        elif self.filter == 'gaussian':
 
             depth_array = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
             for i in range(n_frames - 1):
@@ -161,7 +162,6 @@ class Projector:
         self.resolution = resolution
         self.calibration = Calibration(associated_projector=self)
         print("created new calibration:", self.calibration)
-
 
     def calibrate(self):
         self.calibration.create()
@@ -271,8 +271,7 @@ class Projector:
         os.rename(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
 
 
-
-class Calibration_Data:
+class CalibrationData:
     def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
                       legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
                       hot_y_lim=(400,450)):
@@ -313,12 +312,12 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         if calibration_file is None:
             self.calibration_file = "calibration" + str(self.id) + ".dat"
 
-        self.calibration_data = Calibration_Data(
+        self.calibration_data = CalibrationData(
              legend_x_lim=(self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
              legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
              profile_area=False,
              profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-             profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
+             profile_y_lim=(seCalibrationDatalf.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
              hot_area=False,
              hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
              hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
@@ -337,7 +336,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             calibration_file = self.calibration_file
         try:
             self.calibration_data = pickle.load(open(calibration_file, 'rb'))
-            if not isinstance(self.calibration_data, Calibration_Data):
+            if not isinstance(self.calibration_data, CalibrationData):
                 raise TypeError("loaded data is not a Calibration File object")
         except OSError:
             print("calibration data file not found")
@@ -396,7 +395,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             plt.savefig(os.path.join(self.associated_projector.work_directory,'current_frame.png'), pad_inches=0)
             plt.close(fig)
 
-            self.calibration_data = Calibration_Data(
+            self.calibration_data = CalibrationData(
                                     rot_angle=rot_angle,
                                     x_lim=x_lim,
                                     y_lim=y_lim,
@@ -538,7 +537,7 @@ class Scale:
     self.extent: 3d extent of the model in the sandbox in model units.
 
     """
-    def __init__(self, calibration=None, xy_isometric=True, extent=None):
+    def __init__(self, calibration: Calibration = None, xy_isometric=True, extent=None):
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
