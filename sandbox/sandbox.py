@@ -818,7 +818,7 @@ class GeoMapModule:
         self.geol_map = geol_map
         self.work_directory = work_directory
 
-        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data.n_faults+0.5001)
+        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults+0.5001)
         self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
                                                        self.kinect_grid.scale.extent[5])
         self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
