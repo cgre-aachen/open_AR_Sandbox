@@ -1172,7 +1172,7 @@ class GeoMapModule:
 
     def create_fault_line(self,
                           start=0.5,
-                          end=2.5, #TODO Miguel:increase?
+                          end=50.5, #TODO Miguel:increase?
                           step=1.0,
                           linewidth=3.0,
                           colors=[(1.0, 1.0, 1.0, 1.0)]):
@@ -1182,9 +1182,14 @@ class GeoMapModule:
 
         return self.fault_line
 
-    def create_main_contours(self, start, end, step=100, show_labels=True):
+    def create_main_contours(self, start, end, step=100, linewidth=1.0,
+                                  colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
 
-        self.main_contours = Contour(start=start, end=end, step=step, show_labels=show_labels)
+        self.main_contours = Contour(start=start,
+                                     end=end,
+                                     step=step,
+                                     show_labels=show_labels,
+                                     linewidth=linewidth, colors=colors)
         return self.main_contours
 
     def create_sub_contours(self,
@@ -1192,10 +1197,11 @@ class GeoMapModule:
                             end,
                             step=25,
                             linewidth=0.8,
-                            colors=[(1.0, 1.0, 1.0, 1.0)]):
+                            colors=[(0.0, 0.0, 0.0, 0.8)],
+                            show_labels=False
+                            ):
 
-        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth,
-                                    colors=colors)
+        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors, show_labels=show_labels)
         return self.sub_contours
 
     def export_topographic_map(self, output="topographic_map.pdf"):
