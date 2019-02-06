@@ -133,182 +133,6 @@ def Beamer(*args, **kwargs):
     return Projector(*args, **kwargs)
 
 
-class Projector:
-    _ids = count(0)
-    _instances = []
-
-    def __init__(self, calibration=None, resolution=None):
-        self.__class__._instances.append(weakref.proxy(self))
-        self.id = next(self._ids)
-        self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filenamne = "frame" + str(self.id) + ".jpeg"
-        self.input_filename = 'current_frame.jpeg'
-        self.legend_filename = 'legend.jpeg'
-        self.hot_filename = 'hot.jpeg'
-        self.profile_filename = 'profile.jpeg'
-        self.work_directory = None
-        self.html_file = None
-        self.html_text = None
-        self.frame_file = None
-        self.drawdate = "false"  # Boolean as string for html, only used for testing.
-        self.refresh = 100  # wait time in ms for html file to load image
-        self.input_rescale=True
-        if resolution is None:
-            resolution = (800, 600)
-        self.resolution = resolution
-        if isinstance(calibration, Calibration):
-            self.calibration = calibration
-        else:
-            self.calibration = Calibration(associated_projector=self)
-            print("created new calibration:", self.calibration)
-
-    def calibrate(self):
-        self.calibration.create()
-
-    def start_stream(self):
-        # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
-        if self.work_directory is None:
-            self.work_directory = os.getcwd()
-        self.html_file = open(os.path.join(self.work_directory, self.html_filename), "w")
-
-        self.html_text = """
-            <html>
-            <head>
-                <style>
-                    body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
-                </style>
-            <script type="text/JavaScript">
-            var url = "output.jpeg"; //url to load image from
-            var refreshInterval = {0} ; //in ms
-            var drawDate = {1}; //draw date string
-            var img;
-
-            function init() {{
-                var canvas = document.getElementById("canvas");
-                var context = canvas.getContext("2d");
-                img = new Image();
-                img.onload = function() {{
-                    canvas.setAttribute("width", img.width)
-                    canvas.setAttribute("height", img.height)
-                    context.drawImage(this, 0, 0);
-                    if(drawDate) {{
-                        var now = new Date();
-                        var text = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-                        var maxWidth = 100;
-                        var x = img.width-10-maxWidth;
-                        var y = img.height-10;
-                        context.strokeStyle = 'black';
-                        context.lineWidth = 2;
-                        context.strokeText(text, x, y, maxWidth);
-                        context.fillStyle = 'white';
-                        context.fillText(text, x, y, maxWidth);
-                    }}
-                }};
-                refresh();
-            }}
-            function refresh()
-            {{
-                img.src = url + "?t=" + new Date().getTime();
-                setTimeout("refresh()",refreshInterval);
-            }}
-
-            </script>
-            <title>AR Sandbox output</title>
-            </head>
-
-            <body onload="JavaScript:init();">
-            <canvas id="canvas"/>
-            </body>
-            </html>
-
-            """
-        self.html_text = self.html_text.format(self.refresh, self.drawdate)
-        self.html_file.write(self.html_text)
-        self.html_file.close()
-
-        webbrowser.open_new('file://' + str(os.path.join(self.work_directory, self.html_filename)))
-
-    def show(self, input=None, legend_filename=None, profile_filename=None,
-             hot_filename=None, rescale=None):
-
-        if input is None:
-            input = self.input_filename
-        if legend_filename is None:
-            legend_filename = self.legend_filename
-        if profile_filename is None:
-            profile_filename = self.profile_filename
-        if hot_filename is None:
-            hot_filename = self.hot_filename
-        if rescale is None: #
-            rescale=self.input_rescale
-
-        projector_output = Image.new('RGB', self.resolution)
-        frame = Image.open(input)
-
-        if rescale is True:
-            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data['scale_factor']),
-                                              int(frame.height * self.calibration.calibration_data['scale_factor']))),
-                                (
-                                self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
-        else:
-            projector_output.paste(frame, (self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
-
-        if self.calibration.calibration_data['legend_area'] is not False:
-            legend = Image.open(legend_filename)
-            projector_output.paste(legend, (
-            self.calibration.calibration_data['legend_x_lim'][0], self.calibration.calibration_data['legend_y_lim'][0]))
-        if self.calibration.calibration_data['profile_area'] is not False:
-            profile = Image.open(profile_filename)
-            projector_output.paste(profile, (self.calibration.calibration_data['profile_x_lim'][0],
-                                          self.calibration.calibration_data['profile_y_lim'][0]))
-        if self.calibration.calibration_data['hot_area'] is not False:
-            hot = Image.open(hot_filename)
-            projector_output.paste(hot, (
-            self.calibration.calibration_data['hot_x_lim'][0], self.calibration.calibration_data['hot_y_lim'][0]))
-
-        projector_output.save('output_temp.jpeg')
-        os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
-
-        # TODO: Projector specific outputs
-
-    # TODO: threaded runloop exporting filtered and unfiltered depth
-
-    def draw_markers(self, coords,image=None):
-        """
-        Draw markers onto an image at the given coordinates
-        if image is a filename, the file will be overwritten. if image is an cv2 image object (numpy.ndarray), function will return an image object
-        :param image:
-        :param coords:
-        :return:
-        """
-        if image is None:
-            image=self.frame_file
-        if type(image) is str:
-            img = cv2.imread(image)
-        if type(image) is numpy.ndarray:
-            img=image
-        for point in coords:
-            cv2.circle(img, tuple(point), 6, (255, 255, 255), -1)
-        if type(image) is str:
-            cv2.imwrite(self.frame_file, img)
-        else:
-            return img
-
-    def draw_line(self, coords, image=None):  # takes list of exactly 2 coordinate pairs
-        if image is None:
-            image=self.frame_file
-        if type(image) is str:
-            img = cv2.imread(image)
-        if type(image) is numpy.ndarray:
-            img=image
-        lineThickness = 2
-        cv2.line(img, tuple(coords[0]), tuple(coords[1]), (255, 255, 255), lineThickness)
-        if type(image) is str:
-            cv2.imwrite(self.frame_file, img)
-        else:
-            return img
-
-
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     """
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
@@ -548,6 +372,188 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
 
                                                  )
         IPython.display.display(calibration_widget)
+
+
+class Projector:
+    _ids = count(0)
+    _instances = []
+
+    def __init__(self, calibration=None, resolution=None):
+        self.__class__._instances.append(weakref.proxy(self))
+        self.id = next(self._ids)
+        self.html_filename = "projector" + str(self.id) + ".html"
+        self.frame_filenamne = "frame" + str(self.id) + ".jpeg"
+        self.input_filename = 'current_frame.jpeg'
+        self.legend_filename = 'legend.jpeg'
+        self.hot_filename = 'hot.jpeg'
+        self.profile_filename = 'profile.jpeg'
+        self.work_directory = None
+        self.html_file = None
+        self.html_text = None
+        self.frame_file = None
+        self.drawdate = "false"  # Boolean as string for html, only used for testing.
+        self.refresh = 100  # wait time in ms for html file to load image
+        self.input_rescale=True
+        if resolution is None:
+            resolution = (800, 600)
+        self.resolution = resolution
+        if isinstance(calibration, Calibration):
+            self.calibration = calibration
+        else:
+            self.calibration = Calibration(associated_projector=self)
+            print("created new calibration:", self.calibration)
+###
+    def set_calibration(self, calibration=Calibration):
+	self.calibration = calibration
+###
+    def calibrate(self):
+        self.calibration.create()
+
+    def start_stream(self):
+        # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
+        if self.work_directory is None:
+            self.work_directory = os.getcwd()
+        self.html_file = open(os.path.join(self.work_directory, self.html_filename), "w")
+
+        self.html_text = """
+            <html>
+            <head>
+                <style>
+                    body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
+                </style>
+            <script type="text/JavaScript">
+            var url = "output.jpeg"; //url to load image from
+            var refreshInterval = {0} ; //in ms
+            var drawDate = {1}; //draw date string
+            var img;
+
+            function init() {{
+                var canvas = document.getElementById("canvas");
+                var context = canvas.getContext("2d");
+                img = new Image();
+                img.onload = function() {{
+                    canvas.setAttribute("width", img.width)
+                    canvas.setAttribute("height", img.height)
+                    context.drawImage(this, 0, 0);
+                    if(drawDate) {{
+                        var now = new Date();
+                        var text = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+                        var maxWidth = 100;
+                        var x = img.width-10-maxWidth;
+                        var y = img.height-10;
+                        context.strokeStyle = 'black';
+                        context.lineWidth = 2;
+                        context.strokeText(text, x, y, maxWidth);
+                        context.fillStyle = 'white';
+                        context.fillText(text, x, y, maxWidth);
+                    }}
+                }};
+                refresh();
+            }}
+            function refresh()
+            {{
+                img.src = url + "?t=" + new Date().getTime();
+                setTimeout("refresh()",refreshInterval);
+            }}
+
+            </script>
+            <title>AR Sandbox output</title>
+            </head>
+
+            <body onload="JavaScript:init();">
+            <canvas id="canvas"/>
+            </body>
+            </html>
+
+            """
+        self.html_text = self.html_text.format(self.refresh, self.drawdate)
+        self.html_file.write(self.html_text)
+        self.html_file.close()
+
+        webbrowser.open_new('file://' + str(os.path.join(self.work_directory, self.html_filename)))
+
+    def show(self, input=None, legend_filename=None, profile_filename=None,
+             hot_filename=None, rescale=None):
+
+        if input is None:
+            input = self.input_filename
+        if legend_filename is None:
+            legend_filename = self.legend_filename
+        if profile_filename is None:
+            profile_filename = self.profile_filename
+        if hot_filename is None:
+            hot_filename = self.hot_filename
+        if rescale is None: #
+            rescale=self.input_rescale
+
+        projector_output = Image.new('RGB', self.resolution)
+        frame = Image.open(input)
+
+        if rescale is True:
+            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data['scale_factor']),
+                                              int(frame.height * self.calibration.calibration_data['scale_factor']))),
+                                (
+                                self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
+        else:
+            projector_output.paste(frame, (self.calibration.calibration_data['x_pos'], self.calibration.calibration_data['y_pos']))
+
+        if self.calibration.calibration_data['legend_area'] is not False:
+            legend = Image.open(legend_filename)
+            projector_output.paste(legend, (
+            self.calibration.calibration_data['legend_x_lim'][0], self.calibration.calibration_data['legend_y_lim'][0]))
+        if self.calibration.calibration_data['profile_area'] is not False:
+            profile = Image.open(profile_filename)
+            projector_output.paste(profile, (self.calibration.calibration_data['profile_x_lim'][0],
+                                          self.calibration.calibration_data['profile_y_lim'][0]))
+        if self.calibration.calibration_data['hot_area'] is not False:
+            hot = Image.open(hot_filename)
+            projector_output.paste(hot, (
+            self.calibration.calibration_data['hot_x_lim'][0], self.calibration.calibration_data['hot_y_lim'][0]))
+
+        projector_output.save('output_temp.jpeg')
+        os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
+
+        # TODO: Projector specific outputs
+
+    # TODO: threaded runloop exporting filtered and unfiltered depth
+
+    def draw_markers(self, coords,image=None):
+        """
+        Draw markers onto an image at the given coordinates
+        if image is a filename, the file will be overwritten. if image is an cv2 image object (numpy.ndarray), function will return an image object
+        :param image:
+        :param coords:
+        :return:
+        """
+        if image is None:
+            image=self.frame_file
+        if type(image) is str:
+            img = cv2.imread(image)
+        if type(image) is numpy.ndarray:
+            img=image
+        for point in coords:
+            cv2.circle(img, tuple(point), 6, (255, 255, 255), -1)
+        if type(image) is str:
+            cv2.imwrite(self.frame_file, img)
+        else:
+            return img
+
+    def draw_line(self, coords, image=None):  # takes list of exactly 2 coordinate pairs
+        if image is None:
+            image=self.frame_file
+        if type(image) is str:
+            img = cv2.imread(image)
+        if type(image) is numpy.ndarray:
+            img=image
+        lineThickness = 2
+        cv2.line(img, tuple(coords[0]), tuple(coords[1]), (255, 255, 255), lineThickness)
+        if type(image) is str:
+            cv2.imwrite(self.frame_file, img)
+        else:
+            return img
+
+
+
 
 class Detector:
     """
