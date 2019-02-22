@@ -43,6 +43,15 @@ class Kinect:  # add dummy
     _instances = []
 
     def __init__(self, dummy=False, mirror=True):
+        """
+
+        Args:
+            dummy:
+            mirror:
+
+        Returns:
+
+        """
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
         self.resolution = (640, 480)
@@ -73,10 +82,27 @@ class Kinect:  # add dummy
             print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
     def set_angle(self, angle):
+        """
+
+        Args:
+            angle:
+
+        Returns:
+            None
+
+        """
         self.angle = angle
         freenect.set_tilt_degs(self.dev, self.angle)
 
     def get_frame(self, horizontal_slice=None):
+        """
+
+        Args:
+            horizontal_slice:
+
+        Returns:
+
+        """
         if self.dummy is False:
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
             self.depth = numpy.fliplr(self.depth)
@@ -93,6 +119,15 @@ class Kinect:  # add dummy
             return self.depth
 
     def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
+        """
+
+        Args:
+            n_frames:
+            sigma_gauss:
+
+        Returns:
+
+        """
         if n_frames is None:
             n_frames = self.n_frames
         if sigma_gauss is None:
@@ -112,6 +147,11 @@ class Kinect:  # add dummy
             return self.depth
 
     def get_rgb_frame(self):
+        """
+
+        Returns:
+
+        """
         if self.dummy is False:
             self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
             self.rgb_frame = numpy.fliplr(self.rgb_frame)
@@ -121,6 +161,15 @@ class Kinect:  # add dummy
             pass
 
     def calibrate_frame(self, frame, calibration=None):
+        """
+
+        Args:
+            frame:
+            calibration:
+
+        Returns:
+
+        """
         if calibration is None:
             try:
                 calibration = Calibration._instances[-1]
@@ -135,6 +184,15 @@ class Kinect:  # add dummy
 
 
 def Beamer(*args, **kwargs):
+    """
+
+    Args:
+        *args:
+        **kwargs:
+
+    Returns:
+
+    """
     warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
     return Projector(*args, **kwargs)
 
@@ -147,6 +205,13 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     _instances = []
 
     def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None):
+        """
+
+        Args:
+            associated_projector:
+            associated_kinect:
+            calibration_file:
+        """
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
         self.associated_projector = associated_projector
@@ -175,6 +240,14 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     # ...
 
     def load(self, calibration_file=None):
+        """
+
+        Args:
+            calibration_file:
+
+        Returns:
+
+        """
         if calibration_file == None:
             calibration_file = self.calibration_file
         try:
@@ -185,12 +258,25 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
             print("calibration data file not found. Using default values")
 
     def save(self, calibration_file=None):
+        """
+
+        Args:
+            calibration_file:
+
+        Returns:
+
+        """
         if calibration_file is None:
             calibration_file = self.calibration_file
         pickle.dump(self.calibration_data, open(calibration_file, 'wb'))
         print("calibration saved to " + str(calibration_file))
 
     def create(self):
+        """
+
+        Returns:
+
+        """
         if self.associated_projector is None:
             try:
                 self.associated_projector = Projector._instances[-1]
@@ -208,6 +294,32 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
         def calibrate(rot_angle, x_lim, y_lim, x_pos, y_pos, scale_factor, z_range, box_width, box_height, legend_area,
                       legend_x_lim, legend_y_lim, profile_area, profile_x_lim, profile_y_lim, hot_area, hot_x_lim,
                       hot_y_lim, close_click):
+            """
+
+            Args:
+                rot_angle:
+                x_lim:
+                y_lim:
+                x_pos:
+                y_pos:
+                scale_factor:
+                z_range:
+                box_width:
+                box_height:
+                legend_area:
+                legend_x_lim:
+                legend_y_lim:
+                profile_area:
+                profile_x_lim:
+                profile_y_lim:
+                hot_area:
+                hot_x_lim:
+                hot_y_lim:
+                close_click:
+
+            Returns:
+
+            """
             depth = self.associated_kinect.get_frame()
             depth_rotated = scipy.ndimage.rotate(depth, rot_angle, reshape=False)
             depth_cropped = depth_rotated[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
@@ -375,10 +487,26 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
 
 
 class Projector:
+    """
+
+    """
     _ids = count(0)
     _instances = []
 
     def __init__(self, resolution=None, create_calibration=False, work_directory='./', refresh=100, input_rescale=True):
+        """
+
+        Args:
+            resolution:
+            create_calibration:
+            work_directory:
+            refresh:
+            input_rescale:
+
+        Returns:
+            None
+
+        """
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
         self.html_filename = "projector" + str(self.id) + ".html"
@@ -405,6 +533,15 @@ class Projector:
             self.calibration = None
 
     def set_calibration(self, calibration: Calibration):
+        """
+
+        Args:
+            calibration:
+
+        Returns:
+            None
+
+        """
         self.calibration = calibration
 
     def calibrate(self):
@@ -412,6 +549,11 @@ class Projector:
         self.calibration.create()
 
     def start_stream(self):
+        """
+
+        Returns:
+
+        """
         # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
         if self.work_directory is None:
             self.work_directory = os.getcwd()
@@ -476,6 +618,18 @@ class Projector:
 
     def show(self, input=None, legend_filename=None, profile_filename=None,
              hot_filename=None, rescale=None):
+        """
+
+        Args:
+            input:
+            legend_filename:
+            profile_filename:
+            hot_filename:
+            rescale:
+
+        Returns:
+
+        """
 
         assert self.calibration is not None, 'Calibration is not set yet. See set_calibration.'
 
@@ -519,9 +673,38 @@ class Projector:
 
 
 class CalibrationData:
+    """
+
+    """
     def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
                       legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
                       hot_y_lim=(400,450)):
+        """
+
+        Args:
+            rot_angle:
+            x_lim:
+            y_lim:
+            x_pos:
+            y_pos:
+            scale_factor:
+            z_range:
+            box_width:
+            box_height:
+            legend_area:
+            legend_x_lim:
+            legend_y_lim:
+            profile_area:
+            profile_x_lim:
+            profile_y_lim:
+            hot_area:
+            hot_x_lim:
+            hot_y_lim:
+
+        Returns:
+            None
+
+        """
         self.rot_angle = rot_angle
         self.x_lim = x_lim
         self.y_lim = y_lim
@@ -550,6 +733,13 @@ class Scale:
 
     """
     def __init__(self, calibration: Calibration = None, xy_isometric=True, extent=None):
+        """
+
+        Args:
+            calibration:
+            xy_isometric:
+            extent:
+        """
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
@@ -578,11 +768,11 @@ class Scale:
         calculates the factors for the coordinates transformation kinect-extent
 
         Returns:
-        nothing, but changes in place:
-        self.output_res [pixels]: width and height of sandbox image
-        self.pixel_scale [modelunits/pixel]: XY scaling factor
-        pixel_size [mm/pixel]
-        self.scale
+            nothing, but changes in place:
+            self.output_res [pixels]: width and height of sandbox image
+            self.pixel_scale [modelunits/pixel]: XY scaling factor
+            pixel_size [mm/pixel]
+            self.scale
 
         """
 
@@ -621,6 +811,16 @@ class Grid:
     class for grid objects. a grid stores the 3D coordinate of each pixel recorded by the kinect in model coordinates
     """
     def __init__(self, calibration=None, scale=None,):
+        """
+
+        Args:
+            calibration:
+            scale:
+
+        Returns:
+            None
+
+        """
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
@@ -635,9 +835,12 @@ class Grid:
 
     def create_empty_depth_grid(self):
         """
-        sets up XY grid (Z is empty that is the name coming from)
-        :return:
+        Sets up XY grid (Z is empty that is the name coming from)
+
+        Returns:
+
         """
+
         grid_list = []
         self.output_res = (self.calibration.calibration_data.x_lim[1] -
                            self.calibration.calibration_data.x_lim[0],
@@ -667,13 +870,17 @@ class Grid:
 
     def update_grid(self, depth):
         """
-        appends the z (depth) coordinate to the empty depth grid. 
-        this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed. 
-        For performance reasons these steps are therefore separated. 
-         
-        :param depth: 
-        :return: 
+        Appends the z (depth) coordinate to the empty depth grid.
+        this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed.
+        For performance reasons these steps are therefore separated.
+
+        Args:
+            depth:
+
+        Returns:
+
         """
+
         # TODO: is this flip still necessary?
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data.z_range[0],
@@ -703,6 +910,24 @@ class Contour: #TODO: change the whole thing to use keyword arguments!!
     """
     def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)],
                  inline=0, fontsize=15, label_format='%3.0f'):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            show:
+            show_labels:
+            linewidth:
+            colors:
+            inline:
+            fontsize:
+            label_format:
+
+        Returns:
+            None
+
+        """
         self.start = start
         self.end = end
         self.step = step
@@ -726,6 +951,19 @@ class Plot:
 
     """
     def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, outfile=None):
+        """
+
+        Args:
+            calibration:
+            cmap:
+            norm:
+            lot:
+            outfile:
+
+        Returns:
+            None
+
+        """
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
@@ -772,20 +1010,50 @@ class Plot:
                 self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize, fmt=contour.label_format)
 
     def create_empty_frame(self):
+        """
+
+        Returns:
+
+        """
         self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
         self.ax.set_axis_off()
         self.fig.add_axes(self.ax)
 
     def render_frame(self, rasterdata):
+        """
+
+        Args:
+            rasterdata:
+
+        Returns:
+
+        """
         self.create_empty_frame()
         self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
         self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
     def add_lith_contours(self, block, levels=None):
+        """
+
+        Args:
+            block:
+            levels:
+
+        Returns:
+
+        """
         plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
 
     def save(self, outfile=None):
+        """
+
+        Args:
+            outfile:
+
+        Returns:
+
+        """
         if outfile is None:
             if self.outfile is None:
                 print("no outfile provided. try the default output file name 'current_frame.png' ")
@@ -800,15 +1068,35 @@ class Plot:
         plt.close(self.fig)
 
     def create_legend(self):
+        """
+
+        Returns:
+
+        """
         pass
 
 
 class GeoMapModule:
+    """
+
+    """
     # TODO: When we move GeoMapModule import gempy just there
     _ids = count(0)
     _instances = []
 
     def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
+        """
+
+        Args:
+            geo_model:
+            grid:
+            geol_map:
+            work_directory:
+
+        Returns:
+            None
+
+        """
 
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
@@ -831,6 +1119,14 @@ class GeoMapModule:
         self.plot_faults = True
 
     def compute_model(self, kinect_array):
+        """
+
+        Args:
+            kinect_array:
+
+        Returns:
+
+        """
         self.kinect_grid.update_grid(kinect_array)
         sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
         lith_block = sol[0][0]
@@ -840,9 +1136,19 @@ class GeoMapModule:
 
         return block, fault_blocks
 
-    # TODO: Miguel: outfile folder should follow by default whatever is set in ptojection!
+    # TODO: Miguel: outfile folder should follow by default whatever is set in projection!
     # TODO: Temporal fix. Eventually we need a container class or metaclass with this data
     def render_geo_map(self, block, fault_blocks, outfile=None):
+        """
+
+        Args:
+            block:
+            fault_blocks:
+            outfile:
+
+        Returns:
+
+        """
         if outfile is None:
             outfile = os.path.join(self.work_directory, "current_frame.png")
 
@@ -869,6 +1175,18 @@ class GeoMapModule:
                           step=1.0,
                           linewidth=3.0,
                           colors=[(1.0, 1.0, 1.0, 1.0)]):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+
+        Returns:
+
+        """
 
         self.fault_line = Contour(start=start, end=end, step=step, linewidth=linewidth,
                                   colors=colors)
@@ -877,6 +1195,19 @@ class GeoMapModule:
 
     def create_main_contours(self, start, end, step=100, linewidth=1.0,
                                   colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+            show_labels:
+
+        Returns:
+
+        """
 
         self.main_contours = Contour(start=start,
                                      end=end,
@@ -893,11 +1224,32 @@ class GeoMapModule:
                             colors=[(0.0, 0.0, 0.0, 0.8)],
                             show_labels=False
                             ):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+            show_labels:
+
+        Returns:
+
+        """
 
         self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors, show_labels=show_labels)
         return self.sub_contours
 
     def export_topographic_map(self, output="topographic_map.pdf"):
+        """
+
+        Args:
+            output:
+
+        Returns:
+
+        """
         self.geol_map.create_empty_frame()
         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
@@ -906,6 +1258,15 @@ class GeoMapModule:
         self.geol_map.save(outfile=output)
 
     def export_geological_map(self, kinect_array, output="geological_map.pdf"):
+        """
+
+        Args:
+            kinect_array:
+            output:
+
+        Returns:
+
+        """
 
         print("there is still a bug in the map that causes the uppermost lithology to be displayed in the basement"
               " color. Unfortunately we do not have a quick fix for this currently... Sorry! Please fix the map "
@@ -945,6 +1306,14 @@ class SandboxThread:
     _instances = []
 
     def __init__(self, module, kinect, projector, path=None):
+        """
+
+        Args:
+            module:
+            kinect:
+            projector:
+            path:
+        """
 
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
@@ -958,6 +1327,11 @@ class SandboxThread:
         self.stop_thread = False
 
     def loop(self):
+        """
+
+        Returns:
+
+        """
         while self.stop_thread is False:
             depth = self.kinect.get_filtered_frame()
             with self.lock:
@@ -967,18 +1341,38 @@ class SandboxThread:
                 self.projector.show()
 
     def run(self):
+        """
+
+        Returns:
+
+        """
         self.stop_thread = False
         self.thread = threading.Thread(target=self.loop, daemon=None)
         self.thread.start()
         # with thread and thread lock move these to main sandbox
 
     def pause(self):
+        """
+
+        Returns:
+
+        """
         self.lock.release()
 
     def resume(self):
+        """
+
+        Returns:
+
+        """
         self.lock.acquire()
 
     def kill(self):
+        """
+
+        Returns:
+
+        """
         self.stop_thread = True
         try:
             self.lock.release()
