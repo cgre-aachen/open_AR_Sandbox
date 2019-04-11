@@ -18,7 +18,7 @@ However, most of these common AR Sandboxes are limited to the visualization of t
 For this reason, we have developed open-AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
 
 ## Features
-Features of Open-AR-Sandbox
+
 * compatible with most AR Sandbox builds
 * subroutine for calibration and alignment of depth image, sand surface and projection • versatile model creation with the powerful GemPy library
 * open-source under LGPL v3.0 license
@@ -27,13 +27,14 @@ Features of Open-AR-Sandbox
 * supporting MacOS and Linux
 * projection of legend and additional information
 
+The open_AR_Sandbox as well as GemPy are currently under heavy development and we are expecting a major release in late Summer 2019, bringing to you: 
 
 * Microsoft Windows support
 * Tutorials and Documentation to help you develop your own modules
 * GemPy optimization for (much!) higher framerates
 * module for seismic wave modelling in the sandbox
 * on-the-fly modification of the geological model (layer dip, thickness fault throw, etc.)
- a major update is coming in Summer 2019!
+* ...
 
 
 ## Requirements
