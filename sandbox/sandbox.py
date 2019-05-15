@@ -1,3 +1,4 @@
+
 import os
 from warnings import warn
 try:
@@ -409,7 +410,7 @@ class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
                                                  y_pos=widgets.IntSlider(value=self.calibration_data.y_pos, min=0,
                                                                          max=self.projector_resolution[1]),
                                                  scale_factor=widgets.FloatSlider(
-                                                     value=self.calibration_data.scale_factor, min=0.1, max=4.0,
+                                                     value=self.calibration_data.scale_factor, min=0.1, max=6.0,
                                                      step=0.01, continuous_update=False),
                                                  z_range=widgets.IntRangeSlider(
                                                      value=[self.calibration_data.z_range[0],
