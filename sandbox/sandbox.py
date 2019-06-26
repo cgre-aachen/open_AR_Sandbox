@@ -3,10 +3,21 @@ import os
 from warnings import warn
 try:
     import freenect
+    warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
+         'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
 except ImportError:
-    warn('Freenect is not installed. Sandbox wont work. Good luck')
+    warn('Freenect is not installed. if you are using the Kinect Version 2 on a windows machine, use the KinectV2 class!')
+
+try:
+    from pykinect2 import PyKinectV2 #try to import Wrapper for KinectV2 Windows SDK
+    from pykinect2 import PyKinectRuntime
+
+except ImportError:
+    pass
+
 try:
     import cv2
+
 except ImportError:
    # warn('opencv is not installed. Object detection will not work')
     pass
@@ -30,10 +41,6 @@ import threading
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
 
-warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
-     'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
-
-
 class Kinect:  # add dummy
     """
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
@@ -54,9 +61,9 @@ class Kinect:  # add dummy
         """
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
-        self.resolution = (640, 480)
+        self.resolution = (640, 480)  #TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
         self.dummy = dummy
-        self.mirror = mirror
+        self.mirror = mirror # TODO: check if this is used anywhere, then delete
         self.rgb_frame = None
         self.angle = None
 
@@ -81,7 +88,7 @@ class Kinect:  # add dummy
             self.depth = self.get_frame()
             print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
-    def set_angle(self, angle):
+    def set_angle(self, angle): #TODO: throw out
         """
 
         Args:
@@ -146,7 +153,7 @@ class Kinect:  # add dummy
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
             return self.depth
 
-    def get_rgb_frame(self):
+    def get_rgb_frame(self):  # TODO: check if this can be thrown out
         """
 
         Returns:
@@ -160,7 +167,7 @@ class Kinect:  # add dummy
         else:
             pass
 
-    def calibrate_frame(self, frame, calibration=None):
+    def calibrate_frame(self, frame, calibration=None):  # TODO: check if this can be thrown out
         """
 
         Args:
@@ -181,6 +188,69 @@ class Kinect:  # add dummy
                   calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
         cropped = numpy.flipud(cropped)
         return cropped
+
+
+class KinectV2:
+    """
+    control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
+    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do gaussian
+    blurring to get smoother lines.
+    """
+
+    def __init__(self):
+        """
+
+        Args:
+
+
+        Returns:
+
+        """
+
+        #TODO: include filter self.-filter parameters as function defaults
+        self.n_frames = 3 #filter parameters
+        self.sigma_gauss = 3
+        self.filter = 'gaussian'
+        self.depth = self.get_frame()
+        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
+
+    def get_frame(self):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
+
+        """
+        depth_flattened = self.kinect.get_last_depth_frame()
+        self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.depth
+
+    def get_filtered_frame(self):
+        """
+
+        Args:
+
+
+        Returns:
+            2D Array of the shape(424, 512) containing the depth information of the latest frame in mm after stacking of
+             self.n_frames and gaussian blurring with a kernel of self.sigma_gauss pixels.
+        """
+
+        if self.filter == 'gaussian':
+
+            depth_array = self.get_frame()
+            for i in range(n_frames - 1):
+                depth_array = numpy.dstack([depth_array, self.get_frame])
+            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
+            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
+            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
+            return self.depth
+
+
+
+
 
 
 def Beamer(*args, **kwargs):
