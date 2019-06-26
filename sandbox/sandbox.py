@@ -211,8 +211,8 @@ class KinectV2:
         self.n_frames = 3 #filter parameters
         self.sigma_gauss = 3
         self.filter = 'gaussian'
-        self.depth = self.get_frame()
         self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
+        self.depth = self.get_frame()
 
     def get_frame(self):
         """
@@ -739,7 +739,7 @@ class Projector:
             self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
 
         projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
-        os.rename(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
+        os.replace(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
 
 
 class CalibrationData:
