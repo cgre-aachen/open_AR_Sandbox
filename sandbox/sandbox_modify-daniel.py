@@ -1,4 +1,3 @@
-
 import os
 from warnings import warn
 try:
@@ -41,20 +40,22 @@ import threading
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
 
-class Kinect:  # add dummy
+class Kinect:
     """
-    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
-    blurring to get smoother lines.
+
+    Masterclass for initializing the kinect.
+    This class provides a method that returns the scanned depth image as numpy array. Also do a gaussian blurring to get smoother lines.
+    Subclasses are Kinect V1 and Kinect V2
+
     """
     _ids = count(0)
     _instances = []
 
-    def __init__(self, dummy=False, mirror=True):
+    def __init__(self, dummy=False):
         """
 
         Args:
             dummy:
-            mirror:
 
         Returns:
         """
@@ -62,7 +63,6 @@ class Kinect:  # add dummy
         self.id = next(self._ids)
         self.resolution = (640, 480)  #TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
         self.dummy = dummy
-        self.mirror = mirror # TODO: check if this is used anywhere, then delete
         self.rgb_frame = None
         self.angle = None
 
@@ -70,7 +70,6 @@ class Kinect:  # add dummy
         self.n_frames = 3 #filter parameters
         self.sigma_gauss = 3
         self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
-
         if self.dummy is False:
             print("looking for kinect...")
             self.ctx = freenect.init()
@@ -82,23 +81,21 @@ class Kinect:  # add dummy
             self.filtered_depth = None
             print("kinect initialized")
         else:
-
             self.filtered_depth = None
             self.depth = self.get_frame()
             print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
-    def set_angle(self, angle): #TODO: throw out
-        """
 
-        Args:
-            angle:
+        #TODO: include filter self.-filter parameters as function defaults
+        #This is originally from the KinectV2
+        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
 
-        Returns:
-            None
+class KinectV1(Kinect):
+    """
 
-        """
-        self.angle = angle
-        freenect.set_tilt_degs(self.dev, self.angle)
+    control class for the KinectV1
+
+    """
 
     def get_frame(self, horizontal_slice=None):
         """
@@ -152,68 +149,14 @@ class Kinect:  # add dummy
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
             return self.depth
 
-    def get_rgb_frame(self):  # TODO: check if this can be thrown out
-        """
-
-        Returns:
-
-        """
-        if self.dummy is False:
-            self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
-            self.rgb_frame = numpy.fliplr(self.rgb_frame)
-
-            return self.rgb_frame
-        else:
-            pass
-
-    def calibrate_frame(self, frame, calibration=None):  # TODO: check if this can be thrown out
-        """
-
-        Args:
-            frame:
-            calibration:
-
-        Returns:
-
-        """
-        if calibration is None:
-            try:
-                calibration = Calibration._instances[-1]
-                print("using last calibration instance created: ",calibration)
-            except:
-                print("no calibration found")
-        rotated = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
-        cropped = rotated[calibration.calibration_data.y_lim[0]: calibration.calibration_data.y_lim[1],
-                  calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
-        cropped = numpy.flipud(cropped)
-        return cropped
-
-
-class KinectV2:
+class KinectV2(Kinect):
     """
+
     control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
     Init the kinect and provides a method that returns the scanned depth image as numpy array.
     Also we do gaussian blurring to get smoother lines.
 
     """
-
-    def __init__(self):
-        """
-
-        Args:
-
-
-        Returns:
-
-        """
-
-        #TODO: include filter self.-filter parameters as function defaults
-        self.n_frames = 3 #filter parameters
-        self.sigma_gauss = 3
-        self.filter = 'gaussian'
-        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
-        self.depth = self.get_frame()
-
     def get_frame(self):
         """
 
@@ -247,25 +190,6 @@ class KinectV2:
             self.depth = numpy.ma.mean(depth_array_masked, axis=2)
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
             return self.depth
-
-
-
-
-
-
-def Beamer(*args, **kwargs):
-    """
-
-    Args:
-        *args:
-        **kwargs:
-
-    Returns:
-
-    """
-    warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
-    return Projector(*args, **kwargs)
-
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     """
