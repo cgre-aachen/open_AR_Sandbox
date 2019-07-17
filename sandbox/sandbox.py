@@ -1,4 +1,3 @@
-
 import os
 from warnings import warn
 try:
@@ -43,15 +42,15 @@ import gempy as gp
 
 class Kinect:  # add dummy
     """
+    Masterclass for initializing the kinect.
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
     """
     _ids = count(0)
     _instances = []
-
-    def __init__(self, dummy=False, mirror=True):
+    version_kinect = int(input("Version of Kinect using (1 or 2):"))
+    def __init__(self,version_kinect=version_kinect, dummy=False, mirror=True):
         """
-
         Args:
             dummy:
             mirror:
@@ -71,43 +70,48 @@ class Kinect:  # add dummy
         self.sigma_gauss = 3
         self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
 
-        if self.dummy is False:
-            print("looking for kinect...")
-            self.ctx = freenect.init()
-            self.dev = freenect.open_device(self.ctx, self.id)
-            print(self.id)
-            freenect.close_device(self.dev)  # TODO Test if this has to be done!
+        if version_kinect == 1:
+            if self.dummy is False:
+                print("looking for kinect...")
+                self.ctx = freenect.init()
+                self.dev = freenect.open_device(self.ctx, self.id)
+                print(self.id)
+                freenect.close_device(self.dev)  # TODO Test if this has to be done!
 
-            self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]  # get the first Depth frame already (the first one takes much longer than the following)
-            self.filtered_depth = None
-            print("kinect initialized")
-        else:
+                self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]  # get the first Depth frame already (the first one takes much longer than the following)
+                self.filtered_depth = None
+                print("kinect initialized")
+            else:
+                self.filtered_depth = None
+                self.depth = self.get_frame()
+                print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
-            self.filtered_depth = None
+        elif version_kinect == 2:
+            self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
             self.depth = self.get_frame()
-            print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
+            self.color = self.get_color()
 
+        else:
+            print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
+
+class KinectV1 (Kinect):
     def set_angle(self, angle): #TODO: throw out
         """
-
         Args:
             angle:
 
         Returns:
             None
-
         """
         self.angle = angle
         freenect.set_tilt_degs(self.dev, self.angle)
 
     def get_frame(self, horizontal_slice=None):
         """
-
         Args:
             horizontal_slice:
 
         Returns:
-
         """
         if self.dummy is False:
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
@@ -126,13 +130,11 @@ class Kinect:  # add dummy
 
     def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
         """
-
         Args:
             n_frames:
             sigma_gauss:
 
         Returns:
-
         """
         if n_frames is None:
             n_frames = self.n_frames
@@ -189,30 +191,13 @@ class Kinect:  # add dummy
         return cropped
 
 
-class KinectV2:
+class KinectV2(Kinect):
     """
     control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
     Init the kinect and provides a method that returns the scanned depth image as numpy array.
     Also we do gaussian blurring to get smoother lines.
 
     """
-
-    def __init__(self):
-        """
-
-        Args:
-
-
-        Returns:
-
-        """
-
-        #TODO: include filter self.-filter parameters as function defaults
-        self.n_frames = 3 #filter parameters
-        self.sigma_gauss = 3
-        self.filter = 'gaussian'
-        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
-        self.depth = self.get_frame()
 
     def get_frame(self):
         """
@@ -227,7 +212,7 @@ class KinectV2:
         self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
         return self.depth
 
-    def get_filtered_frame(self):
+    def get_filtered_frame(self, n_frames=3, sigma_gauss=3):
         """
 
         Args:
@@ -237,35 +222,23 @@ class KinectV2:
             2D Array of the shape(424, 512) containing the depth information of the latest frame in mm after stacking of
              self.n_frames and gaussian blurring with a kernel of self.sigma_gauss pixels.
         """
-
         if self.filter == 'gaussian':
 
             depth_array = self.get_frame()
             for i in range(n_frames - 1):
-                depth_array = numpy.dstack([depth_array, self.get_frame])
-            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
+                depth_array_masked = numpy.dstack([depth_array, self.get_frame()])
             self.depth = numpy.ma.mean(depth_array_masked, axis=2)
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
             return self.depth
 
-
-
-
-
-
-def Beamer(*args, **kwargs):
-    """
-
-    Args:
-        *args:
-        **kwargs:
-
-    Returns:
-
-    """
-    warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
-    return Projector(*args, **kwargs)
-
+    def get_color(self):
+        color_flattened = self.kinect.get_last_color_frame()
+        resolution_camera = 1920 * 1080 # resolution camera Kinect V2
+        # Palette of colors in RGB / Cut of 4th column marked as intensity
+        palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:,[2,1,0]]
+        position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (1080, 1920))
+        self.color = palette[position_palette]
+        return self.color
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     """
@@ -602,7 +575,7 @@ class Projector:
         else:
             self.calibration = None
 
-    def set_calibration(self, calibration, Calibration):
+    def set_calibration(self, calibration: Calibration):
         """
 
         Args:
@@ -802,7 +775,7 @@ class Scale:
     self.extent: 3d extent of the model in the sandbox in model units.
 
     """
-    def __init__(self, calibration, Calibration = None, xy_isometric=True, extent=None):
+    def __init__(self, calibration: Calibration = None, xy_isometric=True, extent=None):
         """
 
         Args:
@@ -1154,7 +1127,7 @@ class GeoMapModule:
     _ids = count(0)
     _instances = []
 
-    def __init__(self, geo_model, grid, Grid, geol_map, Plot, work_directory=None):
+    def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
         """
 
         Args:
