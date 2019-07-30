@@ -90,6 +90,7 @@ class Kinect:  # add dummy
             self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
             self.depth = self.get_frame()
             self.color = self.get_color()
+            self.mapped = self.get_mapped(self.depth)
 
         else:
             print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
@@ -104,7 +105,8 @@ class KinectV1 (Kinect):
             None
         """
         self.angle = angle
-        freenect.set_tilt_degs(self.dev, self.angle)
+        freenect.set_ti
+        lt_degs(self.dev, self.angle)
 
     def get_frame(self, horizontal_slice=None):
         """
@@ -237,8 +239,22 @@ class KinectV2(Kinect):
         # Palette of colors in RGB / Cut of 4th column marked as intensity
         palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:,[2,1,0]]
         position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (1080, 1920))
-        self.color = palette[position_palette]
+        self.color = numpy.flipud(palette[position_palette])
         return self.color
+
+    def get_mapped(self, position):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
+
+        """
+        map = self.kinect.body_joints_to_color_space(self, position)
+        self.mapped = map
+        return self.mapped
+
 
 class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
     """
