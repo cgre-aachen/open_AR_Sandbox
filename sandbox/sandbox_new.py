@@ -12,9 +12,11 @@ class Sandbox:
 
     def __init__(self, calibration_file=None):
         self.calibration = Calibration(file=calibration_file)
-        #self.projector = Projector(calibration)
+        self.projector = Projector(self.calibration)
+        self.model = DummyModel(self.calibration, self.projector)
+
         #self.sensor = Sensor(calibration) --> Adjust for correct child class
-        #self.model = DummyModel()
+
 
 class Calibration:
     # TODO Marco: Object as argument required?
@@ -27,6 +29,7 @@ class Calibration:
         self.p_left_margin = 0
         self.p_map_width = 400
         self.p_map_height = 200
+        self.p_map_depth = 200
         # TODO Daniel: Add Kinect calibration parameters
 
         if file is not None:
@@ -44,48 +47,87 @@ class Calibration:
 
 class Projector:
 
-    def __init__(self, calibration, model):
+    def __init__(self, calibration):
         self.calib = calibration
-        self.model = model
-
-
-
-    # adjust global panel css
-    # the standard deployed bokeh server uses a margin of 8px, remove that margin
-    # css = '''
-    # body {
-    #   margin:0px;
-    #   background-color: #ffffff;
-    # }
-    # .bk.plt_pane {
-    # }
-    # .panel {
-    #   background-color: coral;
-    # }
-    # '''
-    # pn.extension(raw_css=[css])
+        self.create_panel()
 
     def create_panel(self):
+
+        css = '''
+        body {
+          margin:0px;
+          background-color: #ffffff;
+        }
+        .bk.mpl_pane {
+        }
+        .bk.legend_pane {
+          background-color: coral;
+        }
+        .panel {
+          background-color: gray;
+        }
+        '''
+
+        pn.extension(raw_css=[css])
         # Create a panel object and serve it within an external bokeh browser that will be opened in a separate window
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
-        self.mpl_pane = pn.pane.Matplotlib(self.model, width=self.calib.p_map_width , height=self.calib.p_map_height, margin=[0, 0, 0, 0], tight=False,
-                                  dpi=self.calib.p_dpi, css_classes=['plt_pane'])
 
-    #self.p_top_margin = 0
-    #self.p_left_margin = 0
+        self.mpl_pane = pn.pane.Matplotlib(plt.Figure(), width=self.calib.p_map_width, height=self.calib.p_map_height, margin=[0, 0, 0, 0], tight=False,
+                                  dpi=self.calib.p_dpi, css_classes=['mpl_pane'])
 
+        self.legend = pn.Column("<br>\n# Legend", css_classes=['legend_pane'])
 
+        # Combine panel and deploy bokeh server
+        self.panel = pn.Row(self.mpl_pane, self.legend, width=self.calib.p_width, height=self.calib.p_height, sizing_mode='fixed', css_classes=['panel'])
+        # TODO: Add specific port? port=4242
+        self.panel.show(threaded=False)
 
+        # self.p_top_margin = 0
+        # self.p_left_margin = 0
 
+    def calibrate_projector(self):
 
-    # frequency  = pn.widgets.FloatSlider(name='Parameter A', value=2.5, start=0, end=5)
-    # amplitude  = pn.widgets.FloatSlider(name='Parameter B', value=5, start=0, end=10)
-    # legend     = pn.Column("<br>\n# Legend", frequency, amplitude)
-    #
-    # # Combine panel and deploy bokeh server
-    # bg_panel = pn.Row(mpl_pane, legend, width=pp_width, height=pp_height, sizing_mode='fixed', css_classes=['panel'])
-    # # TODO: Add specific port? port=4242
-    # bg_panel.show(threaded=False);
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=0, start=0, end=150)
+        def callback_mt(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [n, m[1], m[2], m[3]]
+            # also update calibration object
+            self.calib.p_top_margin = event.new
+        margin_top.link(self.mpl_pane, callbacks={'value': callback_mt})
+
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=0, end=150)
+        def callback_ml(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [m[0], m[1], m[2], n]
+            # also update calibration object
+            self.calib.p_left_margin = event.new
+        margin_left.link(self.mpl_pane, callbacks={'value': callback_ml})
+
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_map_width, start=self.calib.p_map_width - 400, end=self.calib.p_map_width + 400)
+        def callback_width(target, event):
+            target.width = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_map_width = event.new
+        width.link(self.mpl_pane, callbacks={'value': callback_width})
+
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_map_height, start=self.calib.p_map_height - 400, end=self.calib.p_map_height + 400)
+        def callback_height(target, event):
+            target.height = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_map_height = event.new
+            # TODO: redraw model (Still Chicken-Egg-Problem)
+            #self.model.redraw_plot()
+        height.link(self.mpl_pane, callbacks={'value': callback_height})
+
+        widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
+        return widgets
+
 
 #class Sensor:
 
@@ -103,29 +145,34 @@ class Kinect2:
 class DummyModel:
     # will be child class of Model
 
-    def __init__(self, width, height, depth=200, dpi=100):
-        self.width = width
-        self.height = height
-        self.depth = depth
-        self.resolution = [width, height, depth]
-        self.dpi = dpi
+    def __init__(self, calibration, projector):
+
+        # TODO Marco: following approach breaks link to calibration object :(
+        self.calib = calibration
+        self.width = self.calib.p_map_width
+        self.height = self.calib.p_map_height
+        self.depth = self.calib.p_map_depth
+        self.resolution = [self.width, self.height, self.depth]
+        self.dpi = self.calib.p_dpi
+
+        self.projector = projector
 
         self.step = 1
         self.points_n = 4
         self.distance = 5
 
         self.x, self.y, self.z, self.p = self.create_topography(self.resolution, step=self.step, n=self.points_n, distance=self.distance)
-        self.figure = self.plot(self.x, self.y, self.z, points=self.p,
+        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
                                 width=self.width, height=self.height, dpi=self.dpi)
 
     def update_topo(self):
         self.x, self.y, self.z, self.p = self.create_topography((self.width,self.height,self.depth),
                                                                 self.step, n=self.points_n, distance=self.distance)
-        self.figure = self.plot(self.x, self.y, self.z, points=self.p,
+        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
                                 width=self.width, height=self.height, dpi=self.dpi)
 
     def redraw_plot(self):
-        self.figure = self.plot(self.x, self.y, self.z, points=self.p,
+        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
                                 width=self.width, height=self.height, dpi=self.dpi)
 
     def pick_points(self, grid, n, distance, seed=None):
