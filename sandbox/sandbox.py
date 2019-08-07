@@ -213,6 +213,7 @@ class KinectV2:
         self.filter = 'gaussian'
         self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
         self.depth = self.get_frame()
+        self.ir_frame = self.get_ir_frame()
 
     def get_frame(self):
         """
@@ -226,6 +227,19 @@ class KinectV2:
         depth_flattened = self.kinect.get_last_depth_frame()
         self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
         return self.depth
+
+    def get_ir_frame(self):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the infrared intensity of the last frame
+
+        """
+        ir_flattened = self.kinect.get_last_infrared_frame()
+        self.ir_frame = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.ir_frame
 
     def get_filtered_frame(self):
         """
