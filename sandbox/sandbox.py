@@ -91,6 +91,7 @@ class Kinect:  # add dummy
             self.depth = self.get_frame()
             self.color = self.get_color()
             self.mapped = self.get_mapped(self.depth)
+            self.ir_frame = self.get_ir_frame()
 
         else:
             print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
@@ -105,8 +106,7 @@ class KinectV1 (Kinect):
             None
         """
         self.angle = angle
-        freenect.set_ti
-        lt_degs(self.dev, self.angle)
+        freenect.set_tilt_degs(self.dev, self.angle)
 
     def get_frame(self, horizontal_slice=None):
         """
@@ -197,7 +197,7 @@ class KinectV2(Kinect):
     """
     control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
     Init the kinect and provides a method that returns the scanned depth image as numpy array.
-    Also we do gaussian blurring to get smoother lines.
+    Also we do gaussian blurring to get smoother surfaces.
 
     """
 
@@ -213,6 +213,19 @@ class KinectV2(Kinect):
         depth_flattened = self.kinect.get_last_depth_frame()
         self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
         return self.depth
+
+    def get_ir_frame(self):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the infrared intensity of the last frame
+
+        """
+        ir_flattened = self.kinect.get_last_infrared_frame()
+        self.ir_frame = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.ir_frame
 
     def get_filtered_frame(self, n_frames=3, sigma_gauss=3):
         """
@@ -248,7 +261,6 @@ class KinectV2(Kinect):
         Args:
 
         Returns:
-               2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
 
         """
         map = self.kinect.body_joints_to_color_space(self, position)
