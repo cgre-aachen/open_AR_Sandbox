@@ -91,6 +91,7 @@ class Kinect:  # add dummy
             self.depth = self.get_frame()
             self.color = self.get_color()
             self.mapped = self.get_mapped(self.depth)
+            self.ir_frame_raw = self.get_ir_frame_raw()
             self.ir_frame = self.get_ir_frame()
 
         else:
@@ -214,17 +215,31 @@ class KinectV2(Kinect):
         self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
         return self.depth
 
-    def get_ir_frame(self):
+    def get_ir_frame_raw(self):
         """
 
         Args:
 
         Returns:
-               2D Array of the shape(424, 512) containing the infrared intensity of the last frame
+               2D Array of the shape(424, 512) containing the raw infrared intensity in (uint16) of the last frame
 
         """
         ir_flattened = self.kinect.get_last_infrared_frame()
-        self.ir_frame = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        self.ir_frame_raw = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.ir_frame_raw
+
+    def get_ir_frame(self, min=0, max=6000):
+        """
+
+        Args:
+            min: minimum intensity value mapped to uint8 (will become 0) default: 0
+            max: maximum intensity value mapped to uint8 (will become 255) default: 6000
+        Returns:
+               2D Array of the shape(424, 512) containing the infrared intensity between min and max mapped to uint8 of the last frame
+
+        """
+        ir_frame_raw = self.get_ir_frame_raw()
+        self.ir_frame = numpy.interp(ir_frame_raw, (min, max), (0, 255)).astype('uint8')
         return self.ir_frame
 
     def get_filtered_frame(self, n_frames=3, sigma_gauss=3):
