@@ -285,8 +285,8 @@ class KinectV2(Kinect):
 
 class DummySensor:
 
-    def __init__(self, width=400, height=300, depth_limits=(80, 100), points_n=5, points_distance=20,
-                 alteration_strength=40):
+    def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
+                 alteration_strength=80):
 
         self.width = width
         self.height = height
@@ -319,8 +319,8 @@ class DummySensor:
 
     def create_grid(self):
         # creates 2D grid for given resolution
-        x, y = np.meshgrid(np.arange(0, self.width, 1), np.arange(0, self.height, 1))
-        return np.stack((x.ravel(), y.ravel())).T
+        x, y = numpy.meshgrid(numpy.arange(0, self.width, 1), numpy.arange(0, self.height, 1))
+        return numpy.stack((x.ravel(), y.ravel())).T
 
     def pick_positions(self, corners=True, seed=None):
         '''
@@ -329,29 +329,29 @@ class DummySensor:
         distance: distance or range, pilot points should be away from dat points
         '''
 
-        np.random.seed(seed=seed)
+        numpy.random.seed(seed=seed)
 
         gl = self.grid.shape[0]
         gw = self.grid.shape[1]
-        points = np.zeros((self.n, gw))
+        points = numpy.zeros((self.n, gw))
 
         # randomly pick initial point
-        ipos = np.random.randint(0, gl)
+        ipos = numpy.random.randint(0, gl)
         points[0, :2] = self.grid[ipos, :2]
 
         i = 1  # counter
-        while i < n:
+        while i < self.n:
 
             # calculate all distances between remaining candidates and sim points
-            dist = cdist(points[:i, :2], grid[:, :2])
+            dist = cdist(points[:i, :2], self.grid[:, :2])
             # choose candidates which are out of range
-            mm = np.min(dist, axis=0)
-            candidates = grid[mm > self.distance]
+            mm = numpy.min(dist, axis=0)
+            candidates = self.grid[mm > self.distance]
             # count candidates
             cl = candidates.shape[0]
             if cl < 1: break
             # randomly pick candidate and set next pilot point
-            pos = np.random.randint(0, cl)
+            pos = numpy.random.randint(0, cl)
             points[i, :2] = candidates[pos, :2]
 
             i += 1
@@ -360,25 +360,25 @@ class DummySensor:
         points = points[:i]
 
         if corners:
-            c = np.zeros((4, gw))
+            c = numpy.zeros((4, gw))
             c[1, 0] = self.grid[:, 0].max()
             c[2, 1] = self.grid[:, 1].max()
             c[3, 0] = self.grid[:, 0].max()
             c[3, 1] = self.grid[:, 1].max()
-            points = np.vstack((c, points))
+            points = numpy.vstack((c, points))
 
         return points
 
     def pick_values(self):
         n = self.positions.shape[0]
-        return np.random.uniform(*self.depth_lim, n)
+        return numpy.random.uniform(*self.depth_lim, n)
 
     def alter_values(self):
         # maximum range in both directions the values should be altered
         # TODO: replace by some kind of oscillation :)
         ra = (self.depth_lim[1] - self.depth_lim[0]) / self.strength
         for i, value in enumerate(self.values):
-            self.values[i] = value + np.random.uniform(-ra, ra)
+            self.values[i] = value + numpy.random.uniform(-ra, ra)
 
     def interpolate(self):
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
