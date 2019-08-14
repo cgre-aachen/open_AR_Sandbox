@@ -692,7 +692,7 @@ class Projector:
             None
 
         """
-
+        self.id = 0
         self.html_filename = "projector" + str(self.id) + ".html"
         self.frame_filename = "frame" + str(self.id) + ".png"
         self.input_filename = 'current_frame.png'
