@@ -394,6 +394,7 @@ class Calibration:
             associated_kinect:
             calibration_file:
         """
+        self.id = 0
         self.associated_projector = associated_projector
         self.projector_resolution = associated_projector.resolution
         self.associated_kinect = associated_kinect
