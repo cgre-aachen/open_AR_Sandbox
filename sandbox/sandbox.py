@@ -278,11 +278,7 @@ class KinectV2(Kinect):
         Returns:
 
         """
-        map = self.kinect.body_joints_to_color_space(self, position)
-        self.mapped = map
-        return self.mapped
-
-
+        pass
 class DummySensor:
 
     def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
