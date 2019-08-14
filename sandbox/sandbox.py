@@ -23,7 +23,6 @@ except ImportError:
 
 import webbrowser
 import pickle
-import weakref
 import numpy
 import scipy
 import scipy.ndimage
@@ -46,8 +45,7 @@ class Kinect:  # add dummy
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
     """
-    _ids = count(0)
-    _instances = []
+
     version_kinect = int(input("Version of Kinect using (1 or 2):"))
     def __init__(self,version_kinect=version_kinect, dummy=False, mirror=True):
         """
@@ -57,8 +55,6 @@ class Kinect:  # add dummy
 
         Returns:
         """
-        self.__class__._instances.append(weakref.proxy(self))
-        self.id = next(self._ids)
         self.resolution = (640, 480)  #TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
         self.dummy = dummy
         self.mirror = mirror # TODO: check if this is used anywhere, then delete
@@ -183,11 +179,7 @@ class KinectV1 (Kinect):
 
         """
         if calibration is None:
-            try:
-                calibration = Calibration._instances[-1]
-                print("using last calibration instance created: ",calibration)
-            except:
-                print("no calibration found")
+                print("no calibration provided!")
         rotated = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
         cropped = rotated[calibration.calibration_data.y_lim[0]: calibration.calibration_data.y_lim[1],
                   calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
@@ -290,8 +282,6 @@ class Calibration:
     TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
     """
-    _ids = count(0)
-    _instances = []
 
     def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None):
         """
@@ -301,8 +291,6 @@ class Calibration:
             associated_kinect:
             calibration_file:
         """
-        self.id = next(self._ids)
-        self.__class__._instances.append(weakref.proxy(self))
         self.associated_projector = associated_projector
         self.projector_resolution = associated_projector.resolution
         self.associated_kinect = associated_kinect
@@ -367,17 +355,9 @@ class Calibration:
 
         """
         if self.associated_projector is None:
-            try:
-                self.associated_projector = Projector._instances[-1]
-                print("no associated projector specified, using last projector instance created")
-            except:
                 print("Error: no Projector instance found.")
 
         if self.associated_kinect is None:
-            try:
-                self.associated_kinect = Kinect._instances[-1]
-                print("no associated kinect specified, using last kinect instance created")
-            except:
                 print("Error: no kinect instance found.")
 
         def calibrate(rot_angle, x_lim, y_lim, x_pos, y_pos, scale_factor, z_range, box_width, box_height, legend_area,
@@ -579,8 +559,7 @@ class Projector:
     """
 
     """
-    _ids = count(0)
-    _instances = []
+
 
     def __init__(self, resolution=None, create_calibration=False, work_directory='./', refresh=100, input_rescale=True):
         """
@@ -596,8 +575,7 @@ class Projector:
             None
 
         """
-        self.__class__._instances.append(weakref.proxy(self))
-        self.id = next(self._ids)
+
         self.html_filename = "projector" + str(self.id) + ".html"
         self.frame_filename = "frame" + str(self.id) + ".png"
         self.input_filename = 'current_frame.png'
@@ -1172,8 +1150,6 @@ class GeoMapModule:
 
     """
     # TODO: When we move GeoMapModule import gempy just there
-    _ids = count(0)
-    _instances = []
 
     def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
         """
@@ -1189,8 +1165,6 @@ class GeoMapModule:
 
         """
 
-        self.id = next(self._ids)
-        self.__class__._instances.append(weakref.proxy(self))
 
         self.geo_model = geo_model
         self.kinect_grid = grid
@@ -1393,8 +1367,6 @@ class SandboxThread:
     """
     container for modules that handles threading. any kind of module can be loaded, as long as it contains a 'setup' and 'render_frame" method!
     """
-    _ids = count(0)
-    _instances = []
 
     def __init__(self, module, kinect, projector, path=None):
         """
@@ -1405,10 +1377,6 @@ class SandboxThread:
             projector:
             path:
         """
-
-        self.id = next(self._ids)
-        self.__class__._instances.append(weakref.proxy(self))
-
         self.module = module
         self.kinect = kinect
         self.projector = projector
