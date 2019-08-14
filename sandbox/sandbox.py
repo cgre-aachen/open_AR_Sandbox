@@ -27,6 +27,10 @@ import numpy
 import scipy
 import scipy.ndimage
 
+# for DummySensor
+from scipy.spatial.distance import cdist
+from scipy.interpolate import griddata
+
 from itertools import count
 from PIL import Image, ImageDraw
 import ipywidgets as widgets
@@ -278,6 +282,107 @@ class KinectV2(Kinect):
         self.mapped = map
         return self.mapped
 
+
+class DummySensor:
+
+    def __init__(self, width=400, height=300, depth_limits=(80, 100), points_n=5, points_distance=20,
+                 alteration_strength=40):
+
+        self.width = width
+        self.height = height
+        self.depth_lim = depth_limits
+        self.n = points_n
+        self.distance = points_distance
+        self.strength = alteration_strength
+
+        # create grid, init values, and init interpolation
+        self.grid = self.create_grid()
+        self.positions = self.pick_positions()
+        self.values = self.pick_values()
+        self.interpolation = None
+        self.interpolate()
+
+    ## Methods
+
+    def get_frame(self):
+        # TODO: Add time check for 1/30sec
+        self.alter_values()
+        self.interpolate()
+        return self.interpolation
+
+    def get_filtered_frame(self):
+        return self.get_frame()
+
+        ## Private functions
+
+    # TODO: Make private
+
+    def create_grid(self):
+        # creates 2D grid for given resolution
+        x, y = np.meshgrid(np.arange(0, self.width, 1), np.arange(0, self.height, 1))
+        return np.stack((x.ravel(), y.ravel())).T
+
+    def pick_positions(self, corners=True, seed=None):
+        '''
+        grid: Set of possible points to pick from
+        n: desired number of points, not guaranteed to be reached
+        distance: distance or range, pilot points should be away from dat points
+        '''
+
+        np.random.seed(seed=seed)
+
+        gl = self.grid.shape[0]
+        gw = self.grid.shape[1]
+        points = np.zeros((self.n, gw))
+
+        # randomly pick initial point
+        ipos = np.random.randint(0, gl)
+        points[0, :2] = self.grid[ipos, :2]
+
+        i = 1  # counter
+        while i < n:
+
+            # calculate all distances between remaining candidates and sim points
+            dist = cdist(points[:i, :2], grid[:, :2])
+            # choose candidates which are out of range
+            mm = np.min(dist, axis=0)
+            candidates = grid[mm > self.distance]
+            # count candidates
+            cl = candidates.shape[0]
+            if cl < 1: break
+            # randomly pick candidate and set next pilot point
+            pos = np.random.randint(0, cl)
+            points[i, :2] = candidates[pos, :2]
+
+            i += 1
+
+        # just return valid points if early break occured
+        points = points[:i]
+
+        if corners:
+            c = np.zeros((4, gw))
+            c[1, 0] = self.grid[:, 0].max()
+            c[2, 1] = self.grid[:, 1].max()
+            c[3, 0] = self.grid[:, 0].max()
+            c[3, 1] = self.grid[:, 1].max()
+            points = np.vstack((c, points))
+
+        return points
+
+    def pick_values(self):
+        n = self.positions.shape[0]
+        return np.random.uniform(*self.depth_lim, n)
+
+    def alter_values(self):
+        # maximum range in both directions the values should be altered
+        # TODO: replace by some kind of oscillation :)
+        ra = (self.depth_lim[1] - self.depth_lim[0]) / self.strength
+        for i, value in enumerate(self.values):
+            self.values[i] = value + np.random.uniform(-ra, ra)
+
+    def interpolate(self):
+        inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
+        self.interpolation = inter.reshape(self.height, self.width)
 
 class Calibration:
     """
