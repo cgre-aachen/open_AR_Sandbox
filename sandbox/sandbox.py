@@ -36,6 +36,8 @@ import matplotlib
 import IPython
 import threading
 
+import json
+
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
 
@@ -283,7 +285,7 @@ class Calibration:
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
     """
 
-    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None):
+    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None, json_calibration_file=None):
         """
 
         Args:
@@ -307,6 +309,10 @@ class Calibration:
              hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
              hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
                              )
+        # new simplified json approach
+        if json_calibration_file is not None:
+            self.load_json(json_calibration_file)
+
         self.cmap = None
         self.contours = True
         self.n_contours = 20
@@ -315,6 +321,16 @@ class Calibration:
                                            float(self.calibration_data.z_range[1] - self.calibration_data.z_range[0]) / self.n_contours)
 
     # ...
+
+    def load_json(self, file):
+        with open(file) as calibration_json:
+            self.calibration_data.__dict__ = json.load(calibration_json)
+        print("JSON configuration loaded.")
+
+    def save_json(self, file='calibration.json'):
+        with open(file, "w") as calibration_json:
+            json.dump(self.calibration_data.__dict__, calibration_json)
+        print('JSON configuration file saved:', str(file))
 
     def load(self, calibration_file=None):
         """
@@ -745,7 +761,8 @@ class CalibrationData:
     """
     def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
                       legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
-                      hot_y_lim=(400,450)):
+                      hot_y_lim=(400,450), p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0, p_area_width=400, p_area_height=200,
+                      s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
         """
 
         Args:
@@ -791,6 +808,19 @@ class CalibrationData:
         self.hot_x_lim = hot_x_lim
         self.hot_y_lim = hot_y_lim
         self.box_dim=(self.box_width, self.box_height)
+
+        # Attributes for new calibration approach
+        self.p_width = p_width
+        self.p_height = p_height
+        self.p_dpi = p_dpi
+        self.p_top_margin = p_top_margin
+        self.p_left_margin = p_left_margin
+        self.p_area_width = p_area_width
+        self.p_area_height = p_area_height
+        self.s_left_margin = s_left_margin
+        self.s_top_margin = s_top_margin
+        self.s_area_width = s_area_width
+        self.s_area_height = s_area_height
 
 
 class Scale:
@@ -1447,7 +1477,7 @@ class ArucoMarkers:
     """
     def __init__(self, aruco_dict=None, Area=None):
         if not aruco_dict:
-            self.aruco_dict = #set the default dictionary here
+            self.aruco_dict = None #set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
         self.Area = Area # set a square Area of interest here (Hot-Area)
