@@ -94,6 +94,7 @@ class Kinect:  # add dummy
             self.ir_frame_raw = self.get_ir_frame_raw()
             self.ir_frame = self.get_ir_frame()
 
+
         else:
             print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
 
@@ -211,6 +212,7 @@ class KinectV2(Kinect):
                2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
 
         """
+
         depth_flattened = self.kinect.get_last_depth_frame()
         self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
         return self.depth
@@ -283,8 +285,9 @@ class KinectV2(Kinect):
         return self.mapped
 
 
-class Calibration:  # TODO: add legend position; add rotation; add z_range!!!!
+class Calibration:
     """
+    TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
     """
     _ids = count(0)
@@ -895,6 +898,8 @@ class Scale:
 class Grid:
     """
     class for grid objects. a grid stores the 3D coordinate of each pixel recorded by the kinect in model coordinates
+    a calibration object must be provided, it is used to crop the kinect data to the area of interest
+    TODO:  The cropping should be done in the kinect class, with calibration_data passed explicitly to the method! Do this for all the cases where calibration data is needed!
     """
     def __init__(self, calibration=None, scale=None,):
         """
