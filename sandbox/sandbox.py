@@ -1469,3 +1469,34 @@ class SandboxThread:
             self.lock.release()
         except:
             pass
+
+
+class ArucoMarkers(self):
+    """
+    class to detect Aruco markers in the kinect data (IR and RGB)
+    An Area of interest can be specified, markers outside this area will be ignored
+    """
+    def __init__(self, aruco_dict=None, Area=None):
+        if not aruco_dict:
+            self.aruco_dict = #set the default dictionary here
+        else:
+            self.aruco_dict = aruco_dict
+        self.Area = Area # set a square Area of interest here (Hot-Area)
+        self.dict_markers_current = {} #  markers that were detected in the last frame
+        self.dict_markers_all = {} # all markers ever detected with their last known position and timestamp
+        self.lock = threading.Lock
+
+    def find_markers_ir(self):
+        pass
+
+    def find_markers_rgb(self):
+        pass
+
+    def update_dict_markers_all(self):
+        pass
+
+
+
+
+
+
