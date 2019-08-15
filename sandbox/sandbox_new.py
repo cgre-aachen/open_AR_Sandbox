@@ -14,13 +14,12 @@ class Sandbox:
     # TODO Marco: Object as argument required?
 
     def __init__(self, calibration_file=None):
-        self.calibration = Calibration(file=calibration_file)
-        self.sensor = DummySensor()
-        self.plot = Plot(self.calibration, self.sensor)
-        self.projector = Projector(self.calibration, self.plot)
+        self.calibrationdata = CalibrationData(file=calibration_file)
+        self.sensor = DummySensor(self.calibrationdata)
+        self.plot = Plot(self.calibrationdata, self.sensor)
+        self.projector = Projector(self.calibrationdata, self.plot)
 
-class Calibration:
-    # TODO Marco: Object as argument required?
+class CalibrationData:
 
     def __init__(self, file=None):
         self.p_width = 800
@@ -31,17 +30,19 @@ class Calibration:
         self.p_area_width = 400
         self.p_area_height = 200
         self.p_area_depth = 200 #deprecated
+
         self.s_width = 512
         self.s_heigth = 424
+        self.s_area_width = 512
+        self.s_area_height = 424
         #self.s_left_margin
         #self.s_top_margin
-        #self.s_area_width = 512
-        #self.s_area_height = 424
 
         if file is not None:
             self.load_json(file)
 
     def load_json(self, file='calibration.json'):
+        # TODO: Check for overwriting of existing (new) parameters with older calibration files!
         with open(file) as calibration_json:
             self.__dict__ = json.load(calibration_json)
         print("JSON configuration loaded.")
@@ -53,8 +54,8 @@ class Calibration:
 
 class Projector:
 
-    def __init__(self, calibration, plot):
-        self.calib = calibration
+    def __init__(self, calibrationdata, plot):
+        self.calib = calibrationdata
         self.plot = plot
 
         # panel components (panes)
@@ -145,7 +146,6 @@ class Projector:
             target.param.trigger('object')
             # also update calibration object
             self.calib.p_area_height = event.new
-            # TODO: redraw model (Still Chicken-Egg-Problem)
             #self.plot.redraw_plot()
         height.link(self.output, callbacks={'value': callback_height})
 
@@ -167,10 +167,12 @@ class Kinect2:
 
 class DummySensor:
 
-    def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
+    def __init__(self, calibrationdata, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
                  alteration_strength=0.1, random_seed=None):
 
         # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+
+        self.calib = calibrationdata # use in the future from calibration file
 
         self.width = width
         self.height = height
@@ -296,7 +298,7 @@ class Plot:
         # switches
         self.colormap = True
         self.contours = True
-        self.points = False
+        self.points = True
 
         self.figure = None
         self.ax = None # current plot composition
@@ -315,7 +317,8 @@ class Plot:
         if self.points:
             self.add_points()
 
-        self.ax.set_axis_off()
+        # crop axis (!!!input dimensions of calibrated sensor!!!)
+        self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
 
         # return final figure
         return self.figure
