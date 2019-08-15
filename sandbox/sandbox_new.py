@@ -1,10 +1,13 @@
 import json
 import numpy as np
+import numpy
 import param
 import pandas as pd
 import panel as pn
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
+from scipy.interpolate import griddata
+from time import sleep
 
 
 class Sandbox:
@@ -12,11 +15,9 @@ class Sandbox:
 
     def __init__(self, calibration_file=None):
         self.calibration = Calibration(file=calibration_file)
-        self.projector = Projector(self.calibration)
-        self.model = DummyModel(self.calibration, self.projector)
-
-        #self.sensor = Sensor(calibration) --> Adjust for correct child class
-
+        self.sensor = DummySensor()
+        self.plot = Plot(self.calibration, self.sensor)
+        self.projector = Projector(self.calibration, self.plot)
 
 class Calibration:
     # TODO Marco: Object as argument required?
@@ -27,10 +28,15 @@ class Calibration:
         self.p_dpi = 100
         self.p_top_margin = 0
         self.p_left_margin = 0
-        self.p_map_width = 400
-        self.p_map_height = 200
-        self.p_map_depth = 200
-        # TODO Daniel: Add Kinect calibration parameters
+        self.p_area_width = 400
+        self.p_area_height = 200
+        self.p_area_depth = 200 #deprecated
+        self.s_width = 512
+        self.s_heigth = 424
+        #self.s_left_margin
+        #self.s_top_margin
+        #self.s_area_width = 512
+        #self.s_area_height = 424
 
         if file is not None:
             self.load_json(file)
@@ -47,9 +53,25 @@ class Calibration:
 
 class Projector:
 
-    def __init__(self, calibration):
+    def __init__(self, calibration, plot):
         self.calib = calibration
-        self.create_panel()
+        self.plot = plot
+
+        # panel components (panes)
+        self.output = None
+        self.legend = None
+        self.panel = None
+
+        self.create_panel() # make explicit?
+
+
+    def update(self):
+        self.output.object = self.plot.render_frame()
+
+    def keep_updating(self, iterations=5, sleep_s=0.1):
+        for i in np.arange(0, iterations):
+            self.update()
+            sleep(sleep_s)
 
     def create_panel(self):
 
@@ -58,13 +80,13 @@ class Projector:
           margin:0px;
           background-color: #ffffff;
         }
-        .bk.mpl_pane {
+        .bk.output {
         }
-        .bk.legend_pane {
-          background-color: coral;
+        .bk.legend {
+          background-color: #AAAAAA;
         }
         .panel {
-          background-color: gray;
+          background-color: #000000;
         }
         '''
 
@@ -72,22 +94,24 @@ class Projector:
         # Create a panel object and serve it within an external bokeh browser that will be opened in a separate window
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
-        self.mpl_pane = pn.pane.Matplotlib(plt.Figure(), width=self.calib.p_map_width, height=self.calib.p_map_height, margin=[0, 0, 0, 0], tight=False,
-                                  dpi=self.calib.p_dpi, css_classes=['mpl_pane'])
 
-        self.legend = pn.Column("<br>\n# Legend", css_classes=['legend_pane'])
+        self.output = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
+
+        self.legend = pn.Column("<br>\n# Legend",
+                                margin=[self.calib.p_top_margin, 0, 0, 0],
+                                css_classes=['legend'])
 
         # Combine panel and deploy bokeh server
-        self.panel = pn.Row(self.mpl_pane, self.legend, width=self.calib.p_width, height=self.calib.p_height, sizing_mode='fixed', css_classes=['panel'])
+        self.panel = pn.Row(self.output, self.legend, width=self.calib.p_width, height=self.calib.p_height,
+                            sizing_mode='fixed', css_classes=['panel'])
+
         # TODO: Add specific port? port=4242
         self.panel.show(threaded=False)
 
-        # self.p_top_margin = 0
-        # self.p_left_margin = 0
-
     def calibrate_projector(self):
 
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=0, start=0, end=150)
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=0, start=self.calib.p_top_margin, end=150)
         def callback_mt(target, event):
             m = target.margin
             n = event.new
@@ -95,9 +119,9 @@ class Projector:
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
             self.calib.p_top_margin = event.new
-        margin_top.link(self.mpl_pane, callbacks={'value': callback_mt})
+        margin_top.link(self.output, callbacks={'value': callback_mt})
 
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=0, end=150)
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=self.calib.p_left_margin, end=150)
         def callback_ml(target, event):
             m = target.margin
             n = event.new
@@ -105,31 +129,31 @@ class Projector:
             target.margin = [m[0], m[1], m[2], n]
             # also update calibration object
             self.calib.p_left_margin = event.new
-        margin_left.link(self.mpl_pane, callbacks={'value': callback_ml})
+        margin_left.link(self.output, callbacks={'value': callback_ml})
 
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_map_width, start=self.calib.p_map_width - 400, end=self.calib.p_map_width + 400)
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
         def callback_width(target, event):
             target.width = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_map_width = event.new
-        width.link(self.mpl_pane, callbacks={'value': callback_width})
+            self.calib.p_area_width = event.new
+        width.link(self.output, callbacks={'value': callback_width})
 
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_map_height, start=self.calib.p_map_height - 400, end=self.calib.p_map_height + 400)
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
         def callback_height(target, event):
             target.height = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_map_height = event.new
+            self.calib.p_area_height = event.new
             # TODO: redraw model (Still Chicken-Egg-Problem)
-            #self.model.redraw_plot()
-        height.link(self.mpl_pane, callbacks={'value': callback_height})
+            #self.plot.redraw_plot()
+        height.link(self.output, callbacks={'value': callback_height})
 
         widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
         return widgets
 
-
-#class Sensor:
+class Sensor:
+    pass
 
 
 class Kinect2:
@@ -140,121 +164,167 @@ class Kinect2:
 
     # TODO: Daniel: access and update calibration data program wide with self.calib.s_width = 451 or similar
 
-#class Model:
 
-class DummyModel:
-    # will be child class of Model
+class DummySensor:
 
-    def __init__(self, calibration, projector):
+    def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
+                 alteration_strength=0.1, random_seed=None):
 
-        # TODO Marco: following approach breaks link to calibration object :(
-        self.calib = calibration
-        self.width = self.calib.p_map_width
-        self.height = self.calib.p_map_height
-        self.depth = self.calib.p_map_depth
-        self.resolution = [self.width, self.height, self.depth]
-        self.dpi = self.calib.p_dpi
+        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
 
-        self.projector = projector
+        self.width = width
+        self.height = height
+        self.depth_lim = depth_limits
+        self.n = points_n
+        self.distance = points_distance
+        self.strength = alteration_strength
+        self.seed = random_seed
 
-        self.step = 1
-        self.points_n = 4
-        self.distance = 5
+        # create grid, init values, and init interpolation
+        self.grid = self.create_grid()
+        self.positions = self.pick_positions()
 
-        self.x, self.y, self.z, self.p = self.create_topography(self.resolution, step=self.step, n=self.points_n, distance=self.distance)
-        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
-                                width=self.width, height=self.height, dpi=self.dpi)
+        self.os_values = None
+        self.values = None
+        self.pick_values()
 
-    def update_topo(self):
-        self.x, self.y, self.z, self.p = self.create_topography((self.width,self.height,self.depth),
-                                                                self.step, n=self.points_n, distance=self.distance)
-        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
-                                width=self.width, height=self.height, dpi=self.dpi)
+        self.interpolation = None
+        self.interpolate()
 
-    def redraw_plot(self):
-        self.projector.mpl_pane.object = self.plot(self.x, self.y, self.z, points=self.p,
-                                width=self.width, height=self.height, dpi=self.dpi)
+    ## Methods
 
-    def pick_points(self, grid, n, distance, seed=None):
+    def get_frame(self):
+        # TODO: Add time check for 1/30sec
+        self.alter_values()
+        self.interpolate()
+        return self.interpolation
+
+    def get_filtered_frame(self):
+        return self.get_frame()
+
+    ## Private functions
+    # TODO: Make private
+
+    def oscillating_depth(self, random):
+        r = (self.depth_lim[1] - self.depth_lim[0]) / 2
+        return numpy.sin(random) * r + r + self.depth_lim[0]
+
+    def create_grid(self):
+        # creates 2D grid for given resolution
+        x, y = numpy.meshgrid(numpy.arange(0, self.width, 1), numpy.arange(0, self.height, 1))
+        return numpy.stack((x.ravel(), y.ravel())).T
+
+    def pick_positions(self, corners=True, seed=None):
         '''
-        grid: Set of possible pilot points, can be the grid
-        n: desired number of pilot points, not guaranteed to be reached
-        distance: distance or range, pilot points should be away from dat points'''
+        grid: Set of possible points to pick from
+        n: desired number of points, not guaranteed to be reached
+        distance: distance or range, pilot points should be away from dat points
+        '''
 
-        np.random.seed(seed=seed)
+        numpy.random.seed(seed=seed)
 
-        gl = grid.shape[0]
-        gw = grid.shape[1]
-        pilots = np.zeros((n, gw))
+        gl = self.grid.shape[0]
+        gw = self.grid.shape[1]
+        points = numpy.zeros((self.n, gw))
 
         # randomly pick initial point
-        ipos = np.random.randint(0, gl)
-        pilots[0, :2] = grid[ipos, :2]
+        ipos = numpy.random.randint(0, gl)
+        points[0, :2] = self.grid[ipos, :2]
 
         i = 1  # counter
-        while i < n:
+        while i < self.n:
 
             # calculate all distances between remaining candidates and sim points
-            dist = cdist(pilots[:i, :2], grid[:, :2])
+            dist = cdist(points[:i, :2], self.grid[:, :2])
             # choose candidates which are out of range
-            mm = np.min(dist, axis=0)
-            candidates = grid[mm > distance]
+            mm = numpy.min(dist, axis=0)
+            candidates = self.grid[mm > self.distance]
             # count candidates
             cl = candidates.shape[0]
             if cl < 1: break
             # randomly pick candidate and set next pilot point
-            pos = np.random.randint(0, cl)
-            pilots[i, :2] = candidates[pos, :2]
+            pos = numpy.random.randint(0, cl)
+            points[i, :2] = candidates[pos, :2]
 
             i += 1
 
         # just return valid points if early break occured
-        pilots = pilots[:i]
+        points = points[:i]
 
-        return pilots
+        if corners:
+            c = numpy.zeros((4, gw))
+            c[1, 0] = self.grid[:, 0].max()
+            c[2, 1] = self.grid[:, 1].max()
+            c[3, 0] = self.grid[:, 0].max()
+            c[3, 1] = self.grid[:, 1].max()
+            points = numpy.vstack((c, points))
+
+        return points
+
+    def pick_values(self):
+        numpy.random.seed(seed=self.seed)
+        n = self.positions.shape[0]
+        self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
+        self.values = self.oscillating_depth(self.os_values)
+
+    def alter_values(self):
+        # maximum range in both directions the values should be altered
+        # TODO: replace by some kind of oscillation :)
+        numpy.random.seed(seed=self.seed)
+        os_range = self.strength * (numpy.pi / 2)
+        for i, value in enumerate(self.os_values):
+            self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)
+        self.values = self.oscillating_depth(self.os_values)
+
+    def interpolate(self):
+        inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
+        self.interpolation = inter.reshape(self.height, self.width)
 
 
-    def create_topography(self, resolution, step=1, n=5, distance=3):
-
-        from scipy.interpolate import griddata
-
-        grid_x, grid_y = np.meshgrid(np.arange(0, resolution[0] + step, step), np.arange(0, resolution[1] + step, step))
-
-        # combine position grids for random picking and interpolation
-        grid = np.stack((grid_x.ravel(), grid_y.ravel())).T
-
-        # picking positions
-        points = self.pick_points(grid, n=n, distance=distance)
-        # adding corners
-        corners = np.array([[grid_x.min(), grid_y.min()], [grid_x.min(), grid_y.max()], [grid_x.max(), grid_y.min()],
-                            [grid_x.max(), grid_y.max()]])
-        points = np.vstack([points, corners])
-        # picking values
-        values = np.random.randint(0, resolution[2], size=n + 4)
-
-        # interpolation
-        z = griddata(points, values, grid, method='cubic', fill_value=0)
-
-        # regridding the value grid
-        grid_z = np.nan * np.empty((resolution[1], resolution[0]))
-        grid_z[grid[:, 1] - 1, grid[:, 0] - 1] = z
-
-        return grid_x, grid_y, grid_z, points
+class Model:
+    pass
 
 
-    def plot(self, grid_x, grid_y, grid_z, points=None, cmap='gist_earth', width=800, height=600, dpi=62):
+class Plot:
+    # will be child class of Model
 
-        # z_min, z_max = -np.abs(grid_z).max(), np.abs(grid_z).max()
-        ratio = grid_x.max() / grid_y.max()
+    def __init__(self, calibration, sensor):
 
-        fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)  # , frameon=False)
-        ax = fig.add_axes([0., 0., 1., 1.])
+        self.calib = calibration
+        self.sensor = sensor
 
-        c = ax.pcolormesh(grid_x, grid_y, grid_z, cmap='gist_earth')
-        co = ax.contour(grid_x[:-1, :-1], grid_y[:-1, :-1], grid_z, colors='k')
+        # switches
+        self.colormap = True
+        self.contours = True
+        self.points = False
 
-        if points is not None:
-            ax.scatter(points[:, 0], points[:, 1], color='k', marker='x')
+        self.figure = None
+        self.ax = None # current plot composition
+
+        self.empty_frame() # initial figure for starting projector
+
+
+    def render_frame(self):
+        # reset old figure
+        plt.close(self.figure)
+        self.empty_frame()
+        if self.colormap:
+            self.add_colormap()
+        if self.contours:
+            self.add_contours()
+        if self.points:
+            self.add_points()
+
+        self.ax.set_axis_off()
+
+        # return final figure
+        return self.figure
+
+
+    def empty_frame(self):
+        self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi, self.calib.p_area_height / self.calib.p_dpi),
+                                 dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
+        self.ax = self.figure.add_axes([0., 0., 1., 1.])
 
         # 1) make patch invisible / like 'frameon=False', buggy
         # fig.patch.set_visible(False)
@@ -262,23 +332,27 @@ class DummyModel:
         # fig.subplots_adjust(left=0,right=1,bottom=0,top=1)
         # 3) Turn off axes and set axes limits
         # ax.axis('off')
-        ax.set_axis_off()
-        ax.axis([grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()])
+        self.ax.set_axis_off()
 
-        # fig.colorbar(c, ax=ax)
+    def add_colormap(self):
+        c = self.ax.pcolormesh(self.sensor.get_frame(), cmap='gist_earth')
 
-        # plt.savefig('test.png', bbox_inches='tight',
-        #           transparent=True,
-        #           pad_inches=0)
+    def add_points(self):
+        p = self.ax.scatter(self.sensor.positions[:, 0], self.sensor.positions[:, 1], color='k', marker='x')
 
-        return fig
+    def add_contours(self):
+        co = self.ax.contour(self.sensor.get_frame(), colors='k')
 
 
-#class BlockModel:
+
+class BlockModel:
     # child class of Model
+    pass
 
-#class TopoModel:
+class TopoModel:
     # child class of Model
+    pass
 
-#class GemPyModel:
+class GemPyModel:
     # child class of Model
+    pass
