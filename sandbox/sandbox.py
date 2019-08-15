@@ -1,14 +1,17 @@
 import os
 from warnings import warn
+
 try:
     import freenect
+
     warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
          'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
 except ImportError:
-    warn('Freenect is not installed. if you are using the Kinect Version 2 on a windows machine, use the KinectV2 class!')
+    warn(
+        'Freenect is not installed. if you are using the Kinect Version 2 on a windows machine, use the KinectV2 class!')
 
 try:
-    from pykinect2 import PyKinectV2 #try to import Wrapper for KinectV2 Windows SDK
+    from pykinect2 import PyKinectV2  # try to import Wrapper for KinectV2 Windows SDK
     from pykinect2 import PyKinectRuntime
 
 except ImportError:
@@ -18,7 +21,7 @@ try:
     import cv2
 
 except ImportError:
-   # warn('opencv is not installed. Object detection will not work')
+    # warn('opencv is not installed. Object detection will not work')
     pass
 
 import webbrowser
@@ -36,14 +39,16 @@ from PIL import Image, ImageDraw
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import matplotlib
-#import gempy.hackathon as hackathon
+# import gempy.hackathon as hackathon
 import IPython
 import threading
 
 import json
+import pandas as pd
 
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
+
 
 class Kinect:  # add dummy
     """
@@ -52,8 +57,10 @@ class Kinect:  # add dummy
     blurring to get smoother lines.
     """
 
-    version_kinect = int(input("Version of Kinect using (1 or 2):"))
-    def __init__(self,version_kinect=version_kinect, dummy=False, mirror=True):
+    # version_kinect = int(input("Version of Kinect using (1 or 2):"))
+    version_kinect = 2
+
+    def __init__(self, version_kinect=version_kinect, dummy=False, mirror=True):
         """
         Args:
             dummy:
@@ -61,16 +68,17 @@ class Kinect:  # add dummy
 
         Returns:
         """
-        self.resolution = (640, 480)  #TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
+        self.resolution = (640,
+                           480)  # TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
         self.dummy = dummy
-        self.mirror = mirror # TODO: check if this is used anywhere, then delete
+        self.mirror = mirror  # TODO: check if this is used anywhere, then delete
         self.rgb_frame = None
         self.angle = None
 
-        #TODO: include filter self.-filter parameters as function defaults
-        self.n_frames = 3 #filter parameters
+        # TODO: include filter self.-filter parameters as function defaults
+        self.n_frames = 3  # filter parameters
         self.sigma_gauss = 3
-        self.filter = 'gaussian' #TODO: deprecate get_filtered_frame, make it switchable in runtime
+        self.filter = 'gaussian'  # TODO: deprecate get_filtered_frame, make it switchable in runtime
 
         if version_kinect == 1:
             if self.dummy is False:
@@ -80,7 +88,8 @@ class Kinect:  # add dummy
                 print(self.id)
                 freenect.close_device(self.dev)  # TODO Test if this has to be done!
 
-                self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]  # get the first Depth frame already (the first one takes much longer than the following)
+                self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[
+                    0]  # get the first Depth frame already (the first one takes much longer than the following)
                 self.filtered_depth = None
                 print("kinect initialized")
             else:
@@ -89,19 +98,21 @@ class Kinect:  # add dummy
                 print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
         elif version_kinect == 2:
-            self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
+            self.kinect = PyKinectRuntime.PyKinectRuntime(
+                PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
             self.depth = self.get_frame()
             self.color = self.get_color()
-            self.mapped = self.get_mapped(self.depth)
             self.ir_frame_raw = self.get_ir_frame_raw()
             self.ir_frame = self.get_ir_frame()
+
 
 
         else:
             print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
 
-class KinectV1 (Kinect):
-    def set_angle(self, angle): #TODO: throw out
+
+class KinectV1(Kinect):
+    def set_angle(self, angle):  # TODO: throw out
         """
         Args:
             angle:
@@ -154,7 +165,8 @@ class KinectV1 (Kinect):
 
             depth_array = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
             for i in range(n_frames - 1):
-                depth_array = numpy.dstack([depth_array, freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]])
+                depth_array = numpy.dstack(
+                    [depth_array, freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]])
             depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
             self.depth = numpy.ma.mean(depth_array_masked, axis=2)
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
@@ -185,7 +197,7 @@ class KinectV1 (Kinect):
 
         """
         if calibration is None:
-                print("no calibration provided!")
+            print("no calibration provided!")
         rotated = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
         cropped = rotated[calibration.calibration_data.y_lim[0]: calibration.calibration_data.y_lim[1],
                   calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
@@ -212,7 +224,8 @@ class KinectV2(Kinect):
         """
 
         depth_flattened = self.kinect.get_last_depth_frame()
-        self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        self.depth = depth_flattened.reshape(
+            (424, 512))  # reshape the array to 2D with native resolution of the kinectV2
         return self.depth
 
     def get_ir_frame_raw(self):
@@ -225,7 +238,8 @@ class KinectV2(Kinect):
 
         """
         ir_flattened = self.kinect.get_last_infrared_frame()
-        self.ir_frame_raw = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        self.ir_frame_raw = numpy.flipud(
+            ir_flattened.reshape((424, 512)))  # reshape the array to 2D with native resolution of the kinectV2
         return self.ir_frame_raw
 
     def get_ir_frame(self, min=0, max=6000):
@@ -263,22 +277,13 @@ class KinectV2(Kinect):
 
     def get_color(self):
         color_flattened = self.kinect.get_last_color_frame()
-        resolution_camera = 1920 * 1080 # resolution camera Kinect V2
+        resolution_camera = 1920 * 1080  # resolution camera Kinect V2
         # Palette of colors in RGB / Cut of 4th column marked as intensity
-        palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:,[2,1,0]]
+        palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:, [2, 1, 0]]
         position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (1080, 1920))
         self.color = numpy.flipud(palette[position_palette])
         return self.color
 
-    def get_mapped(self, position):
-        """
-
-        Args:
-
-        Returns:
-
-        """
-        pass
 class DummySensor:
 
     def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
@@ -380,13 +385,15 @@ class DummySensor:
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
         self.interpolation = inter.reshape(self.height, self.width)
 
+
 class Calibration:
     """
     TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
     """
 
-    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None, json_calibration_file=None):
+    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None,
+                 json_calibration_file=None):
         """
 
         Args:
@@ -402,15 +409,15 @@ class Calibration:
             self.calibration_file = "calibration" + str(self.id) + ".dat"
 
         self.calibration_data = CalibrationData(
-             legend_x_lim=(self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
-             legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
-             profile_area=False,
-             profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-             profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
-             hot_area=False,
-             hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-             hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
-                             )
+            legend_x_lim=(self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
+            legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
+            profile_area=False,
+            profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
+            profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
+            hot_area=False,
+            hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
+            hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
+        )
         # new simplified json approach
         if json_calibration_file is not None:
             self.load_json(json_calibration_file)
@@ -420,7 +427,8 @@ class Calibration:
         self.n_contours = 20
         self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
                                            self.calibration_data.z_range[1],
-                                           float(self.calibration_data.z_range[1] - self.calibration_data.z_range[0]) / self.n_contours)
+                                           float(self.calibration_data.z_range[1] - self.calibration_data.z_range[
+                                               0]) / self.n_contours)
 
     # ...
 
@@ -473,10 +481,10 @@ class Calibration:
 
         """
         if self.associated_projector is None:
-                print("Error: no Projector instance found.")
+            print("Error: no Projector instance found.")
 
         if self.associated_kinect is None:
-                print("Error: no kinect instance found.")
+            print("Error: no kinect instance found.")
 
         def calibrate(rot_angle, x_lim, y_lim, x_pos, y_pos, scale_factor, z_range, box_width, box_height, legend_area,
                       legend_x_lim, legend_y_lim, profile_area, profile_x_lim, profile_y_lim, hot_area, hot_x_lim,
@@ -511,7 +519,8 @@ class Calibration:
             depth_rotated = scipy.ndimage.rotate(depth, rot_angle, reshape=False)
             depth_cropped = depth_rotated[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
             depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration_data.z_range[0],
-                                                   self.calibration_data.z_range[1])  # depth pixels outside of range are white, no data pixe;ls are black.
+                                                   self.calibration_data.z_range[
+                                                       1])  # depth pixels outside of range are white, no data pixe;ls are black.
 
             self.cmap = matplotlib.colors.Colormap('viridis')
             self.cmap.set_bad('white', 800)
@@ -526,56 +535,56 @@ class Calibration:
             ax.pcolormesh(depth_masked, vmin=self.calibration_data.z_range[0],
                           vmax=self.calibration_data.z_range[1])
 
-            if self.contours is True: # draw contours
+            if self.contours is True:  # draw contours
                 self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
                                                    self.calibration_data.z_range[1],
                                                    float(self.calibration_data.z_range[1] -
                                                          self.calibration_data.z_range[
-                                                             0]) / self.n_contours) # update contour levels
-                plt.contour(depth_masked,levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
+                                                             0]) / self.n_contours)  # update contour levels
+                plt.contour(depth_masked, levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
 
-            plt.savefig(os.path.join(self.associated_projector.work_directory,'current_frame.png'), pad_inches=0)
+            plt.savefig(os.path.join(self.associated_projector.work_directory, 'current_frame.png'), pad_inches=0)
             plt.close(fig)
 
             self.calibration_data = CalibrationData(
-                                    rot_angle=rot_angle,
-                                    x_lim=x_lim,
-                                    y_lim=y_lim,
-                                    x_pos=x_pos,
-                                    y_pos=y_pos,
-                                    scale_factor=scale_factor,
-                                    z_range=z_range,
-                                    box_width=box_width,
-                                    box_height=box_height,
-                                    legend_area=legend_area,
-                                    legend_x_lim=legend_x_lim,
-                                    legend_y_lim=legend_y_lim,
-                                    profile_area=profile_area,
-                                    profile_x_lim=profile_x_lim,
-                                    profile_y_lim=profile_y_lim,
-                                    hot_area=hot_area,
-                                    hot_x_lim=hot_x_lim,
-                                    hot_y_lim=hot_y_lim
-                                  )
+                rot_angle=rot_angle,
+                x_lim=x_lim,
+                y_lim=y_lim,
+                x_pos=x_pos,
+                y_pos=y_pos,
+                scale_factor=scale_factor,
+                z_range=z_range,
+                box_width=box_width,
+                box_height=box_height,
+                legend_area=legend_area,
+                legend_x_lim=legend_x_lim,
+                legend_y_lim=legend_y_lim,
+                profile_area=profile_area,
+                profile_x_lim=profile_x_lim,
+                profile_y_lim=profile_y_lim,
+                hot_area=hot_area,
+                hot_x_lim=hot_x_lim,
+                hot_y_lim=hot_y_lim
+            )
 
             if self.calibration_data.legend_area is not False:
                 legend = Image.new('RGB', (
-                self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
-                self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
+                    self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
+                    self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
                 ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save(os.path.join(self.associated_projector.work_directory,'legend.png'))
+                legend.save(os.path.join(self.associated_projector.work_directory, 'legend.png'))
             if self.calibration_data.profile_area is not False:
                 profile = Image.new('RGB', (
-                self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
-                self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
+                    self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
+                    self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
                 ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save(os.path.join(self.associated_projector.work_directory,'profile.png'))
+                profile.save(os.path.join(self.associated_projector.work_directory, 'profile.png'))
             if self.calibration_data.hot_area is not False:
                 hot = Image.new('RGB', (self.calibration_data.hot_x_lim[1] - self.calibration_data.hot_x_lim[0],
                                         self.calibration_data.hot_y_lim[1] - self.calibration_data.hot_y_lim[0]),
                                 color='red')
                 ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
-                hot.save(os.path.join(self.associated_projector.work_directory,'hot.png'))
+                hot.save(os.path.join(self.associated_projector.work_directory, 'hot.png'))
             self.associated_projector.show()
             if close_click == True:
                 calibration_widget.close()
@@ -678,7 +687,6 @@ class Projector:
 
     """
 
-
     def __init__(self, resolution=None, create_calibration=False, work_directory='./', refresh=100, input_rescale=True):
         """
 
@@ -708,8 +716,9 @@ class Projector:
         self.refresh = refresh  # wait time in ms for html file to load image
         self.input_rescale = input_rescale
         if resolution is None:
-            print("no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
-            resolution = (800, 600) #resolution of the beamer that is changeds later is not passed to the calibration!
+            print(
+                "no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
+            resolution = (800, 600)  # resolution of the beamer that is changeds later is not passed to the calibration!
         self.resolution = resolution
         if create_calibration is True:
             self.calibration = Calibration(associated_projector=self)
@@ -823,10 +832,10 @@ class Projector:
         if legend_filename is None:
             legend_filename = os.path.join(self.work_directory, self.legend_filename)
         if profile_filename is None:
-            profile_filename = os.path.join(self.work_directory,self.profile_filename)
+            profile_filename = os.path.join(self.work_directory, self.profile_filename)
         if hot_filename is None:
-            hot_filename = os.path.join(self.work_directory,self.hot_filename)
-        if rescale is None: #
+            hot_filename = os.path.join(self.work_directory, self.hot_filename)
+        if rescale is None:  #
             rescale = self.input_rescale
 
         projector_output = Image.new('RGB', self.resolution)
@@ -834,37 +843,44 @@ class Projector:
 
         if rescale is True:
             projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data.scale_factor),
-                                              int(frame.height * self.calibration.calibration_data.scale_factor))),
-                                (
-                                self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
+                                                 int(frame.height * self.calibration.calibration_data.scale_factor))),
+                                   (
+                                       self.calibration.calibration_data.x_pos,
+                                       self.calibration.calibration_data.y_pos))
         else:
-            projector_output.paste(frame, (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
+            projector_output.paste(frame,
+                                   (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
 
         if self.calibration.calibration_data.legend_area is not False:
             legend = Image.open(legend_filename)
             projector_output.paste(legend, (
-            self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
+                self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
         if self.calibration.calibration_data.profile_area is not False:
             profile = Image.open(profile_filename)
             projector_output.paste(profile, (self.calibration.calibration_data.profile_x_lim[0],
-                                          self.calibration.calibration_data.profile_y_lim[0]))
+                                             self.calibration.calibration_data.profile_y_lim[0]))
         if self.calibration.calibration_data.hot_area is not False:
             hot = Image.open(hot_filename)
             projector_output.paste(hot, (
-            self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
+                self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
 
         projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
-        os.replace(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
+        os.replace(os.path.join(self.work_directory, 'output_temp.png'),
+                   os.path.join(self.work_directory, 'output.png'))  # workaround to supress artifacts
 
 
 class CalibrationData:
     """
 
     """
-    def __init__(self,rot_angle=-180, x_lim=(0,640), y_lim=(0,480), x_pos=0, y_pos=0, scale_factor=1.0, z_range=(800,1400), box_width=1000, box_height=600, legend_area=False,
-                      legend_x_lim=(0,20), legend_y_lim=(0,50), profile_area=False, profile_x_lim=(10,200), profile_y_lim=(200,250), hot_area=False, hot_x_lim=(400,450),
-                      hot_y_lim=(400,450), p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0, p_area_width=400, p_area_height=200,
-                      s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
+
+    def __init__(self, rot_angle=-180, x_lim=(0, 640), y_lim=(0, 480), x_pos=0, y_pos=0, scale_factor=1.0,
+                 z_range=(800, 1400), box_width=1000, box_height=600, legend_area=False,
+                 legend_x_lim=(0, 20), legend_y_lim=(0, 50), profile_area=False, profile_x_lim=(10, 200),
+                 profile_y_lim=(200, 250), hot_area=False, hot_x_lim=(400, 450),
+                 hot_y_lim=(400, 450), p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0,
+                 p_area_width=400, p_area_height=200,
+                 s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
         """
 
         Args:
@@ -909,7 +925,7 @@ class CalibrationData:
         self.hot_area = hot_area
         self.hot_x_lim = hot_x_lim
         self.hot_y_lim = hot_y_lim
-        self.box_dim=(self.box_width, self.box_height)
+        self.box_dim = (self.box_width, self.box_height)
 
         # Attributes for new calibration approach
         self.p_width = p_width
@@ -931,6 +947,7 @@ class Scale:
     self.extent: 3d extent of the model in the sandbox in model units.
 
     """
+
     def __init__(self, calibration: Calibration = None, xy_isometric=True, extent=None):
         """
 
@@ -957,7 +974,7 @@ class Scale:
                 self.calibration.calibration_data.box_height,
                 self.calibration.calibration_data.z_range[0],
                 self.calibration.calibration_data.z_range[1],
-                ])
+            ])
 
         else:
             self.extent = numpy.asarray(extent)  # check: array with 6 entries!
@@ -995,8 +1012,8 @@ class Scale:
                 self.pixel_scale[0] = self.pixel_scale[1]
                 print("Model size is limited by Y dimension")
 
-        self.scale[0] = self.pixel_scale[0]/self.pixel_size[0]
-        self.scale[1] = self.pixel_scale[1]/self.pixel_size[1]
+        self.scale[0] = self.pixel_scale[0] / self.pixel_size[0]
+        self.scale[1] = self.pixel_scale[1] / self.pixel_size[1]
         self.scale[2] = float(self.extent[5] - self.extent[4]) / (
                 self.calibration.calibration_data.z_range[1] -
                 self.calibration.calibration_data.z_range[0])
@@ -1011,7 +1028,8 @@ class Grid:
     a calibration object must be provided, it is used to crop the kinect data to the area of interest
     TODO:  The cropping should be done in the kinect class, with calibration_data passed explicitly to the method! Do this for all the cases where calibration data is needed!
     """
-    def __init__(self, calibration=None, scale=None,):
+
+    def __init__(self, calibration=None, scale=None, ):
         """
 
         Args:
@@ -1031,7 +1049,7 @@ class Grid:
         else:
             self.scale = Scale(calibration=self.calibration)
             print("no scale provided or scale invalid. A default scale instance is used")
-        self.empty_depth_grid=None
+        self.empty_depth_grid = None
         self.create_empty_depth_grid()
 
     def create_empty_depth_grid(self):
@@ -1060,11 +1078,11 @@ class Grid:
 
         empty_depth_grid = numpy.array(grid_list)
         self.empty_depth_grid = empty_depth_grid
-        self.depth_grid = None #I know, this should have thew right type.. anyway.
-        print("the shown extent is ["+str(self.empty_depth_grid[0, 0]) + ", " +
-                                      str(self.empty_depth_grid[-1, 0]) + ", " +
-                                      str(self.empty_depth_grid[0, 1]) + ", " +
-                                      str(self.empty_depth_grid[-1, 1]) + "] "
+        self.depth_grid = None  # I know, this should have thew right type.. anyway.
+        print("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
+              str(self.empty_depth_grid[-1, 0]) + ", " +
+              str(self.empty_depth_grid[0, 1]) + ", " +
+              str(self.empty_depth_grid[-1, 1]) + "] "
               )
 
         # return self.empty_depth_grid
@@ -1103,12 +1121,13 @@ class Grid:
         self.depth_grid = depth_grid
 
 
-class Contour: #TODO: change the whole thing to use keyword arguments!!
+class Contour:  # TODO: change the whole thing to use keyword arguments!!
     """
     class to handle contour lines in the sandbox. contours can shpow depth or anything else.
     TODO: pass on keyword arguments to the plot and label functions for more flexibility
 
     """
+
     def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)],
                  inline=0, fontsize=15, label_format='%3.0f'):
         """
@@ -1138,7 +1157,7 @@ class Contour: #TODO: change the whole thing to use keyword arguments!!
         self.colors = colors
         self.levels = numpy.arange(self.start, self.end, self.step)
         self.contours = None
-        self.data = None # Data has to be updated for each frame
+        self.data = None  # Data has to be updated for each frame
 
         # label attributes:
         self.inline = inline
@@ -1151,7 +1170,8 @@ class Plot:
     handles the plotting of a sandbox model
 
     """
-    def __init__(self,  calibration=None, cmap=None, norm=None, lot=None, outfile=None):
+
+    def __init__(self, calibration=None, cmap=None, norm=None, lot=None, outfile=None):
         """
 
         Args:
@@ -1178,7 +1198,7 @@ class Plot:
             self.calibration.calibration_data.x_lim[0],
             self.calibration.calibration_data.y_lim[1] -
             self.calibration.calibration_data.y_lim[0]
-                           )
+        )
 
         self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
         self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
@@ -1206,9 +1226,10 @@ class Plot:
 
         if contour.show is True:
             contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
-                                           linewidths=contour.linewidth, colors=contour.colors)
+                                               linewidths=contour.linewidth, colors=contour.colors)
             if contour.show_labels is True:
-                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize, fmt=contour.label_format)
+                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize,
+                               fmt=contour.label_format)
 
     def create_empty_frame(self):
         """
@@ -1265,7 +1286,7 @@ class Plot:
                 outfile = self.outfile
 
         self.outfile = outfile
-        self.fig.savefig (self.outfile, pad_inches=0)
+        self.fig.savefig(self.outfile, pad_inches=0)
         plt.close(self.fig)
 
     def create_legend(self):
@@ -1281,6 +1302,7 @@ class GeoMapModule:
     """
 
     """
+
     # TODO: When we move GeoMapModule import gempy just there
 
     def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
@@ -1297,13 +1319,12 @@ class GeoMapModule:
 
         """
 
-
         self.geo_model = geo_model
         self.kinect_grid = grid
         self.geol_map = geol_map
         self.work_directory = work_directory
 
-        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults+0.5001)
+        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
         self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
                                                        self.kinect_grid.scale.extent[5])
         self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
@@ -1368,7 +1389,7 @@ class GeoMapModule:
 
     def create_fault_line(self,
                           start=0.5,
-                          end=50.5, #TODO Miguel:increase?
+                          end=50.5,  # TODO Miguel:increase?
                           step=1.0,
                           linewidth=3.0,
                           colors=[(1.0, 1.0, 1.0, 1.0)]):
@@ -1391,7 +1412,7 @@ class GeoMapModule:
         return self.fault_line
 
     def create_main_contours(self, start, end, step=100, linewidth=1.0,
-                                  colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
+                             colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
         """
 
         Args:
@@ -1435,7 +1456,8 @@ class GeoMapModule:
 
         """
 
-        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors, show_labels=show_labels)
+        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors,
+                                    show_labels=show_labels)
         return self.sub_contours
 
     def export_topographic_map(self, output="topographic_map.pdf"):
@@ -1577,27 +1599,117 @@ class ArucoMarkers:
     An Area of interest can be specified, markers outside this area will be ignored
     TODO: run as loop in a thread, probably implement in API
     """
+
     def __init__(self, aruco_dict=None, Area=None):
         if not aruco_dict:
-            self.aruco_dict = None #set the default dictionary here
+            self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
-        self.Area = Area # set a square Area of interest here (Hot-Area)
-        self.dict_markers_current = {} #  markers that were detected in the last frame
-        self.dict_markers_all = {} # all markers ever detected with their last known position and timestamp
-        self.lock = threading.Lock #thread lock object to avoid read-write collisions in multithreading.
+        self.Area = Area  # set a square Area of interest here (Hot-Area)
+        self.dict_markers_current = self.update_dict_markers_current()  # markers that were detected in the last frame
+        self.dict_markers_all = self.update_dict_markers_all() # all markers ever detected with their last known position and timestamp
+        self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
+        self.trs_dst = self.change_point_RGB_to_DepthIR()
 
-    def find_markers_ir(self, kinect :KinectV2):
-        pass
+    def get_location_marker(self, corners):
+        pr1 = int(numpy.mean(corners[:, 0]))
+        pr2 = int(numpy.mean(corners[:, 1]))
+        return pr1, pr2
 
-    def find_markers_rgb(self,kinect :KinectV2):
-        pass
+    def aruco_detect(self, image, aruco_dict = self.aruco_dict):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        aruco_dict = aruco.Dictionary_get(aruco_dict)
+        parameters = aruco.DetectorParameters_create()
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        return corners, ids, rejectedImgPoints
+
+    def find_markers_ir(self, kinect: KinectV2):
+        labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'} #TODO: add orientation of aruco marker
+        df = pd.DataFrame(columns=labels)
+        list_values = df.set_index('ids')
+
+        while len(list_values) < 4:
+
+            minim = 0
+            maxim = numpy.arange(1000, 30000, 1000)
+            IR = kinect.get_ir_frame_raw()
+
+            for i in maxim:
+                ir_use = numpy.interp(IR, (minim, i), (0, 255)).astype('uint8')
+                ir3 = numpy.stack((ir_use, ir_use, ir_use), axis=2)
+                corners, ids, rejectedImgPoints = self.aruco_detect(self, ir3)
+
+                if not ids is None:
+                    for j in range(len(ids)):
+                        if ids[j] not in list_values.index.values:
+                            x_loc, y_loc = self.get_location_marker(corners[j][0])
+                            df_temp = pd.DataFrame({'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
+                            df = pd.concat([df, df_temp], sort=False)
+                            list_values = df.set_index('ids')
+
+        return list_values
+
+    def find_markers_rgb(self, kinect: KinectV2):
+        labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  #TODO: add orientation of aruco marker
+        df = pd.DataFrame(columns=labels)
+        list_values_color = df.set_index("ids")
+
+        while len(list_values_color) < 5:
+            color = kinect.get_color()
+            corners, ids, rejectedImgPoints = self.aruco_detect(color)
+
+            if not ids is None:
+                for j in range(len(ids)):
+                    if ids[j] not in list_values_color.index.values:
+                        x_loc, y_loc = self.get_location_marker(corners[j][0])
+                        df_temp = pd.DataFrame({"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
+                        df = pd.concat([df, df_temp], sort=False)
+                        list_values_color = df.set_index("ids")
+
+        return list_values_color
+
+    def change_point_RGB_to_DepthIR(self):
+        """
+        Get a perspective transform matrix to project points from RGB to Depth/IR space
+
+        Args:
+            src: location in x and y of the points from the source image (requires 4 points)
+            dst: equivalence of position x and y from source image to destination image (requires 4 points)
+
+        Returns:
+            trs_dst: location in x and y of the projected point in Depth/IR space
+        """
+
+        src = numpy.array(src).astype(numpy.float32)
+        dst = numpy.array(dst).astype(numpy.float32)
+        trs_src = numpy.array(trs_src).astype(numpy.float32)
+
+        transform_perspective = cv2.getPerspectiveTransform(src, dst)
+        self.trs_dst = numpy.dot(transform_perspective, trs_src.T)[:2]
+
+        return self.trs_dst
+
+    def update_dict_markers_current(self):
+
+        ir_aruco_locations = self.find_markers_ir()
+        rgb_aruco_locations = self.find_markers_rgb()
+        self.dict_markers_current = pd.concat([ir_aruco_locations,rgb_aruco_locations],axis=1)
+        return self.dict_markers_current
 
     def update_dict_markers_all(self):
+
+
+        #return self.dict_markers_all
         pass
 
+    def create_aruco_marker(self, nx=1, ny=1, aruco_dict = self.aruco_dict):
+        aruco_dict = aruco.Dictionary_get(aruco_dict)
 
-
-
-
-
+        fig = plt.figure()
+        for i in range(1, nx * ny + 1):
+            ax = fig.add_subplot(ny, nx, i)
+            img = aruco.drawMarker(aruco_dict, i, 2000)
+            plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
+            ax.axis("off")
+        plt.savefig("markers.pdf")
+        plt.show()
