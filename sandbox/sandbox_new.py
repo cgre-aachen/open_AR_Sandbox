@@ -1,5 +1,4 @@
 import json
-import numpy as np
 import numpy
 import param
 import pandas as pd
@@ -59,19 +58,19 @@ class Projector:
         self.plot = plot
 
         # panel components (panes)
-        self.output = None
+        self.frame = None
         self.legend = None
         self.panel = None
 
         self.create_panel() # make explicit?
 
 
-    def update(self):
-        self.output.object = self.plot.render_frame()
+    def show(self):
+        self.frame.object = self.plot.render_frame()
 
-    def keep_updating(self, iterations=5, sleep_s=0.1):
-        for i in np.arange(0, iterations):
-            self.update()
+    def show_loop(self, iterations=5, sleep_s=0.1):
+        for i in numpy.arange(0, iterations):
+            self.show()
             sleep(sleep_s)
 
     def create_panel(self):
@@ -96,7 +95,7 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
-        self.output = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+        self.frame = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
                                          margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
 
         self.legend = pn.Column("<br>\n# Legend",
@@ -104,7 +103,7 @@ class Projector:
                                 css_classes=['legend'])
 
         # Combine panel and deploy bokeh server
-        self.panel = pn.Row(self.output, self.legend, width=self.calib.p_width, height=self.calib.p_height,
+        self.panel = pn.Row(self.frame, self.legend, width=self.calib.p_width, height=self.calib.p_height,
                             sizing_mode='fixed', css_classes=['panel'])
 
         # TODO: Add specific port? port=4242
@@ -120,7 +119,7 @@ class Projector:
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
             self.calib.p_top_margin = event.new
-        margin_top.link(self.output, callbacks={'value': callback_mt})
+        margin_top.link(self.frame, callbacks={'value': callback_mt})
 
         margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=self.calib.p_left_margin, end=150)
         def callback_ml(target, event):
@@ -130,7 +129,7 @@ class Projector:
             target.margin = [m[0], m[1], m[2], n]
             # also update calibration object
             self.calib.p_left_margin = event.new
-        margin_left.link(self.output, callbacks={'value': callback_ml})
+        margin_left.link(self.frame, callbacks={'value': callback_ml})
 
         width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
         def callback_width(target, event):
@@ -138,7 +137,7 @@ class Projector:
             target.param.trigger('object')
             # also update calibration object
             self.calib.p_area_width = event.new
-        width.link(self.output, callbacks={'value': callback_width})
+        width.link(self.frame, callbacks={'value': callback_width})
 
         height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
         def callback_height(target, event):
@@ -147,7 +146,7 @@ class Projector:
             # also update calibration object
             self.calib.p_area_height = event.new
             #self.plot.redraw_plot()
-        height.link(self.output, callbacks={'value': callback_height})
+        height.link(self.frame, callbacks={'value': callback_height})
 
         widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
         return widgets
@@ -303,13 +302,13 @@ class Plot:
         self.figure = None
         self.ax = None # current plot composition
 
-        self.empty_frame() # initial figure for starting projector
+        self.create_empty_frame() # initial figure for starting projector
 
 
     def render_frame(self):
         # reset old figure
         plt.close(self.figure)
-        self.empty_frame()
+        self.create_empty_frame()
         if self.colormap:
             self.add_colormap()
         if self.contours:
@@ -324,7 +323,7 @@ class Plot:
         return self.figure
 
 
-    def empty_frame(self):
+    def create_empty_frame(self):
         self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi, self.calib.p_area_height / self.calib.p_dpi),
                                  dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
         self.ax = self.figure.add_axes([0., 0., 1., 1.])

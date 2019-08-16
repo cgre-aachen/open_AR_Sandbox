@@ -30,6 +30,10 @@ import numpy
 import scipy
 import scipy.ndimage
 
+# for new projector
+import panel as pn
+import time.sleep
+
 # for DummySensor
 from scipy.spatial.distance import cdist
 from scipy.interpolate import griddata
@@ -286,8 +290,12 @@ class KinectV2(Kinect):
 
 class DummySensor:
 
-    def __init__(self, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
-                 alteration_strength=80):
+    def __init__(self, calibrationdata, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
+                 alteration_strength=0.1, random_seed=None):
+
+        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+
+        self.calib = calibrationdata # use in the future from calibration file
 
         self.width = width
         self.height = height
@@ -295,11 +303,16 @@ class DummySensor:
         self.n = points_n
         self.distance = points_distance
         self.strength = alteration_strength
+        self.seed = random_seed
 
         # create grid, init values, and init interpolation
         self.grid = self.create_grid()
         self.positions = self.pick_positions()
-        self.values = self.pick_values()
+
+        self.os_values = None
+        self.values = None
+        self.pick_values()
+
         self.interpolation = None
         self.interpolate()
 
@@ -314,9 +327,12 @@ class DummySensor:
     def get_filtered_frame(self):
         return self.get_frame()
 
-        ## Private functions
-
+    ## Private functions
     # TODO: Make private
+
+    def oscillating_depth(self, random):
+        r = (self.depth_lim[1] - self.depth_lim[0]) / 2
+        return numpy.sin(random) * r + r + self.depth_lim[0]
 
     def create_grid(self):
         # creates 2D grid for given resolution
@@ -371,15 +387,19 @@ class DummySensor:
         return points
 
     def pick_values(self):
+        numpy.random.seed(seed=self.seed)
         n = self.positions.shape[0]
-        return numpy.random.uniform(*self.depth_lim, n)
+        self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
+        self.values = self.oscillating_depth(self.os_values)
 
     def alter_values(self):
         # maximum range in both directions the values should be altered
         # TODO: replace by some kind of oscillation :)
-        ra = (self.depth_lim[1] - self.depth_lim[0]) / self.strength
-        for i, value in enumerate(self.values):
-            self.values[i] = value + numpy.random.uniform(-ra, ra)
+        numpy.random.seed(seed=self.seed)
+        os_range = self.strength * (numpy.pi / 2)
+        for i, value in enumerate(self.os_values):
+            self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)
+        self.values = self.oscillating_depth(self.os_values)
 
     def interpolate(self):
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
@@ -681,8 +701,103 @@ class Calibration:
                                                  )
         IPython.display.display(calibration_widget)
 
-
 class Projector:
+
+    def __init__(self, calibrationdata, plot):
+        self.calib = calibrationdata
+        self.plot = plot
+
+        # panel components (panes)
+        self.frame = None
+        self.legend = None
+        self.panel = None
+
+        self.create_panel() # make explicit?
+
+
+    def show(self):
+        self.frame.object = self.plot.render_frame()
+
+
+    def create_panel(self):
+
+        css = '''
+        body {
+          margin:0px;
+          background-color: #ffffff;
+        }
+        .bk.output {
+        }
+        .bk.legend {
+          background-color: #AAAAAA;
+        }
+        .panel {
+          background-color: #000000;
+        }
+        '''
+
+        pn.extension(raw_css=[css])
+        # Create a panel object and serve it within an external bokeh browser that will be opened in a separate window
+        # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
+
+
+        self.frame = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
+
+        self.legend = pn.Column("<br>\n# Legend",
+                                margin=[self.calib.p_top_margin, 0, 0, 0],
+                                css_classes=['legend'])
+
+        # Combine panel and deploy bokeh server
+        self.panel = pn.Row(self.frame, self.legend, width=self.calib.p_width, height=self.calib.p_height,
+                            sizing_mode='fixed', css_classes=['panel'])
+
+        # TODO: Add specific port? port=4242
+        self.panel.show(threaded=False)
+
+    def calibrate_projector(self):
+
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=0, start=self.calib.p_top_margin, end=150)
+        def callback_mt(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [n, m[1], m[2], m[3]]
+            # also update calibration object
+            self.calib.p_top_margin = event.new
+        margin_top.link(self.frame, callbacks={'value': callback_mt})
+
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=self.calib.p_left_margin, end=150)
+        def callback_ml(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [m[0], m[1], m[2], n]
+            # also update calibration object
+            self.calib.p_left_margin = event.new
+        margin_left.link(self.frame, callbacks={'value': callback_ml})
+
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
+        def callback_width(target, event):
+            target.width = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_area_width = event.new
+        width.link(self.frame, callbacks={'value': callback_width})
+
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
+        def callback_height(target, event):
+            target.height = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_area_height = event.new
+            #self.plot.redraw_plot()
+        height.link(self.frame, callbacks={'value': callback_height})
+
+        widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
+        return widgets
+
+class ProjectorOLD:
     """
 
     """
@@ -1166,6 +1281,109 @@ class Contour:  # TODO: change the whole thing to use keyword arguments!!
 
 
 class Plot:
+    """
+    handles the plotting of a sandbox model
+
+    """
+
+    def __init__(self, calibrationdata, sensor, cmap=None, norm=None, lot=None):
+
+        self.calib = calibrationdata
+        self.sensor = sensor # Still needed?
+
+        self.cmap = cmap
+        self.norm = norm
+        self.lot = lot
+
+        # switches
+        #self.colormap = True
+        #self.contours = True
+        #self.points = True
+
+        self.figure = None
+        self.ax = None # current plot composition
+
+        self.create_empty_frame() # initial figure for starting projector
+
+
+    # def __init__(self, calibration=None, cmap=None, norm=None, lot=None, outfile=None):
+
+    #     if isinstance(calibration, Calibration):
+    #         self.calibration = calibration
+    #     else:
+    #         raise TypeError("you must pass a valid calibration instance")
+
+    #     self.output_res = (
+    #         self.calibration.calibration_data.x_lim[1] -
+    #         self.calibration.calibration_data.x_lim[0],
+    #         self.calibration.calibration_data.y_lim[1] -
+    #         self.calibration.calibration_data.y_lim[0]
+    #     )
+    #
+    #     self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
+    #     self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
+
+
+    def add_contours(self, contour, data):
+        """
+        renders contours to the current plot object. \
+        The data has to come in a specific shape as needed by the matplotlib contour function.
+        we explicity enforce to provide X and Y at this stage (you are welcome to change this)
+
+        Args:
+            contour: a contour instance
+            data:  a list with the form x,y,z
+                x: list of the coordinates in x direction (e.g. range(Scale.output_res[0])
+                y: list of the coordinates in y direction (e.g. range(Scale.output_res[1])
+                z: 2D array-like with the values to be contoured
+
+        Returns:
+
+        """
+
+        if contour.show is True:
+            contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
+                                               linewidths=contour.linewidth, colors=contour.colors)
+            if contour.show_labels is True:
+                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize,
+                               fmt=contour.label_format)
+
+    def create_empty_frame(self):
+        self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi,
+                                          self.calib.p_area_height / self.calib.p_dpi),
+                                 dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
+        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
+        self.ax.set_axis_off()
+        self.figure.add_axes(self.ax)
+
+    def render_frame(self, rasterdata):
+        # reset old figure
+        plt.close(self.figure)
+
+        self.create_empty_frame()
+        self.block = rasterdata.reshape((self.calib.p_area_height, self.calib.p_area_width))
+        self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
+
+        # crop axis (!!!input dimensions of calibrated sensor!!!)
+        self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
+
+        # return final figure
+        return self.figure
+
+    # def add_lith_contours(self, block, levels=None):
+    #     """
+    #
+    #     Args:
+    #         block:
+    #         levels:
+    #
+    #     Returns:
+    #
+    #     """
+    #     plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
+
+
+class PlotOLD:
     """
     handles the plotting of a sandbox model
 
