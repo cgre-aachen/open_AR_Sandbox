@@ -6,7 +6,7 @@ import panel as pn
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
 from scipy.interpolate import griddata
-from time import sleep
+
 
 
 class Sandbox:
@@ -282,8 +282,7 @@ class DummySensor:
         self.interpolation = inter.reshape(self.height, self.width)
 
 
-class Model:
-    pass
+
 
 
 class Plot:
@@ -346,15 +345,26 @@ class Plot:
         co = self.ax.contour(self.sensor.get_frame(), colors='k')
 
 
+class Module:
+    def __init__(self, kinect, projector, calibrationdata):
+        self.kinect = kinect
+        self.projector = projector
+        self.calibrationData = calibrationdata
 
-class BlockModel:
+    def setup(self):
+        pass
+
+    def run(self):
+        pass
+
+class BlockModule(Module):
     # child class of Model
     pass
 
-class TopoModel:
+class TopoModule(Module):
     # child class of Model
     pass
 
-class GemPyModel:
+class GemPyModule(Module):
     # child class of Model
     pass

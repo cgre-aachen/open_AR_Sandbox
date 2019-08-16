@@ -32,7 +32,7 @@ import scipy.ndimage
 
 # for new projector
 import panel as pn
-import time.sleep
+
 
 # for DummySensor
 from scipy.spatial.distance import cdist
@@ -703,9 +703,8 @@ class Calibration:
 
 class Projector:
 
-    def __init__(self, calibrationdata, plot):
+    def __init__(self, calibrationdata):
         self.calib = calibrationdata
-        self.plot = plot
 
         # panel components (panes)
         self.frame = None
@@ -715,8 +714,8 @@ class Projector:
         self.create_panel() # make explicit?
 
 
-    def show(self):
-        self.frame.object = self.plot.render_frame()
+    def show(self, plot):
+        self.frame.object = plot
 
 
     def create_panel(self):
@@ -741,7 +740,7 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
-        self.frame = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+        self.frame = pn.pane.Matplotlib(plt.Figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
                                          margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
 
         self.legend = pn.Column("<br>\n# Legend",
@@ -989,12 +988,12 @@ class CalibrationData:
 
     """
 
-    def __init__(self, rot_angle=-180, x_lim=(0, 640), y_lim=(0, 480), x_pos=0, y_pos=0, scale_factor=1.0,
+    def __init__(self, rot_angle=-180, x_lim=(0, 512), y_lim=(0, 424), x_pos=0, y_pos=0, scale_factor=1.0,
                  z_range=(800, 1400), box_width=1000, box_height=600, legend_area=False,
                  legend_x_lim=(0, 20), legend_y_lim=(0, 50), profile_area=False, profile_x_lim=(10, 200),
                  profile_y_lim=(200, 250), hot_area=False, hot_x_lim=(400, 450),
                  hot_y_lim=(400, 450), p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0,
-                 p_area_width=400, p_area_height=200,
+                 p_area_width=512, p_area_height=424,
                  s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
         """
 
@@ -1071,10 +1070,13 @@ class Scale:
             xy_isometric:
             extent:
         """
+        self.calibration = calibration
+        """
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
             raise TypeError("you must pass a valid calibration instance")
+        """
         self.xy_isometric = xy_isometric
         self.scale = [None, None, None]
         self.pixel_size = [None, None]
@@ -1155,10 +1157,15 @@ class Grid:
             None
 
         """
+
+
+        self.calibration = calibration
+        """
         if isinstance(calibration, Calibration):
             self.calibration = calibration
         else:
             raise TypeError("you must pass a valid calibration instance")
+        """
         if isinstance(scale, Scale):
             self.scale = scale
         else:
@@ -1352,7 +1359,7 @@ class Plot:
         self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi,
                                           self.calib.p_area_height / self.calib.p_dpi),
                                  dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
-        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
+        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.ax.set_axis_off()
         self.figure.add_axes(self.ax)
 
@@ -1361,7 +1368,7 @@ class Plot:
         plt.close(self.figure)
 
         self.create_empty_frame()
-        self.block = rasterdata.reshape((self.calib.p_area_height, self.calib.p_area_width))
+        self.block = rasterdata.reshape((self.calib.s_area_height, self.calib.s_area_width))
         self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
@@ -1411,7 +1418,7 @@ class PlotOLD:
         self.cmap = cmap
         self.norm = norm
         self.lot = lot
-        self.output_res = (
+        self.output_res = (  ##TODO: query and recalculate on method level so that calibration can change in between!
             self.calibration.calibration_data.x_lim[1] -
             self.calibration.calibration_data.x_lim[0],
             self.calibration.calibration_data.y_lim[1] -
@@ -1523,7 +1530,7 @@ class GeoMapModule:
 
     # TODO: When we move GeoMapModule import gempy just there
 
-    def __init__(self, geo_model, grid: Grid, geol_map: Plot, work_directory=None):
+    def __init__(self, geo_model, grid: Grid, geol_map: Plot):
         """
 
         Args:
@@ -1540,7 +1547,6 @@ class GeoMapModule:
         self.geo_model = geo_model
         self.kinect_grid = grid
         self.geol_map = geol_map
-        self.work_directory = work_directory
 
         self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
         self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
@@ -1574,7 +1580,7 @@ class GeoMapModule:
 
     # TODO: Miguel: outfile folder should follow by default whatever is set in projection!
     # TODO: Temporal fix. Eventually we need a container class or metaclass with this data
-    def render_geo_map(self, block, fault_blocks, outfile=None):
+    def render_geo_map(self, block, fault_blocks):
         """
 
         Args:
@@ -1585,8 +1591,6 @@ class GeoMapModule:
         Returns:
 
         """
-        if outfile is None:
-            outfile = os.path.join(self.work_directory, "current_frame.png")
 
         self.geol_map.render_frame(block)
 
@@ -1603,7 +1607,8 @@ class GeoMapModule:
             self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
-        self.geol_map.save(outfile=outfile)
+        return self.geol_map.figure
+
 
     def create_fault_line(self,
                           start=0.5,
@@ -1756,6 +1761,7 @@ class SandboxThread:
         self.thread = None
         self.lock = threading.Lock()
         self.stop_thread = False
+        self.plot = None
 
     def loop(self):
         """
@@ -1768,8 +1774,9 @@ class SandboxThread:
             with self.lock:
                 # TODO: Making the next two lines agnostic from GemPy
                 lith, fault = self.module.compute_model(depth)
-                self.module.render_geo_map(lith, fault, outfile=self.path)
-                self.projector.show()
+                self.plot=self.module.render_geo_map(lith, fault)
+
+                self.projector.show(self.plot)
 
     def run(self):
         """
@@ -1828,15 +1835,16 @@ class ArucoMarkers:
         self.dict_markers_all = self.update_dict_markers_all() # all markers ever detected with their last known position and timestamp
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         self.trs_dst = self.change_point_RGB_to_DepthIR()
+        self.ArucoImage = self.create_aruco_marker()
 
     def get_location_marker(self, corners):
         pr1 = int(numpy.mean(corners[:, 0]))
         pr2 = int(numpy.mean(corners[:, 1]))
         return pr1, pr2
 
-    def aruco_detect(self, image, aruco_dict = self.aruco_dict):
+    def aruco_detect(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        aruco_dict = aruco.Dictionary_get(aruco_dict)
+        aruco_dict = aruco.Dictionary_get(self.aruco_dictaruco_dict)
         parameters = aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
@@ -1920,14 +1928,16 @@ class ArucoMarkers:
         #return self.dict_markers_all
         pass
 
-    def create_aruco_marker(self, nx=1, ny=1, aruco_dict = self.aruco_dict):
-        aruco_dict = aruco.Dictionary_get(aruco_dict)
+    def create_aruco_marker(self, nx=1, ny=1):
+        aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
 
         fig = plt.figure()
         for i in range(1, nx * ny + 1):
             ax = fig.add_subplot(ny, nx, i)
-            img = aruco.drawMarker(aruco_dict, i, 2000)
+            img = aruco.drawMarker(aruco_dictionary, i, 2000)
             plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
             ax.axis("off")
         plt.savefig("markers.pdf")
         plt.show()
+        self.ArucoImage = img
+        return self.ArucoImage
