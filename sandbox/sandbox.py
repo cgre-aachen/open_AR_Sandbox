@@ -1974,6 +1974,8 @@ class ArucoMarkers:
         plt.imshow(kinect.get_ir_frame(), cmap="gray")
         plt.plot(self.dict_markers_current["Corners_IR_x"], self.dict_markers_current["Corners_IR_y"], "or")
         plt.show()
+        self.ArucoImage = img
+        return self.ArucoImage
 
 
     def plot_rgb_aruco_location(self, kinect: KinectV2):
