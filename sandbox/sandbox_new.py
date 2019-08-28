@@ -22,8 +22,8 @@ class Sandbox:
             self.calibrationdata.p_height = projector_resolution[1]
 
         self.sensor = DummySensor(self.calibrationdata)
-        self.plot = Plot(self.calibrationdata, self.sensor)
-        self.projector = Projector(self.calibrationdata, self.plot)
+        self.projector = Projector(self.calibrationdata)
+        self.module = TopoModule(self.calibrationdata, self.sensor, self.projector)
 
 class CalibrationData:
 
@@ -58,29 +58,27 @@ class CalibrationData:
             json.dump(self.__dict__, calibration_json)
         print('JSON configuration file saved:', str(file))
 
-class Projector:
+class TopoModule:
 
-    def __init__(self, calibrationdata, plot):
+    def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
-        self.plot = plot
+        self.sensor = sensor
+        self.projector = projector
 
+        self.plot = Plot(self.calib)
+
+        # flags
         self.thread = None
         self.thread_running = False
 
-        # panel components (panes)
-        self.frame = None
-        self.legend = None
-        self.panel = None
+    def update(self):
+        fig = self.plot.render_frame(self.sensor.get_frame())
+        self.projector.show(fig)
 
-        self.create_panel() # make explicit?
-
-
-    def show(self):
-        self.frame.object = self.plot.render_frame()
 
     def show_loop(self):
         while self.thread_running:
-            self.show()
+            self.update()
 
     def start_thread(self):
         if not self.thread_running:
@@ -92,6 +90,29 @@ class Projector:
 
     def stop_thread(self):
         self.thread_running = False
+        # add thread join
+
+
+class Projector:
+
+    def __init__(self, calibrationdata):
+        self.calib = calibrationdata
+        #self.plot = plot
+
+        # panel components (panes)
+        self.frame = None
+        self.legend = None
+        self.panel = None
+
+        self.create_panel() # make explicit?
+
+
+    def show(self, figure):
+        # TODO: Fix that nasty memory leak!
+        self.frame.object = figure
+        #plt.close()
+
+
 
     def create_panel(self):
 
@@ -115,7 +136,7 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
-        self.frame = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+        self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
                                          margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['frame'])
 
         self.legend = pn.Column("<br>\n# Legend",
@@ -310,10 +331,10 @@ class Model:
 class Plot:
     # will be child class of Model
 
-    def __init__(self, calibration, sensor):
+    def __init__(self, calibration):
 
         self.calib = calibration
-        self.sensor = sensor
+        #self.sensor = sensor
 
         # switches
         self.colormap = True
@@ -326,7 +347,7 @@ class Plot:
         self.empty_frame() # initial figure for starting projector
 
 
-    def render_frame(self):
+    def render_frame(self, data):
         # reset old figure
         plt.clf()  # clears figure
         plt.close(self.figure)
@@ -336,11 +357,12 @@ class Plot:
 
         self.empty_frame()
         if self.colormap:
-            self.add_colormap()
+            self.add_colormap(data)
         if self.contours:
-            self.add_contours()
+            self.add_contours(data)
         if self.points:
-            self.add_points()
+            #self.add_points(data)
+            pass
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
         self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
@@ -363,14 +385,14 @@ class Plot:
         # ax.axis('off')
         self.ax.set_axis_off()
 
-    def add_colormap(self):
-        c = self.ax.pcolormesh(self.sensor.get_frame(), cmap='gist_earth')
+    def add_colormap(self, data):
+        c = self.ax.pcolormesh(data, cmap='gist_earth')
 
-    def add_points(self):
-        p = self.ax.scatter(self.sensor.positions[:, 0], self.sensor.positions[:, 1], color='k', marker='x')
+    #def add_points(self, data):
+     #   p = self.ax.scatter(self.sensor.positions[:, 0], self.sensor.positions[:, 1], color='k', marker='x')
 
-    def add_contours(self):
-        co = self.ax.contour(self.sensor.get_frame(), colors='k')
+    def add_contours(self, data):
+        co = self.ax.contour(data, colors='k')
 
 
 class Module:
