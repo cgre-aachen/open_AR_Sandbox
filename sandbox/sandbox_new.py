@@ -367,10 +367,10 @@ class TopoModule:
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-
         self.plot = Plot(self.calib)
 
         # flags
+        self.lock = threading.Lock()
         self.thread = None
         self.thread_running = False
 
@@ -380,14 +380,16 @@ class TopoModule:
         #self.projector.frame.param.trigger('object')
 
     def update(self):
-        self.plot.render_frame(self.sensor.get_frame())
-        #self.projector.show(fig)
+        with self.lock:
+            self.plot.render_frame(self.sensor.get_frame())
+            #self.projector.show(fig)
         self.projector.frame.param.trigger('object')
 
 
     def show_loop(self):
         while self.thread_running:
             self.update()
+        #self.thread.join() # end thread when flag is false
 
     def start_thread(self):
         if not self.thread_running:
@@ -398,8 +400,10 @@ class TopoModule:
             print('Thread already running. First stop with stop_thread().')
 
     def stop_thread(self):
+        # set flag to end loop
         self.thread_running = False
-        # add thread join
+        self.thread.join() # TODO: Right place?
+
 
 class BlockModule:
     # child class of Model
