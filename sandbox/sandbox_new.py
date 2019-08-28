@@ -58,40 +58,6 @@ class CalibrationData:
             json.dump(self.__dict__, calibration_json)
         print('JSON configuration file saved:', str(file))
 
-class TopoModule:
-
-    def __init__(self, calibrationdata, sensor, projector):
-        self.calib = calibrationdata
-        self.sensor = sensor
-        self.projector = projector
-
-        self.plot = Plot(self.calib)
-
-        # flags
-        self.thread = None
-        self.thread_running = False
-
-    def update(self):
-        fig = self.plot.render_frame(self.sensor.get_frame())
-        self.projector.show(fig)
-
-
-    def show_loop(self):
-        while self.thread_running:
-            self.update()
-
-    def start_thread(self):
-        if not self.thread_running:
-            self.thread_running = True
-            self.thread = threading.Thread(target=self.show_loop, daemon=True, )
-            self.thread.start()
-        else:
-            print('Thread already running. First stop with stop_thread().')
-
-    def stop_thread(self):
-        self.thread_running = False
-        # add thread join
-
 
 class Projector:
 
@@ -324,10 +290,6 @@ class DummySensor:
         self.interpolation = inter.reshape(self.height, self.width)
 
 
-class Model:
-    pass
-
-
 class Plot:
     # will be child class of Model
 
@@ -348,14 +310,9 @@ class Plot:
 
 
     def render_frame(self, data):
-        # reset old figure
-        plt.clf()  # clears figure
-        plt.close(self.figure)
-        plt.close("all")
-        del self.figure
-        gc.collect()
+        # clear axes to draw new ones on figure
+        self.ax.cla()
 
-        self.empty_frame()
         if self.colormap:
             self.add_colormap(data)
         if self.contours:
@@ -366,9 +323,11 @@ class Plot:
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
         self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
+        self.ax.set_axis_off()
 
         # return final figure
-        return self.figure
+        #return self.figure
+        return True
 
 
     def empty_frame(self):
@@ -401,11 +360,48 @@ class Module:
         self.projector = projector
         self.calibrationData = calibrationdata
 
-class BlockModel:
-    # child class of Model
-    pass
 
-class TopoModel:
+class TopoModule:
+    # child class of Module
+    def __init__(self, calibrationdata, sensor, projector):
+        self.calib = calibrationdata
+        self.sensor = sensor
+        self.projector = projector
+
+        self.plot = Plot(self.calib)
+
+        # flags
+        self.thread = None
+        self.thread_running = False
+
+    def setup(self):
+        self.plot.render_frame(self.sensor.get_frame())
+        self.projector.frame.object = self.plot.figure
+        #self.projector.frame.param.trigger('object')
+
+    def update(self):
+        self.plot.render_frame(self.sensor.get_frame())
+        #self.projector.show(fig)
+        self.projector.frame.param.trigger('object')
+
+
+    def show_loop(self):
+        while self.thread_running:
+            self.update()
+
+    def start_thread(self):
+        if not self.thread_running:
+            self.thread_running = True
+            self.thread = threading.Thread(target=self.show_loop, daemon=True, )
+            self.thread.start()
+        else:
+            print('Thread already running. First stop with stop_thread().')
+
+    def stop_thread(self):
+        self.thread_running = False
+        # add thread join
+
+class BlockModule:
     # child class of Model
     pass
 
