@@ -757,7 +757,7 @@ class Projector:
 
     def calibrate_projector(self):
 
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=0, start=self.calib.p_top_margin, end=150)
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_top_margin, start=0, end=200)
         def callback_mt(target, event):
             m = target.margin
             n = event.new
@@ -767,7 +767,7 @@ class Projector:
             self.calib.p_top_margin = event.new
         margin_top.link(self.frame, callbacks={'value': callback_mt})
 
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=0, start=self.calib.p_left_margin, end=150)
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_left_margin, start=0, end=200)
         def callback_ml(target, event):
             m = target.margin
             n = event.new
