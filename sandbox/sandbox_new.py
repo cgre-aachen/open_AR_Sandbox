@@ -10,6 +10,7 @@ from scipy.interpolate import griddata
 from time import sleep
 import threading
 import gc
+from abc import ABCMeta, abstractmethod
 
 
 class Sandbox:
@@ -72,12 +73,10 @@ class Projector:
 
         self.create_panel() # make explicit?
 
-
     def show(self, figure):
         # TODO: Fix that nasty memory leak!
         self.frame.object = figure
         #plt.close()
-
 
 
     def create_panel(self):
@@ -115,6 +114,9 @@ class Projector:
 
         # TODO: Add specific port? port=4242
         self.panel.show(threaded=False)
+
+    def trigger(self):
+        self.frame.param.trigger('object')
 
     def calibrate_projector(self):
 
@@ -291,7 +293,6 @@ class DummySensor:
 
 
 class Plot:
-    # will be child class of Model
 
     def __init__(self, calibration):
 
@@ -355,60 +356,69 @@ class Plot:
 
 
 class Module:
-    def __init__(self, sensor, projector, calibrationdata):
-        self.sensor = sensor
-        self.projector = projector
-        self.calibrationData = calibrationdata
 
+    __metaclass__ = ABCMeta
 
-class TopoModule:
-    # child class of Module
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib)
 
-        # flags
-        self.lock = threading.Lock()
+        # threading
+        self._lock = threading.Lock()
         self.thread = None
         self.thread_running = False
+
+    @abstractmethod
+    def setup(self):
+        """"Wildcard: Everything necessary to set up before an model update can be performed."""
+        pass
+
+    @abstractmethod
+    def update(self):
+        """"Wildcard: Single model update operation that can be looped in a thread."""
+        pass
+
+    def thread_loop(self):
+        while self.thread_running:
+            self.update()
+
+    def run(self):
+        if not self.thread_running:
+            self.thread_running = True
+            self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
+            self.thread.start()
+            print('Thread started...')
+        else:
+            print('Thread already running. First stop with stop().')
+
+    def stop(self):
+        self.thread_running = False  # set flag to end thread loop
+        self.thread.join()  # wait for the thread to finish
+        print('Thread stopped.')
+
+
+class TopoModule(Module):
 
     def setup(self):
         self.plot.render_frame(self.sensor.get_frame())
         self.projector.frame.object = self.plot.figure
-        #self.projector.frame.param.trigger('object')
 
     def update(self):
-        with self.lock:
+        with self._lock:
             self.plot.render_frame(self.sensor.get_frame())
             #self.projector.show(fig)
-        self.projector.frame.param.trigger('object')
+        self.projector.trigger()
 
 
-    def show_loop(self):
-        while self.thread_running:
-            self.update()
-        #self.thread.join() # end thread when flag is false
-
-    def start_thread(self):
-        if not self.thread_running:
-            self.thread_running = True
-            self.thread = threading.Thread(target=self.show_loop, daemon=True, )
-            self.thread.start()
-        else:
-            print('Thread already running. First stop with stop_thread().')
-
-    def stop_thread(self):
-        # set flag to end loop
-        self.thread_running = False
-        self.thread.join() # TODO: Right place?
 
 
-class BlockModule:
+
+class BlockModule(Module):
     # child class of Model
     pass
 
-class GemPyModel:
+class GemPyModel(Module):
     # child class of Model
     pass
