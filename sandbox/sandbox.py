@@ -1,6 +1,9 @@
 import os
 from warnings import warn
 
+# class infrastructre
+from abc import ABCMeta, abstractmethod
+
 try:
     import freenect
 
@@ -702,10 +705,12 @@ class Calibration:
                                                  )
         IPython.display.display(calibration_widget)
 
+
 class Projector:
 
     def __init__(self, calibrationdata):
         self.calib = calibrationdata
+        #self.plot = plot
 
         # panel components (panes)
         self.frame = None
@@ -714,10 +719,10 @@ class Projector:
 
         self.create_panel() # make explicit?
 
-
-    def show(self, plot):
-        self.frame.object = plot
-
+    def show(self, figure):
+        # TODO: Fix that nasty memory leak!
+        self.frame.object = figure
+        #plt.close()
 
     def create_panel(self):
 
@@ -726,7 +731,7 @@ class Projector:
           margin:0px;
           background-color: #ffffff;
         }
-        .bk.output {
+        .bk.frame {
         }
         .bk.legend {
           background-color: #AAAAAA;
@@ -741,8 +746,8 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
-        self.frame = pn.pane.Matplotlib(plt.Figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
-                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
+        self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
+                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['frame'])
 
         self.legend = pn.Column("<br>\n# Legend",
                                 margin=[self.calib.p_top_margin, 0, 0, 0],
@@ -755,6 +760,9 @@ class Projector:
         # TODO: Add specific port? port=4242
         self.panel.show(threaded=False)
 
+    def trigger(self):
+        self.frame.param.trigger('object')
+
     def calibrate_projector(self):
 
         margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_top_margin, start=0, end=200)
@@ -765,6 +773,7 @@ class Projector:
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
             self.calib.p_top_margin = event.new
+
         margin_top.link(self.frame, callbacks={'value': callback_mt})
 
         margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_left_margin, start=0, end=200)
@@ -796,6 +805,7 @@ class Projector:
 
         widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
         return widgets
+
 
 class ProjectorOLD:
     """
@@ -1294,10 +1304,9 @@ class Plot:
 
     """
 
-    def __init__(self, calibrationdata, sensor, cmap=None, norm=None, lot=None):
+    def __init__(self, calibrationdata, cmap=None, norm=None, lot=None):
 
         self.calib = calibrationdata
-        self.sensor = sensor # Still needed?
 
         self.cmap = cmap
         self.norm = norm
@@ -1332,7 +1341,7 @@ class Plot:
     #     self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
 
 
-    def add_contours(self, contour, data):
+    def add_contours(self, contour, data): # TODO: Check compability
         """
         renders contours to the current plot object. \
         The data has to come in a specific shape as needed by the matplotlib contour function.
@@ -1361,34 +1370,28 @@ class Plot:
                                           self.calib.p_area_height / self.calib.p_dpi),
                                  dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
-        self.ax.set_axis_off()
         self.figure.add_axes(self.ax)
 
-    def render_frame(self, rasterdata):
-        # reset old figure
-        plt.close(self.figure)
+        self.ax.set_axis_off()
 
-        self.create_empty_frame()
-        self.block = rasterdata.reshape((self.calib.s_area_height, self.calib.s_area_width))
-        self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
+    def render_frame(self, data):
+        # clear axes to draw new ones on figure
+        self.ax.cla()
+
+        #self.block = rasterdata.reshape((self.calib.s_area_height, self.calib.s_area_width))
+        #self.ax.pcolormesh(self.block,
+        self.ax.pcolormesh(data, cmap=self.cmap, norm=self.norm)
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
         self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
 
-        # return final figure
-        return self.figure
+        # crop axis (!!!input dimensions of calibrated sensor!!!)
+        self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
+        self.ax.set_axis_off()
 
-    # def add_lith_contours(self, block, levels=None):
-    #     """
-    #
-    #     Args:
-    #         block:
-    #         levels:
-    #
-    #     Returns:
-    #
-    #     """
-    #     plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
+        # return final figure
+        #return self.figure
+        return True
 
 
 class PlotOLD:
@@ -1522,6 +1525,75 @@ class PlotOLD:
 
         """
         pass
+
+class Module:
+    """
+    Parent Module with threading methods and abstract attributes and methods for child classes
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, calibrationdata, sensor, projector, **kwargs):
+        self.calib = calibrationdata
+        self.sensor = sensor
+        self.projector = projector
+        self.plot = Plot(self.calib, **kwargs)
+
+        # threading
+        self._lock = threading.Lock()
+        self.thread = None
+        self.thread_running = False
+
+    @abstractmethod
+    def setup(self):
+        # Wildcard: Everything necessary to set up before an model update can be performed.
+        pass
+
+    @abstractmethod
+    def update(self):
+        # Wildcard: Single model update operation that can be looped in a thread.
+        pass
+
+    def thread_loop(self):
+        while self.thread_running:
+            self.update()
+
+    def run(self):
+        if not self.thread_running:
+            self.thread_running = True
+            self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
+            self.thread.start()
+            print('Thread started...')
+        else:
+            print('Thread already running. First stop with stop().')
+
+    def stop(self):
+        self.thread_running = False  # set flag to end thread loop
+        self.thread.join()  # wait for the thread to finish
+        print('Thread stopped.')
+
+
+class TopoModule(Module):
+    """
+    Module for simple Topography visualization without computing a geological model
+    """
+    def setup(self):
+        self.plot.render_frame(self.sensor.get_frame())
+        self.projector.frame.object = self.plot.figure
+
+    def update(self):
+        with self._lock:
+            self.plot.render_frame(self.sensor.get_frame())
+            #self.projector.show(fig)
+        self.projector.trigger()
+
+
+class BlockModule(Module):
+    # child class of Model
+    pass
+
+class GemPyModel(Module):
+    # child class of Model
+    pass
 
 
 class GeoMapModule:
