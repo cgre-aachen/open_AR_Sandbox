@@ -57,7 +57,7 @@ import pandas as pd
 import gempy as gp
 
 
-class Kinect:  # add dummy
+class Kinect:
     """
     Masterclass for initializing the kinect.
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
@@ -65,27 +65,18 @@ class Kinect:  # add dummy
     """
 
     # version_kinect = int(input("Version of Kinect using (1 or 2):"))
-    version_kinect = 2
+    #version_kinect = 2
 
-    def __init__(self, version_kinect=version_kinect, dummy=False, mirror=True):
-        """
-        Args:
-            dummy:
-            mirror:
+    def __init__(self):
 
-        Returns:
-        """
-        self.resolution = (640,
-                           480)  # TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
-        self.dummy = dummy
-        self.mirror = mirror  # TODO: check if this is used anywhere, then delete
         self.rgb_frame = None
         self.angle = None
 
         # TODO: include filter self.-filter parameters as function defaults
+        self.filter = 'gaussian' # TODO: deprecate get_filtered_frame, make it switchable in runtime
         self.n_frames = 3  # filter parameters
         self.sigma_gauss = 3
-        self.filter = 'gaussian'  # TODO: deprecate get_filtered_frame, make it switchable in runtime
+
 
         if version_kinect == 1:
             if self.dummy is False:
@@ -99,6 +90,7 @@ class Kinect:  # add dummy
                     0]  # get the first Depth frame already (the first one takes much longer than the following)
                 self.filtered_depth = None
                 print("kinect initialized")
+
             else:
                 self.filtered_depth = None
                 self.depth = self.get_frame()
@@ -118,7 +110,41 @@ class Kinect:  # add dummy
             print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
 
 
+
+
+
+        def get_filtered_frame_universal(self, n_frames=None, sigma_gauss=None):
+
+            if n_frames is None:
+                n_frames = self.n_frames
+            if sigma_gauss is None:
+                sigma_gauss = self.sigma_gauss
+
+            if self.filter == 'gaussian':
+
+                # collect last n frames in a stack
+                depth_array = self.get_frame()
+                for i in range(n_frames - 1):
+                    depth_array = numpy.dstack([depth_array, self.get_frame()])
+                # calculate mean values ignoring zeros by masking them
+                depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
+                self.depth = numpy.ma.mean(depth_array_masked, axis=2)
+                # apply gaussian filter
+                self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
+
+                return self.depth
+
+
+
 class KinectV1(Kinect):
+
+    # hard coded class attributes for KinectV1's native resolution
+    depth_width = 320
+    depth_height = 240
+    rgb_width = 640
+    rgb_height = 480
+    # TODO: Check!
+
     def set_angle(self, angle):  # TODO: throw out
         """
         Args:
@@ -130,27 +156,11 @@ class KinectV1(Kinect):
         self.angle = angle
         freenect.set_tilt_degs(self.dev, self.angle)
 
-    def get_frame(self, horizontal_slice=None):
-        """
-        Args:
-            horizontal_slice:
-
-        Returns:
-        """
-        if self.dummy is False:
+    def get_frame(self):
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
             self.depth = numpy.fliplr(self.depth)
             return self.depth
-        else:
-            synth_depth = numpy.zeros((480, 640))
-            for x in range(640):
-                for y in range(480):
-                    if horizontal_slice is None:
-                        synth_depth[y, x] = int(800 + 200 * (numpy.sin(2 * numpy.pi * x / 320)))
-                    else:
-                        synth_depth[y, x] = horizontal_slice
-            self.depth = synth_depth
-            return self.depth
+
 
     def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
         """
@@ -220,6 +230,15 @@ class KinectV2(Kinect):
 
     """
 
+    # hard coded class attributes for KinectV2's native resolution
+    depth_width = 512
+    depth_height = 424
+    rgb_width = 1920
+    rgb_height = 1080
+
+    n_frames = 3
+
+
     def get_frame(self):
         """
 
@@ -229,7 +248,6 @@ class KinectV2(Kinect):
                2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
 
         """
-
         depth_flattened = self.kinect.get_last_depth_frame()
         self.depth = depth_flattened.reshape(
             (424, 512))  # reshape the array to 2D with native resolution of the kinectV2
@@ -410,6 +428,63 @@ class DummySensor:
 
 
 class Calibration:
+    """
+    TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
+    Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
+    """
+
+    def __init__(self, calibrationdata, sensor, projector):
+        self.calib = calibrationdata
+        self.sensor = sensor
+        self.projector = projector
+
+
+    def calibrate_projector(self):
+
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_top_margin, start=0, end=200)
+        def callback_mt(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [n, m[1], m[2], m[3]]
+            # also update calibration object
+            self.calib.p_top_margin = event.new
+
+        margin_top.link(self.projector.frame, callbacks={'value': callback_mt})
+
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_left_margin, start=0, end=200)
+        def callback_ml(target, event):
+            m = target.margin
+            n = event.new
+            # just changing single indices does not trigger updating of pane
+            target.margin = [m[0], m[1], m[2], n]
+            # also update calibration object
+            self.calib.p_left_margin = event.new
+        margin_left.link(self.projector.frame, callbacks={'value': callback_ml})
+
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
+        def callback_width(target, event):
+            target.width = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_area_width = event.new
+        width.link(self.projector.frame, callbacks={'value': callback_width})
+
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
+        def callback_height(target, event):
+            target.height = event.new
+            target.param.trigger('object')
+            # also update calibration object
+            self.calib.p_area_height = event.new
+            #self.plot.redraw_plot()
+        height.link(self.projector.frame, callbacks={'value': callback_height})
+
+        widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
+        return widgets
+
+
+
+class CalibrationOLD:
     """
     TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
     Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
@@ -1001,8 +1076,8 @@ class CalibrationData:
     def __init__(self, rot_angle=-180, x_lim=(0, 512), y_lim=(0, 424), x_pos=0, y_pos=0, scale_factor=1.0,
                  z_range=(800, 1400), box_width=1000, box_height=600, legend_area=False,
                  legend_x_lim=(0, 20), legend_y_lim=(0, 50), profile_area=False, profile_x_lim=(10, 200),
-                 profile_y_lim=(200, 250), hot_area=False, hot_x_lim=(400, 450),
-                 hot_y_lim=(400, 450), p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0,
+                 profile_y_lim=(200, 250), hot_area=False, hot_x_lim=(400, 450), hot_y_lim=(400, 450),
+                 p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0,
                  p_area_width=512, p_area_height=424,
                  s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
         """
@@ -1063,6 +1138,17 @@ class CalibrationData:
         self.s_top_margin = s_top_margin
         self.s_area_width = s_area_width
         self.s_area_height = s_area_height
+
+    def load_json(self, file='calibration.json'):
+        # TODO: Check for overwriting of existing (new) parameters with older calibration files!
+        with open(file) as calibration_json:
+            self.__dict__ = json.load(calibration_json)
+        print("JSON configuration loaded.")
+
+    def save_json(self, file='calibration.json'):
+        with open(file, "w") as calibration_json:
+            json.dump(self.__dict__, calibration_json)
+        print('JSON configuration file saved:', str(file))
 
 
 class Scale:
@@ -1339,31 +1425,6 @@ class Plot:
     #     self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
     #     self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
 
-
-    def add_contours(self, contour, data): # TODO: Check compability
-        """
-        renders contours to the current plot object. \
-        The data has to come in a specific shape as needed by the matplotlib contour function.
-        we explicity enforce to provide X and Y at this stage (you are welcome to change this)
-
-        Args:
-            contour: a contour instance
-            data:  a list with the form x,y,z
-                x: list of the coordinates in x direction (e.g. range(Scale.output_res[0])
-                y: list of the coordinates in y direction (e.g. range(Scale.output_res[1])
-                z: 2D array-like with the values to be contoured
-
-        Returns:
-
-        """
-
-        if contour.show is True:
-            contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
-                                               linewidths=contour.linewidth, colors=contour.colors)
-            if contour.show_labels is True:
-                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize,
-                               fmt=contour.label_format)
-
     def create_empty_frame(self):
         self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi,
                                           self.calib.p_area_height / self.calib.p_dpi),
@@ -1392,50 +1453,7 @@ class Plot:
         #return self.figure
         return True
 
-
-class PlotOLD:
-    """
-    handles the plotting of a sandbox model
-
-    """
-
-    def __init__(self, calibration=None, cmap=None, norm=None, lot=None, outfile=None):
-        """
-
-        Args:
-            calibration:
-            cmap:
-            norm:
-            lot:
-            outfile:
-
-        Returns:
-            None
-
-        """
-        if isinstance(calibration, Calibration):
-            self.calibration = calibration
-        else:
-            raise TypeError("you must pass a valid calibration instance")
-
-        self.cmap = cmap
-        self.norm = norm
-        self.lot = lot
-        self.output_res = (  ##TODO: query and recalculate on method level so that calibration can change in between!
-            self.calibration.calibration_data.x_lim[1] -
-            self.calibration.calibration_data.x_lim[0],
-            self.calibration.calibration_data.y_lim[1] -
-            self.calibration.calibration_data.y_lim[0]
-        )
-
-        self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
-        self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
-        self.fig = None
-        self.ax = None
-
-        self.outfile = outfile
-
-    def add_contours(self, contour, data):
+    def add_contours(self, contour, data): # TODO: Check compability
         """
         renders contours to the current plot object. \
         The data has to come in a specific shape as needed by the matplotlib contour function.
@@ -1459,30 +1477,6 @@ class PlotOLD:
                 self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize,
                                fmt=contour.label_format)
 
-    def create_empty_frame(self):
-        """
-
-        Returns:
-
-        """
-        self.fig = plt.figure(figsize=(self.w, self.h), dpi=100, frameon=False)
-        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
-        self.ax.set_axis_off()
-        self.fig.add_axes(self.ax)
-
-    def render_frame(self, rasterdata):
-        """
-
-        Args:
-            rasterdata:
-
-        Returns:
-
-        """
-        self.create_empty_frame()
-        self.block = rasterdata.reshape((self.output_res[1], self.output_res[0]))
-        self.ax.pcolormesh(self.block, cmap=self.cmap, norm=self.norm)
-
     def add_lith_contours(self, block, levels=None):
         """
 
@@ -1495,33 +1489,8 @@ class PlotOLD:
         """
         plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
 
-    def save(self, outfile=None):
-        """
-
-        Args:
-            outfile:
-
-        Returns:
-
-        """
-        if outfile is None:
-            if self.outfile is None:
-                print("no outfile provided. try the default output file name 'current_frame.png' ")
-                plt.show(self.fig)
-                plt.close()
-                pass
-            else:
-                outfile = self.outfile
-
-        self.outfile = outfile
-        self.fig.savefig(self.outfile, pad_inches=0)
-        plt.close(self.fig)
-
     def create_legend(self):
-        """
-
-        Returns:
-
+        """ Returns:
         """
         pass
 
@@ -1594,7 +1563,7 @@ class BlockModule(Module):
     # child class of Model
     pass
 
-class GemPyModel(Module):
+class GemPyModule(Module):
     # child class of Model
     pass
 
