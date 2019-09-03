@@ -69,6 +69,7 @@ class Kinect:
 
     def __init__(self):
 
+        self.depth = None
         self.rgb_frame = None
         self.angle = None
 
@@ -77,63 +78,28 @@ class Kinect:
         self.n_frames = 3  # filter parameters
         self.sigma_gauss = 3
 
+        self.setup()
 
-        if version_kinect == 1:
-            if self.dummy is False:
-                print("looking for kinect...")
-                self.ctx = freenect.init()
-                self.dev = freenect.open_device(self.ctx, self.id)
-                print(self.id)
-                freenect.close_device(self.dev)  # TODO Test if this has to be done!
+    def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
 
-                self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[
-                    0]  # get the first Depth frame already (the first one takes much longer than the following)
-                self.filtered_depth = None
-                print("kinect initialized")
+        if n_frames is None:
+            n_frames = self.n_frames
+        if sigma_gauss is None:
+            sigma_gauss = self.sigma_gauss
 
-            else:
-                self.filtered_depth = None
-                self.depth = self.get_frame()
-                print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
+        if self.filter == 'gaussian':
 
-        elif version_kinect == 2:
-            self.kinect = PyKinectRuntime.PyKinectRuntime(
-                PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
-            self.depth = self.get_frame()
-            self.color = self.get_color()
-            self.ir_frame_raw = self.get_ir_frame_raw()
-            self.ir_frame = self.get_ir_frame()
+            # collect last n frames in a stack
+            depth_array = self.get_frame()
+            for i in range(n_frames - 1):
+                depth_array = numpy.dstack([depth_array, self.get_frame()])
+            # calculate mean values ignoring zeros by masking them
+            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array) # needed for V2?
+            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
+            # apply gaussian filter
+            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
 
-
-
-        else:
-            print("Choose a valid version for the Kinect (1 or 2). Please restart kernel")
-
-
-
-
-
-        def get_filtered_frame_universal(self, n_frames=None, sigma_gauss=None):
-
-            if n_frames is None:
-                n_frames = self.n_frames
-            if sigma_gauss is None:
-                sigma_gauss = self.sigma_gauss
-
-            if self.filter == 'gaussian':
-
-                # collect last n frames in a stack
-                depth_array = self.get_frame()
-                for i in range(n_frames - 1):
-                    depth_array = numpy.dstack([depth_array, self.get_frame()])
-                # calculate mean values ignoring zeros by masking them
-                depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
-                self.depth = numpy.ma.mean(depth_array_masked, axis=2)
-                # apply gaussian filter
-                self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
-
-                return self.depth
-
+            return self.depth
 
 
 class KinectV1(Kinect):
@@ -144,6 +110,17 @@ class KinectV1(Kinect):
     rgb_width = 640
     rgb_height = 480
     # TODO: Check!
+
+    def setup(self):
+        print("looking for kinect...")
+        self.ctx = freenect.init()
+        self.dev = freenect.open_device(self.ctx, self.id)
+        print(self.id)
+        freenect.close_device(self.dev)  # TODO Test if this has to be done!
+        # get the first Depth frame already (the first one takes much longer than the following)
+        self.depth = self.get_frame(self)
+        self.filtered_depth = None
+        print("kinect initialized")
 
     def set_angle(self, angle):  # TODO: throw out
         """
@@ -159,34 +136,6 @@ class KinectV1(Kinect):
     def get_frame(self):
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
             self.depth = numpy.fliplr(self.depth)
-            return self.depth
-
-
-    def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
-        """
-        Args:
-            n_frames:
-            sigma_gauss:
-
-        Returns:
-        """
-        if n_frames is None:
-            n_frames = self.n_frames
-        if sigma_gauss is None:
-            sigma_gauss = self.sigma_gauss
-
-        if self.dummy is True:
-            self.get_frame()
-            return self.depth
-        elif self.filter == 'gaussian':
-
-            depth_array = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
-            for i in range(n_frames - 1):
-                depth_array = numpy.dstack(
-                    [depth_array, freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]])
-            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
-            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
-            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
             return self.depth
 
     def get_rgb_frame(self):  # TODO: check if this can be thrown out
@@ -238,6 +187,13 @@ class KinectV2(Kinect):
 
     n_frames = 3
 
+    def setup(self):
+        self.kinect = PyKinectRuntime.PyKinectRuntime(
+            PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
+        self.depth = self.get_frame()
+        self.color = self.get_color()
+        self.ir_frame_raw = self.get_ir_frame_raw()
+        self.ir_frame = self.get_ir_frame()
 
     def get_frame(self):
         """
@@ -280,25 +236,6 @@ class KinectV2(Kinect):
         ir_frame_raw = self.get_ir_frame_raw()
         self.ir_frame = numpy.interp(ir_frame_raw, (min, max), (0, 255)).astype('uint8')
         return self.ir_frame
-
-    def get_filtered_frame(self, n_frames=3, sigma_gauss=3):
-        """
-
-        Args:
-
-
-        Returns:
-            2D Array of the shape(424, 512) containing the depth information of the latest frame in mm after stacking of
-             self.n_frames and gaussian blurring with a kernel of self.sigma_gauss pixels.
-        """
-        if self.filter == 'gaussian':
-
-            depth_array = self.get_frame()
-            for i in range(n_frames - 1):
-                depth_array_masked = numpy.dstack([depth_array, self.get_frame()])
-            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
-            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
-            return self.depth
 
     def get_color(self):
         color_flattened = self.kinect.get_last_color_frame()
