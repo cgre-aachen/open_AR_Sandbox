@@ -64,42 +64,37 @@ class Kinect:
     blurring to get smoother lines.
     """
 
-    # version_kinect = int(input("Version of Kinect using (1 or 2):"))
-    #version_kinect = 2
+    def __init__(self, filter='gaussian', n_frames=3, sigma_gauss=3):
 
-    def __init__(self):
-
-        self.depth = None
-        self.rgb_frame = None
+        self.device = None
         self.angle = None
 
+        self.depth = None
+        self.color = None
+        self.ir_frame_raw = None
+        self.ir_frame = None
+
+
         # TODO: include filter self.-filter parameters as function defaults
-        self.filter = 'gaussian' # TODO: deprecate get_filtered_frame, make it switchable in runtime
-        self.n_frames = 3  # filter parameters
-        self.sigma_gauss = 3
+        self.filter = filter # TODO: deprecate get_filtered_frame, make it switchable in runtime
+        self.n_frames = n_frames  # filter parameters
+        self.sigma_gauss = sigma_gauss
 
         self.setup()
 
     def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
 
-        if n_frames is None:
-            n_frames = self.n_frames
-        if sigma_gauss is None:
-            sigma_gauss = self.sigma_gauss
+        # collect last n frames in a stack
+        depth_array = self.get_frame()
+        for i in range(n_frames - 1):
+            depth_array = numpy.dstack([depth_array, self.get_frame()])
+        # calculate mean values ignoring zeros by masking them
+        depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array) # needed for V2?
+        self.depth = numpy.ma.mean(depth_array_masked, axis=2)
+        # apply gaussian filter
+        self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
 
-        if self.filter == 'gaussian':
-
-            # collect last n frames in a stack
-            depth_array = self.get_frame()
-            for i in range(n_frames - 1):
-                depth_array = numpy.dstack([depth_array, self.get_frame()])
-            # calculate mean values ignoring zeros by masking them
-            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array) # needed for V2?
-            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
-            # apply gaussian filter
-            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
-
-            return self.depth
+        return self.depth
 
 
 class KinectV1(Kinect):
@@ -107,19 +102,18 @@ class KinectV1(Kinect):
     # hard coded class attributes for KinectV1's native resolution
     depth_width = 320
     depth_height = 240
-    rgb_width = 640
-    rgb_height = 480
+    color_width = 640
+    color_height = 480
     # TODO: Check!
 
     def setup(self):
         print("looking for kinect...")
-        self.ctx = freenect.init()
-        self.dev = freenect.open_device(self.ctx, self.id)
+        ctx = freenect.init()
+        self.device = freenect.open_device(ctx, self.id)
         print(self.id)
-        freenect.close_device(self.dev)  # TODO Test if this has to be done!
+        freenect.close_device(self.device)  # TODO Test if this has to be done!
         # get the first Depth frame already (the first one takes much longer than the following)
-        self.depth = self.get_frame(self)
-        self.filtered_depth = None
+        self.depth = self.get_frame()
         print("kinect initialized")
 
     def set_angle(self, angle):  # TODO: throw out
@@ -131,7 +125,7 @@ class KinectV1(Kinect):
             None
         """
         self.angle = angle
-        freenect.set_tilt_degs(self.dev, self.angle)
+        freenect.set_tilt_degs(self.device, self.angle)
 
     def get_frame(self):
             self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
@@ -144,13 +138,9 @@ class KinectV1(Kinect):
         Returns:
 
         """
-        if self.dummy is False:
-            self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
-            self.rgb_frame = numpy.fliplr(self.rgb_frame)
-
-            return self.rgb_frame
-        else:
-            pass
+        self.color = freenect.sync_get_video(index=self.id)[0]
+        self.color = numpy.fliplr(self.color)
+        return self.color
 
     def calibrate_frame(self, frame, calibration=None):  # TODO: check if this can be thrown out
         """
@@ -182,18 +172,16 @@ class KinectV2(Kinect):
     # hard coded class attributes for KinectV2's native resolution
     depth_width = 512
     depth_height = 424
-    rgb_width = 1920
-    rgb_height = 1080
-
-    n_frames = 3
+    color_width = 1920
+    color_height = 1080
 
     def setup(self):
-        self.kinect = PyKinectRuntime.PyKinectRuntime(
+        self.device = PyKinectRuntime.PyKinectRuntime(
             PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
         self.depth = self.get_frame()
         self.color = self.get_color()
-        self.ir_frame_raw = self.get_ir_frame_raw()
-        self.ir_frame = self.get_ir_frame()
+        #self.ir_frame_raw = self.get_ir_frame_raw()
+        #self.ir_frame = self.get_ir_frame()
 
     def get_frame(self):
         """
@@ -204,9 +192,9 @@ class KinectV2(Kinect):
                2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
 
         """
-        depth_flattened = self.kinect.get_last_depth_frame()
+        depth_flattened = self.device.get_last_depth_frame()
         self.depth = depth_flattened.reshape(
-            (424, 512))  # reshape the array to 2D with native resolution of the kinectV2
+            (self.depth_height, self.depth_width))  # reshape the array to 2D with native resolution of the kinectV2
         return self.depth
 
     def get_ir_frame_raw(self):
@@ -218,9 +206,9 @@ class KinectV2(Kinect):
                2D Array of the shape(424, 512) containing the raw infrared intensity in (uint16) of the last frame
 
         """
-        ir_flattened = self.kinect.get_last_infrared_frame()
+        ir_flattened = self.device.get_last_infrared_frame()
         self.ir_frame_raw = numpy.flipud(
-            ir_flattened.reshape((424, 512)))  # reshape the array to 2D with native resolution of the kinectV2
+            ir_flattened.reshape((self.depth_height, self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
         return self.ir_frame_raw
 
     def get_ir_frame(self, min=0, max=6000):
@@ -239,10 +227,10 @@ class KinectV2(Kinect):
 
     def get_color(self):
         color_flattened = self.kinect.get_last_color_frame()
-        resolution_camera = 1920 * 1080  # resolution camera Kinect V2
+        resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2
         # Palette of colors in RGB / Cut of 4th column marked as intensity
         palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:, [2, 1, 0]]
-        position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (1080, 1920))
+        position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (self.color_height, self.color_width))
         self.color = numpy.flipud(palette[position_palette])
         return self.color
 
@@ -352,7 +340,6 @@ class DummySensor:
 
     def alter_values(self):
         # maximum range in both directions the values should be altered
-        # TODO: replace by some kind of oscillation :)
         numpy.random.seed(seed=self.seed)
         os_range = self.strength * (numpy.pi / 2)
         for i, value in enumerate(self.os_values):
