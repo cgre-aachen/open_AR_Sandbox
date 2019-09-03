@@ -37,7 +37,6 @@ import scipy.ndimage
 # for new projector
 import panel as pn
 
-
 # for DummySensor
 from scipy.spatial.distance import cdist
 from scipy.interpolate import griddata
@@ -1577,13 +1576,17 @@ class TopoModule(Module):
     Module for simple Topography visualization without computing a geological model
     """
     def setup(self):
-        self.plot.render_frame(self.sensor.get_frame())
+        with self._lock:
+            self.plot.render_frame(self.sensor.get_filtered_frame())
         self.projector.frame.object = self.plot.figure
 
     def update(self):
         with self._lock:
-            self.plot.render_frame(self.sensor.get_frame())
-            #self.projector.show(fig)
+            frame = self.sensor.get_filtered_frame()
+
+
+        self.plot.render_frame(frame)
+        #self.projector.show(fig)
         self.projector.trigger()
 
 
