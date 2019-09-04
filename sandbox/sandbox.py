@@ -243,6 +243,10 @@ class DummySensor:
 
         self.calib = calibrationdata # use in the future from calibration file
 
+        # new standardized approach
+        self.depth_width = width
+        self.depth_height = height
+
         self.width = width
         self.height = height
         self.depth_lim = depth_limits
@@ -406,6 +410,86 @@ class Calibration:
         widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
         return widgets
 
+
+class CalibSensorTest:
+
+    def __init__(self, calibration, sensor):
+        self.calib = calibration
+        self.sensor = sensor
+
+        self.frame = self.sensor.get_filtered_frame()
+
+        self.fig = plt.figure()
+        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
+        self.fig.add_axes(self.ax)
+        self.plot_sensor()
+
+        pn.extension()
+        self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
+
+    def calibrate_sensor(self):
+        def callback_mst(target, event):
+            # set value in calib
+            self.calib.s_top = event.new
+            # change plot and trigger panel update
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
+        def callback_msr(target, event):
+            self.calib.s_right = event.new
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
+        def callback_msb(target, event):
+            self.calib.s_bottom = event.new
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
+        def callback_msl(target, event):
+            self.calib.s_left = event.new
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
+        s_margin_top = pn.widgets.IntSlider(name='Sensor top margin', value=self.calib.s_top, start=0,
+                                            end=self.sensor.depth_height)
+        s_margin_top.link(self.plot_sensor, callbacks={'value': callback_mst})
+
+        s_margin_right = pn.widgets.IntSlider(name='Sensor right margin', value=self.calib.s_right, start=0,
+                                              end=self.sensor.depth_width)
+        s_margin_right.link(self.plot_sensor, callbacks={'value': callback_msr})
+
+        s_margin_bottom = pn.widgets.IntSlider(name='Sensor bottom margin', value=self.calib.s_bottom, start=0,
+                                               end=self.sensor.depth_height)
+        s_margin_bottom.link(self.plot_sensor, callbacks={'value': callback_msb})
+
+        s_margin_left = pn.widgets.IntSlider(name='Sensor left margin', value=self.calib.s_left, start=0,
+                                             end=self.sensor.depth_width)
+        s_margin_left.link(self.plot_sensor, callbacks={'value': callback_msl})
+
+        widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left)
+        panel = pn.Row(self.pn_fig, widgets)
+        return panel
+
+    def plot_sensor(self):
+        # clear old axes
+        self.ax.cla()
+
+        rec_t = plt.Rectangle((0, self.calib.s_depth_height - self.calib.s_top), self.sensor.depth_width,
+                              self.calib.s_top, fc='r', alpha=0.3)
+        rec_r = plt.Rectangle((self.calib.s_depth_width - self.calib.s_right, 0), self.calib.s_right,
+                              self.sensor.depth_height, fc='r', alpha=0.3)
+        rec_b = plt.Rectangle((0, 0), self.sensor.depth_width, self.calib.s_bottom, fc='r', alpha=0.3)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.sensor.depth_height, fc='r', alpha=0.3)
+
+        self.ax.imshow(self.frame, origin='lower')
+        self.ax.add_patch(rec_t)
+        self.ax.add_patch(rec_r)
+        self.ax.add_patch(rec_b)
+        self.ax.add_patch(rec_l)
+
+        self.ax.set_axis_off()
+
+        return True
 
 
 class CalibrationOLD:
@@ -1060,6 +1144,12 @@ class CalibrationData:
         self.p_area_height = p_area_height
         self.s_left_margin = s_left_margin
         self.s_top_margin = s_top_margin
+        self.s_top = 0
+        self.s_right = 0
+        self.s_bottom = 0
+        self.s_left = 0
+        self.s_depth_width = 512
+        self.s_depth_height = 424
         self.s_area_width = s_area_width
         self.s_area_height = s_area_height
 
@@ -1365,9 +1455,6 @@ class Plot:
         #self.block = rasterdata.reshape((self.calib.s_area_height, self.calib.s_area_width))
         #self.ax.pcolormesh(self.block,
         self.ax.pcolormesh(data, cmap=self.cmap, norm=self.norm)
-
-        # crop axis (!!!input dimensions of calibrated sensor!!!)
-        self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
         self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
