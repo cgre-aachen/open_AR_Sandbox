@@ -66,6 +66,7 @@ class Kinect:
 
     def __init__(self, filter='gaussian', n_frames=3, sigma_gauss=3):
 
+        self.id = None
         self.device = None
         self.angle = None
 
@@ -82,17 +83,17 @@ class Kinect:
 
         self.setup()
 
-    def get_filtered_frame(self, n_frames=None, sigma_gauss=None):
+    def get_filtered_frame(self):
 
         # collect last n frames in a stack
         depth_array = self.get_frame()
-        for i in range(n_frames - 1):
+        for i in range(self.n_frames - 1):
             depth_array = numpy.dstack([depth_array, self.get_frame()])
         # calculate mean values ignoring zeros by masking them
         depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array) # needed for V2?
         self.depth = numpy.ma.mean(depth_array_masked, axis=2)
         # apply gaussian filter
-        self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
+        self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
 
         return self.depth
 
@@ -226,7 +227,7 @@ class KinectV2(Kinect):
         return self.ir_frame
 
     def get_color(self):
-        color_flattened = self.kinect.get_last_color_frame()
+        color_flattened = self.device.get_last_color_frame()
         resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2
         # Palette of colors in RGB / Cut of 4th column marked as intensity
         palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:, [2, 1, 0]]
