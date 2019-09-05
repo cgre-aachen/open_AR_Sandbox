@@ -255,8 +255,8 @@ class KinectV2:
         if self.filter == 'gaussian':
 
             depth_array = self.get_frame()
-            for i in range(n_frames - 1):
-                depth_array = numpy.dstack([depth_array, self.get_frame])
+            for i in range(self.n_frames - 1):
+                depth_array = numpy.dstack([depth_array, self.get_frame()])
             depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
             self.depth = numpy.ma.mean(depth_array_masked, axis=2)
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
