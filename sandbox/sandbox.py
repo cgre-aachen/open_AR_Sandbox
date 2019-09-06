@@ -64,7 +64,12 @@ class Kinect:
     blurring to get smoother lines.
     """
 
-    def __init__(self, filter='gaussian', n_frames=3, sigma_gauss=3):
+    def __init__(self, calibrationdata, filter='gaussian', n_frames=3, sigma_gauss=3):
+
+        self.calib = calibrationdata
+        self.calib.s_name = self.name
+        self.calib.s_width = self.depth_width
+        self.calib.s_height = self.depth_height
 
         self.id = None
         self.device = None
@@ -101,6 +106,7 @@ class Kinect:
 class KinectV1(Kinect):
 
     # hard coded class attributes for KinectV1's native resolution
+    name = 'kinect_v1'
     depth_width = 320
     depth_height = 240
     color_width = 640
@@ -171,6 +177,7 @@ class KinectV2(Kinect):
     """
 
     # hard coded class attributes for KinectV2's native resolution
+    name = 'kinect_v2'
     depth_width = 512
     depth_height = 424
     color_width = 1920
@@ -242,14 +249,15 @@ class DummySensor:
 
         # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
 
-        self.calib = calibrationdata # use in the future from calibration file
+        self.calib = calibrationdata
 
-        # new standardized approach
         self.depth_width = width
         self.depth_height = height
+        # update calibration according to device
+        self.calib.s_name = 'dummy'
+        self.calib.s_width = self.depth_width
+        self.calib.s_height = self.depth_height
 
-        self.width = width
-        self.height = height
         self.depth_lim = depth_limits
         self.n = points_n
         self.distance = points_distance
@@ -287,7 +295,7 @@ class DummySensor:
 
     def create_grid(self):
         # creates 2D grid for given resolution
-        x, y = numpy.meshgrid(numpy.arange(0, self.width, 1), numpy.arange(0, self.height, 1))
+        x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
         return numpy.stack((x.ravel(), y.ravel())).T
 
     def pick_positions(self, corners=True, seed=None):
@@ -353,7 +361,7 @@ class DummySensor:
 
     def interpolate(self):
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
-        self.interpolation = inter.reshape(self.height, self.width)
+        self.interpolation = inter.reshape(self.depth_height, self.depth_width)
 
 
 class Calibration:
@@ -370,41 +378,41 @@ class Calibration:
 
     def calibrate_projector(self):
 
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_top_margin, start=0, end=200)
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_frame_top, start=0, end=200)
         def callback_mt(target, event):
             m = target.margin
             n = event.new
             # just changing single indices does not trigger updating of pane
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
-            self.calib.p_top_margin = event.new
+            self.calib.p_frame_top = event.new
 
         margin_top.link(self.projector.frame, callbacks={'value': callback_mt})
 
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_left_margin, start=0, end=200)
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_frame_left, start=0, end=200)
         def callback_ml(target, event):
             m = target.margin
             n = event.new
             # just changing single indices does not trigger updating of pane
             target.margin = [m[0], m[1], m[2], n]
             # also update calibration object
-            self.calib.p_left_margin = event.new
+            self.calib.p_frame_left = event.new
         margin_left.link(self.projector.frame, callbacks={'value': callback_ml})
 
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 400)
         def callback_width(target, event):
             target.width = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_area_width = event.new
+            self.calib.p_frame_width = event.new
         width.link(self.projector.frame, callbacks={'value': callback_width})
 
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 400)
         def callback_height(target, event):
             target.height = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_area_height = event.new
+            self.calib.p_frame_height = event.new
             #self.plot.redraw_plot()
         height.link(self.projector.frame, callbacks={'value': callback_height})
 
@@ -452,19 +460,19 @@ class CalibSensorTest:
             self.pn_fig.param.trigger('object')
 
         s_margin_top = pn.widgets.IntSlider(name='Sensor top margin', value=self.calib.s_top, start=0,
-                                            end=self.sensor.depth_height)
+                                            end=self.calib.s_height)
         s_margin_top.link(self.plot_sensor, callbacks={'value': callback_mst})
 
         s_margin_right = pn.widgets.IntSlider(name='Sensor right margin', value=self.calib.s_right, start=0,
-                                              end=self.sensor.depth_width)
+                                              end=self.calib.s_width)
         s_margin_right.link(self.plot_sensor, callbacks={'value': callback_msr})
 
         s_margin_bottom = pn.widgets.IntSlider(name='Sensor bottom margin', value=self.calib.s_bottom, start=0,
-                                               end=self.sensor.depth_height)
+                                               end=self.calib.s_height)
         s_margin_bottom.link(self.plot_sensor, callbacks={'value': callback_msb})
 
         s_margin_left = pn.widgets.IntSlider(name='Sensor left margin', value=self.calib.s_left, start=0,
-                                             end=self.sensor.depth_width)
+                                             end=self.calib.s_width)
         s_margin_left.link(self.plot_sensor, callbacks={'value': callback_msl})
 
         widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left)
@@ -475,12 +483,12 @@ class CalibSensorTest:
         # clear old axes
         self.ax.cla()
 
-        rec_t = plt.Rectangle((0, self.calib.s_depth_height - self.calib.s_top), self.sensor.depth_width,
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
                               self.calib.s_top, fc='r', alpha=0.3)
-        rec_r = plt.Rectangle((self.calib.s_depth_width - self.calib.s_right, 0), self.calib.s_right,
-                              self.sensor.depth_height, fc='r', alpha=0.3)
-        rec_b = plt.Rectangle((0, 0), self.sensor.depth_width, self.calib.s_bottom, fc='r', alpha=0.3)
-        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.sensor.depth_height, fc='r', alpha=0.3)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
+                              self.calib.s_height, fc='r', alpha=0.3)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc='r', alpha=0.3)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc='r', alpha=0.3)
 
         self.ax.imshow(self.frame, origin='lower')
         self.ax.add_patch(rec_t)
@@ -791,6 +799,8 @@ class CalibrationOLD:
 
 class Projector:
 
+    dpi = 100 # make sure that figures can be displayed pixel-precise
+
     def __init__(self, calibrationdata):
         self.calib = calibrationdata
         #self.plot = plot
@@ -829,11 +839,11 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
-        self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
-                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['frame'])
+        self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_frame_width, height=self.calib.p_frame_height,
+                                         margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left], tight=False, dpi=self.dpi, css_classes=['frame'])
 
         self.legend = pn.Column("<br>\n# Legend",
-                                margin=[self.calib.p_top_margin, 0, 0, 0],
+                                margin=[self.calib.p_frame_top, 0, 0, 0],
                                 css_classes=['legend'])
 
         # Combine panel and deploy bokeh server
@@ -848,41 +858,41 @@ class Projector:
 
     def calibrate_projector(self):
 
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_top_margin, start=0, end=200)
+        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_frame_top, start=0, end=200)
         def callback_mt(target, event):
             m = target.margin
             n = event.new
             # just changing single indices does not trigger updating of pane
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
-            self.calib.p_top_margin = event.new
+            self.calib.p_frame_top = event.new
 
         margin_top.link(self.frame, callbacks={'value': callback_mt})
 
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_left_margin, start=0, end=200)
+        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_frame_left, start=0, end=200)
         def callback_ml(target, event):
             m = target.margin
             n = event.new
             # just changing single indices does not trigger updating of pane
             target.margin = [m[0], m[1], m[2], n]
             # also update calibration object
-            self.calib.p_left_margin = event.new
+            self.calib.p_frame_left = event.new
         margin_left.link(self.frame, callbacks={'value': callback_ml})
 
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_area_width, start=self.calib.p_area_width - 400, end=self.calib.p_area_width + 400)
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 400)
         def callback_width(target, event):
             target.width = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_area_width = event.new
+            self.calib.p_frame_width = event.new
         width.link(self.frame, callbacks={'value': callback_width})
 
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_area_height, start=self.calib.p_area_height - 400, end=self.calib.p_area_height + 400)
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 400)
         def callback_height(target, event):
             target.height = event.new
             target.param.trigger('object')
             # also update calibration object
-            self.calib.p_area_height = event.new
+            self.calib.p_frame_height = event.new
             #self.plot.redraw_plot()
         height.link(self.frame, callbacks={'value': callback_height})
 
@@ -1082,89 +1092,117 @@ class CalibrationData:
 
     """
 
-    def __init__(self, rot_angle=-180, x_lim=(0, 512), y_lim=(0, 424), x_pos=0, y_pos=0, scale_factor=1.0,
-                 z_range=(800, 1400), box_width=1000, box_height=600, legend_area=False,
-                 legend_x_lim=(0, 20), legend_y_lim=(0, 50), profile_area=False, profile_x_lim=(10, 200),
-                 profile_y_lim=(200, 250), hot_area=False, hot_x_lim=(400, 450), hot_y_lim=(400, 450),
-                 p_width=800, p_height=600, p_dpi=100, p_top_margin=0, p_left_margin=0,
-                 p_area_width=512, p_area_height=424,
-                 s_left_margin=0, s_top_margin=0, s_area_width=320, s_area_height=240, file=None):
+    def __init__(self,
+                 p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
+                 p_frame_width=600, p_frame_height=450,
+                 s_top=0, s_right=0, s_bottom=0, s_left=0, s_min=700, s_max=1500,
+                 file=None):
         """
 
         Args:
-            rot_angle:
-            x_lim:
-            y_lim:
-            x_pos:
-            y_pos:
-            scale_factor:
-            z_range:
-            box_width:
-            box_height:
-            legend_area:
-            legend_x_lim:
-            legend_y_lim:
-            profile_area:
-            profile_x_lim:
-            profile_y_lim:
-            hot_area:
-            hot_x_lim:
-            hot_y_lim:
+            p_width=800
+            p_height=600
+            p_frame_top=0
+            p_frame_left=0
+            p_frame_width=600
+            p_frame_height=450
+            s_top=0
+            s_right=0
+            s_bottom=0
+            s_left=0
+            s_min=700
+            s_max=1500
+            file=None
 
         Returns:
             None
 
         """
-        self.rot_angle = rot_angle
-        self.x_lim = x_lim
-        self.y_lim = y_lim
-        self.x_pos = x_pos
-        self.y_pos = y_pos
-        self.scale_factor = scale_factor
-        self.z_range = z_range
-        self.box_width = box_width
-        self.box_height = box_height
-        self.legend_area = legend_area
-        self.legend_x_lim = legend_x_lim
-        self.legend_y_lim = legend_y_lim
-        self.profile_area = profile_area
-        self.profile_x_lim = profile_x_lim
-        self.profile_y_lim = profile_y_lim
-        self.hot_area = hot_area
-        self.hot_x_lim = hot_x_lim
-        self.hot_y_lim = hot_y_lim
-        self.box_dim = (self.box_width, self.box_height)
+        #self.rot_angle = rot_angle
+        #self.x_lim = x_lim
+        #self.y_lim = y_lim
+        #self.x_pos = x_pos
+        #self.y_pos = y_pos
+        #self.scale_factor = scale_factor
+        #self.z_range = z_range
+        #self.box_width = box_width
+        #self.box_height = box_height
+
+        #self.legend_area = legend_area
+        #self.legend_x_lim = legend_x_lim
+        #self.legend_y_lim = legend_y_lim
+
+        #self.profile_area = profile_area
+        #self.profile_x_lim = profile_x_lim
+        #self.profile_y_lim = profile_y_lim
+
+        #self.hot_area = hot_area
+        #self.hot_x_lim = hot_x_lim
+        #self.hot_y_lim = hot_y_lim
+        #self.box_dim = (self.box_width, self.box_height)
 
         # Attributes for new calibration approach
+
+        # version identifier (will be changed if new calibration parameters are introduced / removed)
+        self.version = "0.8alpha"
+
+        # projector
         self.p_width = p_width
         self.p_height = p_height
-        self.p_dpi = p_dpi
-        self.p_top_margin = p_top_margin
-        self.p_left_margin = p_left_margin
-        self.p_area_width = p_area_width
-        self.p_area_height = p_area_height
-        self.s_left_margin = s_left_margin
-        self.s_top_margin = s_top_margin
-        self.s_top = 0
-        self.s_right = 0
-        self.s_bottom = 0
-        self.s_left = 0
-        self.s_depth_width = 512
-        self.s_depth_height = 424
-        self.s_area_width = s_area_width
-        self.s_area_height = s_area_height
 
-    def load_json(self, file='calibration.json'):
-        # TODO: Check for overwriting of existing (new) parameters with older calibration files!
+        self.p_frame_top = p_frame_top
+        self.p_frame_left = p_frame_left
+        self.p_frame_width = p_frame_width
+        self.p_frame_height = p_frame_height
+
+        #self.p_legend_top =
+        #self.p_legend_left =
+        #self.p_legend_width =
+        #self.p_legend_height =
+
+        # hot area
+        #self.p_hot
+
+        # profile area
+        #self.p_profile
+
+        # sensor (e.g. Kinect)
+        self.s_name = 'generic' # name to identify the associated sensor device
+        self.s_width = 500 # will be updated by sensor init
+        self.s_height = 400 # will be updated by sensor init
+
+        self.s_top = s_top
+        self.s_right = s_right
+        self.s_bottom = s_bottom
+        self.s_left = s_left
+        self.s_min = s_min
+        self.s_max = s_max
+
+        if file is not None:
+            self.load_json(file)
+
+    # computed parameters for easy access
+    @property
+    def s_frame_width(self):
+        return self.s_width - self.s_left - self.s_right
+
+    @property
+    def s_frame_height(self):
+        return self.s_height - self.s_top - self.s_bottom
+
+    def load_json(self, file):
         with open(file) as calibration_json:
-            self.__dict__ = json.load(calibration_json)
-        print("JSON configuration loaded.")
+            data = json.load(calibration_json)
+            if data['version'] == self.version:
+                self.__dict__ = data
+                print("JSON configuration loaded.")
+            else:
+                print("JSON configuration incompatible.\nPlease recalibrate manually!")
 
     def save_json(self, file='calibration.json'):
         with open(file, "w") as calibration_json:
             json.dump(self.__dict__, calibration_json)
         print('JSON configuration file saved:', str(file))
-
 
 class Scale:
     """
@@ -1404,6 +1442,8 @@ class Plot:
 
     """
 
+    dpi = 100 # make sure that figures can be displayed pixel-precise
+
     def __init__(self, calibrationdata, cmap=None, norm=None, lot=None):
 
         self.calib = calibrationdata
@@ -1441,9 +1481,9 @@ class Plot:
     #     self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
 
     def create_empty_frame(self):
-        self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi,
-                                          self.calib.p_area_height / self.calib.p_dpi),
-                                 dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
+        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi,
+                                          self.calib.p_frame_height / self.dpi),
+                                 dpi=self.dpi)  # , frameon=False) # curent figure
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
 
@@ -1453,12 +1493,12 @@ class Plot:
         # clear axes to draw new ones on figure
         self.ax.cla()
 
-        #self.block = rasterdata.reshape((self.calib.s_area_height, self.calib.s_area_width))
+        #self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
         #self.ax.pcolormesh(self.block,
         self.ax.pcolormesh(data, cmap=self.cmap, norm=self.norm)
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
-        self.ax.axis([0, self.calib.s_area_width, 0, self.calib.s_area_height])
+        self.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
         self.ax.set_axis_off()
 
         # return final figure
@@ -1512,11 +1552,14 @@ class Module:
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, crop = True, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
+
+        # flags
+        self.crop = crop
 
         # threading
         self._lock = threading.Lock()
@@ -1551,6 +1594,9 @@ class Module:
         self.thread.join()  # wait for the thread to finish
         print('Thread stopped.')
 
+    def crop_frame(self, frame):
+        return frame[self.calib.s_top:-self.calib.s_bottom, self.calib.s_left:-self.calib.s_right]
+
 
 class TopoModule(Module):
     """
@@ -1558,13 +1604,17 @@ class TopoModule(Module):
     """
     def setup(self):
         with self._lock:
-            self.plot.render_frame(self.sensor.get_filtered_frame())
+            frame = self.sensor.get_filtered_frame()
+            if self.crop is True:
+                frame = self.crop_frame(frame)
+            self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
         with self._lock:
             frame = self.sensor.get_filtered_frame()
-
+            if self.crop is True:
+                frame = self.crop_frame(frame)
 
         self.plot.render_frame(frame)
         #self.projector.show(fig)

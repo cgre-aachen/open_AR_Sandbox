@@ -1,1 +1,1 @@
-{"p_width": 1280, "p_height": 800, "p_dpi": 100, "p_top_margin": 20, "p_left_margin": 20, "p_area_width": 1004, "p_area_height": 715, "p_area_depth": 200, "s_width": 512, "s_heigth": 424, "s_area_width": 512, "s_area_height": 424}
+{"version": "0.8alpha", "p_width": 1280, "p_height": 800, "p_frame_top": 20, "p_frame_left": 20, "p_frame_width": 987, "p_frame_height": 667, "s_name": "dummy", "s_width": 512, "s_height": 424, "s_top": 65, "s_right": 41, "s_bottom": 43, "s_left": 48, "s_min": 700, "s_max": 1500}
