@@ -399,7 +399,7 @@ class Calibration:
             self.calib.p_frame_left = event.new
         margin_left.link(self.projector.frame, callbacks={'value': callback_ml})
 
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 400)
+        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 800)
         def callback_width(target, event):
             target.width = event.new
             target.param.trigger('object')
@@ -407,7 +407,7 @@ class Calibration:
             self.calib.p_frame_width = event.new
         width.link(self.projector.frame, callbacks={'value': callback_width})
 
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 400)
+        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 800)
         def callback_height(target, event):
             target.height = event.new
             target.param.trigger('object')
@@ -1444,7 +1444,7 @@ class Plot:
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, cmap=None, norm=None, lot=None):
+    def __init__(self, calibrationdata, contours=True, cmap=None, norm=None, lot=None):
 
         self.calib = calibrationdata
 
@@ -1452,9 +1452,8 @@ class Plot:
         self.norm = norm
         self.lot = lot
 
-        # switches
-        #self.colormap = True
-        #self.contours = True
+        # flags
+        self.contours = contours
         #self.points = True
 
         self.figure = None
@@ -1496,6 +1495,9 @@ class Plot:
         #self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
         #self.ax.pcolormesh(self.block,
         self.ax.pcolormesh(data, cmap=self.cmap, norm=self.norm)
+        if self.contours:
+            self.ax.contour(data, colors='k')
+
 
         # crop axis (!!!input dimensions of calibrated sensor!!!)
         self.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
@@ -1595,7 +1597,7 @@ class Module:
         print('Thread stopped.')
 
     def crop_frame(self, frame):
-        return frame[self.calib.s_top:-self.calib.s_bottom, self.calib.s_left:-self.calib.s_right]
+        return frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
 
 
 class TopoModule(Module):
