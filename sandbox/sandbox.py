@@ -1419,7 +1419,9 @@ class Module:
         print('Thread stopped.')
 
     def crop_frame(self, frame):
-        return frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+        crop =  frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+        clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
+        return clip
 
 
 class TopoModule(Module):
