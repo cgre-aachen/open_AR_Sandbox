@@ -1438,7 +1438,25 @@ class TopoModule(Module):
 
 class BlockModule(Module):
     # child class of Model
-    pass
+
+    def __init__(self):
+        self.lithology = None
+        self.faults = None
+        self.fluid_contact = None
+
+
+    def setup(self):
+        pass
+
+    def update(self):
+        with self.lock:
+            pass
+
+    def parse_block_vip(self, target, infile):
+        pass
+
+    def rescale_block(self, interpolate=True):
+        pass
 
 class GemPyModule(Module):
     # child class of Model
