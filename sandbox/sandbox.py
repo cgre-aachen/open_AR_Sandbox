@@ -53,6 +53,8 @@ import threading
 import json
 import pandas as pd
 
+from copy import copy
+
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
 
@@ -366,14 +368,17 @@ class DummySensor:
 
 class Calibration:
     """
-    TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
-    Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
     """
 
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
+
+        self.c_under = '#DBD053'
+        self.c_over = '#DB3A34'
+        self.c_margin = '#084C61'
+        self.c_margin_alpha = 0.5
 
         self.frame = self.sensor.get_filtered_frame()
 
@@ -487,7 +492,7 @@ class Calibration:
                                              end=2000)
         s_max.link(self.plot_sensor, callbacks={'value': callback_smax})
 
-        widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left)
+        widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left, s_min, s_max)
         panel = pn.Row(self.pn_fig, widgets)
         return panel
 
@@ -496,14 +501,18 @@ class Calibration:
         # clear old axes
         self.ax.cla()
 
-        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
-                              self.calib.s_top, fc='r', alpha=0.3)
-        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
-                              self.calib.s_height, fc='r', alpha=0.3)
-        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc='r', alpha=0.3)
-        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc='r', alpha=0.3)
+        cmap = copy(plt.cm.gray)
+        cmap.set_under(self.c_under, 1.0)
+        cmap.set_over(self.c_over, 1.0)
 
-        self.ax.imshow(self.frame, origin='lower')
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
+                              self.calib.s_top, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
+                              self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
+
+        self.ax.pcolormesh(self.frame, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=cmap)
         self.ax.add_patch(rec_t)
         self.ax.add_patch(rec_r)
         self.ax.add_patch(rec_b)
@@ -1307,7 +1316,7 @@ class Plot:
 
         #self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
         #self.ax.pcolormesh(self.block,
-        self.ax.pcolormesh(data, cmap=self.cmap, norm=self.norm)
+        self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
         if self.contours:
             self.ax.contour(data, colors='k')
 
