@@ -1147,7 +1147,7 @@ class Grid:
 
     def create_empty_depth_grid(self):
         """
-        Sets up XY grid (Z is empty that is the name coming from)
+        Sets up XY grid (Z is empty, that is where the name is coming from)
 
         Returns:
 
@@ -1462,9 +1462,59 @@ class BlockModule(Module):
             pass
 
     def parse_block_vip(self, target, infile):
-        pass
+
+        f = open(infile, "r")
+        for i in range(11):
+            f.readline()
+        # n cells
+        l = f.readline().split()
+        nx = int(l[1])
+        ny = int(l[2])
+        nz = int(l[3])
+
+        while True:  # skip to Data section
+            l = f.readline()
+            ls = l.split()
+            if len(ls) == 3:
+                if ls[2] == 'parameters':
+                    break
+
+        for i in range(4):
+            f.readline()
+
+        # parse the data
+        values = []
+        target = numpy.empty((nx, ny, nz))
+        # data['values']=0
+        values_per_block = 8
+        blocklength = nx // values_per_block
+        if (nx % values_per_block) != 0:
+            blocklength = blocklength + 1
+
+        for z in range(nz):
+            for i in range(3):
+                f.readline()
+            for y in range(ny):
+                x = 0
+
+                for line in range(blocklength):
+                    l = f.readline().split()
+
+                    for i in range(values_per_block):
+                        value = l[i]
+                        # data.loc[x,y,z] = value
+                        values.append(value)
+                        target[x, y, z] = int(value)
+                        x = x + 1
+                f.readline()
+        f.close()
+        # index = pd.MultiIndex.from_product([range(nx), range(ny), range(nz)], names=['x', 'y', 'z'])
+        # data_pandas = pd.Series(values, index=index)
 
     def rescale_block(self, interpolate=True):
+        #rescale xy extend of the block to match projected resolution of the block to uses skimage!
+        #rescaled_data_np=resize(data_np,(960,1280), order=0 )
+        #TODO: z-scaling?
         pass
 
 class GemPyModule(Module):
