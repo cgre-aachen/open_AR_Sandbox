@@ -375,6 +375,16 @@ class Calibration:
         self.sensor = sensor
         self.projector = projector
 
+        self.frame = self.sensor.get_filtered_frame()
+
+        self.fig = plt.figure()
+        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
+        self.fig.add_axes(self.ax)
+        self.plot_sensor()
+
+        pn.extension()
+        self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
+
 
     def calibrate_projector(self):
 
@@ -420,22 +430,6 @@ class Calibration:
         return widgets
 
 
-class CalibSensorTest:
-
-    def __init__(self, calibration, sensor):
-        self.calib = calibration
-        self.sensor = sensor
-
-        self.frame = self.sensor.get_filtered_frame()
-
-        self.fig = plt.figure()
-        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
-        self.fig.add_axes(self.ax)
-        self.plot_sensor()
-
-        pn.extension()
-        self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
-
     def calibrate_sensor(self):
         def callback_mst(target, event):
             # set value in calib
@@ -459,6 +453,16 @@ class CalibSensorTest:
             self.plot_sensor()
             self.pn_fig.param.trigger('object')
 
+        def callback_smin(target, event):
+            self.calib.s_min = event.new
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
+        def callback_smax(target, event):
+            self.calib.s_max = event.new
+            self.plot_sensor()
+            self.pn_fig.param.trigger('object')
+
         s_margin_top = pn.widgets.IntSlider(name='Sensor top margin', value=self.calib.s_top, start=0,
                                             end=self.calib.s_height)
         s_margin_top.link(self.plot_sensor, callbacks={'value': callback_mst})
@@ -475,9 +479,18 @@ class CalibSensorTest:
                                              end=self.calib.s_width)
         s_margin_left.link(self.plot_sensor, callbacks={'value': callback_msl})
 
+        s_min = pn.widgets.IntSlider(name='Sensor minimum', value=self.calib.s_min, start=0,
+                                             end=2000)
+        s_min.link(self.plot_sensor, callbacks={'value': callback_smin})
+
+        s_max = pn.widgets.IntSlider(name='Sensor maximum', value=self.calib.s_max, start=0,
+                                             end=2000)
+        s_max.link(self.plot_sensor, callbacks={'value': callback_smax})
+
         widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left)
         panel = pn.Row(self.pn_fig, widgets)
         return panel
+
 
     def plot_sensor(self):
         # clear old axes
@@ -900,193 +913,6 @@ class Projector:
         return widgets
 
 
-class ProjectorOLD:
-    """
-
-    """
-
-    def __init__(self, resolution=None, create_calibration=False, work_directory='./', refresh=100, input_rescale=True):
-        """
-
-        Args:
-            resolution:
-            create_calibration:
-            work_directory:
-            refresh:
-            input_rescale:
-
-        Returns:
-            None
-
-        """
-        self.id = 0
-        self.html_filename = "projector" + str(self.id) + ".html"
-        self.frame_filename = "frame" + str(self.id) + ".png"
-        self.input_filename = 'current_frame.png'
-        self.legend_filename = 'legend.png'
-        self.hot_filename = 'hot.png'
-        self.profile_filename = 'profile.png'
-        self.work_directory = work_directory
-        self.html_file = None
-        self.html_text = None
-        self.frame_file = None
-        self.drawdate = "false"  # Boolean as string for html, only used for testing.
-        self.refresh = refresh  # wait time in ms for html file to load image
-        self.input_rescale = input_rescale
-        if resolution is None:
-            print(
-                "no resolution specified. please always provide the beamer resolution on initiation!! For now a resolution of 800x600 is used!")
-            resolution = (800, 600)  # resolution of the beamer that is changeds later is not passed to the calibration!
-        self.resolution = resolution
-        if create_calibration is True:
-            self.calibration = Calibration(associated_projector=self)
-            print("created new calibration:", self.calibration)
-        else:
-            self.calibration = None
-
-    def set_calibration(self, calibration: Calibration):
-        """
-
-        Args:
-            calibration:
-
-        Returns:
-            None
-
-        """
-        self.calibration = calibration
-
-    def calibrate(self):
-        # TODO This method should be in the calibration class
-        self.calibration.create()
-
-    def start_stream(self):
-        """
-
-        Returns:
-
-        """
-        # def start_stream(self, html_file=self.html_file, frame_file=self.frame_file):
-        if self.work_directory is None:
-            self.work_directory = os.getcwd()
-        self.html_file = open(os.path.join(self.work_directory, self.html_filename), "w")
-
-        self.html_text = """
-            <html>
-            <head>
-                <style>
-                    body {{ margin: 0px 0px 0px 0px; padding: 0px; }} 
-                </style>
-            <script type="text/JavaScript">
-            var url = "output.png"; //url to load image from
-            var refreshInterval = {0} ; //in ms
-            var drawDate = {1}; //draw date string
-            var img;
-
-            function init() {{
-                var canvas = document.getElementById("canvas");
-                var context = canvas.getContext("2d");
-                img = new Image();
-                img.onload = function() {{
-                    canvas.setAttribute("width", img.width)
-                    canvas.setAttribute("height", img.height)
-                    context.drawImage(this, 0, 0);
-                    if(drawDate) {{
-                        var now = new Date();
-                        var text = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-                        var maxWidth = 100;
-                        var x = img.width-10-maxWidth;
-                        var y = img.height-10;
-                        context.strokeStyle = 'black';
-                        context.lineWidth = 2;
-                        context.strokeText(text, x, y, maxWidth);
-                        context.fillStyle = 'white';
-                        context.fillText(text, x, y, maxWidth);
-                    }}
-                }};
-                refresh();
-            }}
-            function refresh()
-            {{
-                img.src = url + "?t=" + new Date().getTime();
-                setTimeout("refresh()",refreshInterval);
-            }}
-
-            </script>
-            <title>AR Sandbox output</title>
-            </head>
-
-            <body onload="JavaScript:init();">
-            <canvas id="canvas"/>
-            </body>
-            </html>
-
-            """
-        self.html_text = self.html_text.format(self.refresh, self.drawdate)
-        self.html_file.write(self.html_text)
-        self.html_file.close()
-
-        webbrowser.open_new('file://' + str(os.path.abspath((os.path.join(self.work_directory, self.html_filename)))))
-
-    def show(self, input=None, legend_filename=None, profile_filename=None,
-             hot_filename=None, rescale=None):
-        """
-
-        Args:
-            input:
-            legend_filename:
-            profile_filename:
-            hot_filename:
-            rescale:
-
-        Returns:
-
-        """
-
-        assert self.calibration is not None, 'Calibration is not set yet. See set_calibration.'
-
-        if input is None:
-            input = os.path.join(self.work_directory, self.input_filename)
-        if legend_filename is None:
-            legend_filename = os.path.join(self.work_directory, self.legend_filename)
-        if profile_filename is None:
-            profile_filename = os.path.join(self.work_directory, self.profile_filename)
-        if hot_filename is None:
-            hot_filename = os.path.join(self.work_directory, self.hot_filename)
-        if rescale is None:  #
-            rescale = self.input_rescale
-
-        projector_output = Image.new('RGB', self.resolution)
-        frame = Image.open(input)
-
-        if rescale is True:
-            projector_output.paste(frame.resize((int(frame.width * self.calibration.calibration_data.scale_factor),
-                                                 int(frame.height * self.calibration.calibration_data.scale_factor))),
-                                   (
-                                       self.calibration.calibration_data.x_pos,
-                                       self.calibration.calibration_data.y_pos))
-        else:
-            projector_output.paste(frame,
-                                   (self.calibration.calibration_data.x_pos, self.calibration.calibration_data.y_pos))
-
-        if self.calibration.calibration_data.legend_area is not False:
-            legend = Image.open(legend_filename)
-            projector_output.paste(legend, (
-                self.calibration.calibration_data.legend_x_lim[0], self.calibration.calibration_data.legend_y_lim[0]))
-        if self.calibration.calibration_data.profile_area is not False:
-            profile = Image.open(profile_filename)
-            projector_output.paste(profile, (self.calibration.calibration_data.profile_x_lim[0],
-                                             self.calibration.calibration_data.profile_y_lim[0]))
-        if self.calibration.calibration_data.hot_area is not False:
-            hot = Image.open(hot_filename)
-            projector_output.paste(hot, (
-                self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
-
-        projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
-        os.replace(os.path.join(self.work_directory, 'output_temp.png'),
-                   os.path.join(self.work_directory, 'output.png'))  # workaround to supress artifacts
-
-
 class CalibrationData:
     """
 
@@ -1118,30 +944,6 @@ class CalibrationData:
             None
 
         """
-        #self.rot_angle = rot_angle
-        #self.x_lim = x_lim
-        #self.y_lim = y_lim
-        #self.x_pos = x_pos
-        #self.y_pos = y_pos
-        #self.scale_factor = scale_factor
-        #self.z_range = z_range
-        #self.box_width = box_width
-        #self.box_height = box_height
-
-        #self.legend_area = legend_area
-        #self.legend_x_lim = legend_x_lim
-        #self.legend_y_lim = legend_y_lim
-
-        #self.profile_area = profile_area
-        #self.profile_x_lim = profile_x_lim
-        #self.profile_y_lim = profile_y_lim
-
-        #self.hot_area = hot_area
-        #self.hot_x_lim = hot_x_lim
-        #self.hot_y_lim = hot_y_lim
-        #self.box_dim = (self.box_width, self.box_height)
-
-        # Attributes for new calibration approach
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
         self.version = "0.8alpha"
@@ -1161,10 +963,16 @@ class CalibrationData:
         #self.p_legend_height =
 
         # hot area
-        #self.p_hot
+        #self.p_hot_top =
+        #self.p_hot_left =
+        #self.p_hot_width =
+        #self.p_hot_height =
 
         # profile area
-        #self.p_profile
+        #self.p_profile_top =
+        #self.p_profile_left =
+        #self.p_profile_width =
+        #self.p_profile_height =
 
         # sensor (e.g. Kinect)
         self.s_name = 'generic' # name to identify the associated sensor device
@@ -1190,6 +998,11 @@ class CalibrationData:
     def s_frame_height(self):
         return self.s_height - self.s_top - self.s_bottom
 
+    @property
+    def scale_factor(self):
+        return (self.p_frame_width / self.s_frame_width), (self.p_frame_height / self.s_frame_height)
+
+    # JSON import/export
     def load_json(self, file):
         with open(file) as calibration_json:
             data = json.load(calibration_json)
