@@ -59,12 +59,35 @@ from copy import copy
 import gempy as gp
 
 
-class Kinect:
+class Sandbox:
+    # Wrapping API-class
+
+    def __init__(self, calibration_file=None, sensor='dummy', projector_resolution=None, **kwargs):
+        self.calib = CalibrationData(file=calibration_file)
+
+        if projector_resolution is not None:
+            self.calib.p_width = projector_resolution[0]
+            self.calib.p_height = projector_resolution[1]
+
+        if sensor == 'kinect1':
+            self.sensor = KinectV1(self.calib)
+        elif sensor == 'kinect2':
+            self.sensor = KinectV2(self.calib)
+        else:
+            self.sensor = DummySensor(calibrationdata=self.calib)
+
+        self.projector = Projector(self.calib)
+        self.module = TopoModule(self.calib, self.sensor, self.projector, **kwargs)
+        self.calibration = Calibration(self.calib, self.sensor, self.projector)
+
+
+class Sensor:
     """
-    Masterclass for initializing the kinect.
+    Masterclass for initializing the sensor (e.g. the Kinect).
     Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
     """
+    __metaclass__ = ABCMeta
 
     def __init__(self, calibrationdata, filter='gaussian', n_frames=3, sigma_gauss=3):
 
@@ -90,6 +113,16 @@ class Kinect:
 
         self.setup()
 
+    @abstractmethod
+    def setup(self):
+        # Wildcard: Everything necessary to set up before a frame can be fetched.
+        pass
+
+    @abstractmethod
+    def get_frame(self):
+        # Wildcard: Single fetch operation.
+        pass
+
     def get_filtered_frame(self):
 
         # collect last n frames in a stack
@@ -105,7 +138,7 @@ class Kinect:
         return self.depth
 
 
-class KinectV1(Kinect):
+class KinectV1(Sensor):
 
     # hard coded class attributes for KinectV1's native resolution
     name = 'kinect_v1'
@@ -170,7 +203,7 @@ class KinectV1(Kinect):
         return cropped
 
 
-class KinectV2(Kinect):
+class KinectV2(Sensor):
     """
     control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
     Init the kinect and provides a method that returns the scanned depth image as numpy array.
@@ -244,63 +277,59 @@ class KinectV2(Kinect):
         self.color = numpy.flipud(palette[position_palette])
         return self.color
 
-class DummySensor:
 
-    def __init__(self, calibrationdata, width=512, height=424, depth_limits=(80, 100), points_n=5, points_distance=20,
-                 alteration_strength=0.1, random_seed=None):
+class DummySensor(Sensor):
 
-        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+    name = 'dummy'
 
-        self.calib = calibrationdata
+    def __init__(self, width=512, height=424, depth_limits=(500, 2000), points_n=5, points_distance=20,
+                 alteration_strength=0.1, random_seed=None, **kwds):
 
         self.depth_width = width
         self.depth_height = height
-        # update calibration according to device
-        self.calib.s_name = 'dummy'
-        self.calib.s_width = self.depth_width
-        self.calib.s_height = self.depth_height
 
         self.depth_lim = depth_limits
         self.n = points_n
         self.distance = points_distance
-        self.strength = alteration_strength
+        self.strength = alteration_strength # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
         self.seed = random_seed
 
-        # create grid, init values, and init interpolation
-        self.grid = self.create_grid()
-        self.positions = self.pick_positions()
-
+        self.grid = None
+        self.positions = None
         self.os_values = None
         self.values = None
-        self.pick_values()
 
-        self.interpolation = None
-        self.interpolate()
+        # call parents' class init
+        super().__init__(**kwds)
 
     ## Methods
+    def setup(self):
+        # create grid, init values, and init interpolation
+        self.grid = self._create_grid()
+        self.positions = self._pick_positions()
+        self._pick_values()
+        self._interpolate()
+        print("DummySensor initialized.")
 
     def get_frame(self):
         # TODO: Add time check for 1/30sec
-        self.alter_values()
-        self.interpolate()
-        return self.interpolation
-
-    def get_filtered_frame(self):
-        return self.get_frame()
+        self._alter_values()
+        self._interpolate()
+        return self.depth
 
     ## Private functions
     # TODO: Make private
 
-    def oscillating_depth(self, random):
+    def _oscillating_depth(self, random):
         r = (self.depth_lim[1] - self.depth_lim[0]) / 2
         return numpy.sin(random) * r + r + self.depth_lim[0]
 
-    def create_grid(self):
+    def _create_grid(self):
         # creates 2D grid for given resolution
         x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
         return numpy.stack((x.ravel(), y.ravel())).T
 
-    def pick_positions(self, corners=True, seed=None):
+    def _pick_positions(self, corners=True, seed=None):
         '''
         grid: Set of possible points to pick from
         n: desired number of points, not guaranteed to be reached
@@ -347,23 +376,23 @@ class DummySensor:
 
         return points
 
-    def pick_values(self):
+    def _pick_values(self):
         numpy.random.seed(seed=self.seed)
         n = self.positions.shape[0]
         self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
-        self.values = self.oscillating_depth(self.os_values)
+        self.values = self._oscillating_depth(self.os_values)
 
-    def alter_values(self):
+    def _alter_values(self):
         # maximum range in both directions the values should be altered
         numpy.random.seed(seed=self.seed)
         os_range = self.strength * (numpy.pi / 2)
         for i, value in enumerate(self.os_values):
             self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)
-        self.values = self.oscillating_depth(self.os_values)
+        self.values = self._oscillating_depth(self.os_values)
 
-    def interpolate(self):
+    def _interpolate(self):
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
-        self.interpolation = inter.reshape(self.depth_height, self.depth_width)
+        self.depth = inter.reshape(self.depth_height, self.depth_width)
 
 
 class Calibration:
@@ -521,302 +550,6 @@ class Calibration:
         self.ax.set_axis_off()
 
         return True
-
-
-class CalibrationOLD:
-    """
-    TODO:refactor completely! Make clear distinction between the calibration methods and calibration Data!
-    Tune calibration parameters. Save calibration file. Have methods to project so we can see what we are calibrating
-    """
-
-    def __init__(self, associated_projector=None, associated_kinect=None, calibration_file=None,
-                 json_calibration_file=None):
-        """
-
-        Args:
-            associated_projector:
-            associated_kinect:
-            calibration_file:
-        """
-        self.id = 0
-        self.associated_projector = associated_projector
-        self.projector_resolution = associated_projector.resolution
-        self.associated_kinect = associated_kinect
-        if calibration_file is None:
-            self.calibration_file = "calibration" + str(self.id) + ".dat"
-
-        self.calibration_data = CalibrationData(
-            legend_x_lim=(self.projector_resolution[1] - 50, self.projector_resolution[0] - 1),
-            legend_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 50),
-            profile_area=False,
-            profile_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-            profile_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1),
-            hot_area=False,
-            hot_x_lim=(self.projector_resolution[0] - 50, self.projector_resolution[0] - 1),
-            hot_y_lim=(self.projector_resolution[1] - 100, self.projector_resolution[1] - 1)
-        )
-        # new simplified json approach
-        if json_calibration_file is not None:
-            self.load_json(json_calibration_file)
-
-        self.cmap = None
-        self.contours = True
-        self.n_contours = 20
-        self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
-                                           self.calibration_data.z_range[1],
-                                           float(self.calibration_data.z_range[1] - self.calibration_data.z_range[
-                                               0]) / self.n_contours)
-
-    # ...
-
-    def load_json(self, file):
-        with open(file) as calibration_json:
-            self.calibration_data.__dict__ = json.load(calibration_json)
-        print("JSON configuration loaded.")
-
-    def save_json(self, file='calibration.json'):
-        with open(file, "w") as calibration_json:
-            json.dump(self.calibration_data.__dict__, calibration_json)
-        print('JSON configuration file saved:', str(file))
-
-    def load(self, calibration_file=None):
-        """
-
-        Args:
-            calibration_file:
-
-        Returns:
-
-        """
-        if calibration_file == None:
-            calibration_file = self.calibration_file
-        try:
-            self.calibration_data = pickle.load(open(calibration_file, 'rb'))
-            if not isinstance(self.calibration_data, CalibrationData):
-                raise TypeError("loaded data is not a Calibration File object")
-        except OSError:
-            print("calibration data file not found. Using default values")
-
-    def save(self, calibration_file=None):
-        """
-
-        Args:
-            calibration_file:
-
-        Returns:
-
-        """
-        if calibration_file is None:
-            calibration_file = self.calibration_file
-        pickle.dump(self.calibration_data, open(calibration_file, 'wb'))
-        print("calibration saved to " + str(calibration_file))
-
-    def create(self):
-        """
-
-        Returns:
-
-        """
-        if self.associated_projector is None:
-            print("Error: no Projector instance found.")
-
-        if self.associated_kinect is None:
-            print("Error: no kinect instance found.")
-
-        def calibrate(rot_angle, x_lim, y_lim, x_pos, y_pos, scale_factor, z_range, box_width, box_height, legend_area,
-                      legend_x_lim, legend_y_lim, profile_area, profile_x_lim, profile_y_lim, hot_area, hot_x_lim,
-                      hot_y_lim, close_click):
-            """
-
-            Args:
-                rot_angle:
-                x_lim:
-                y_lim:
-                x_pos:
-                y_pos:
-                scale_factor:
-                z_range:
-                box_width:
-                box_height:
-                legend_area:
-                legend_x_lim:
-                legend_y_lim:
-                profile_area:
-                profile_x_lim:
-                profile_y_lim:
-                hot_area:
-                hot_x_lim:
-                hot_y_lim:
-                close_click:
-
-            Returns:
-
-            """
-            depth = self.associated_kinect.get_frame()
-            depth_rotated = scipy.ndimage.rotate(depth, rot_angle, reshape=False)
-            depth_cropped = depth_rotated[y_lim[0]:y_lim[1], x_lim[0]:x_lim[1]]
-            depth_masked = numpy.ma.masked_outside(depth_cropped, self.calibration_data.z_range[0],
-                                                   self.calibration_data.z_range[
-                                                       1])  # depth pixels outside of range are white, no data pixe;ls are black.
-
-            self.cmap = matplotlib.colors.Colormap('viridis')
-            self.cmap.set_bad('white', 800)
-            plt.set_cmap(self.cmap)
-            h = (y_lim[1] - y_lim[0]) / 100.0
-            w = (x_lim[1] - x_lim[0]) / 100.0
-
-            fig = plt.figure(figsize=(w, h), dpi=100, frameon=False)
-            ax = plt.Axes(fig, [0., 0., 1., 1.])
-            ax.set_axis_off()
-            fig.add_axes(ax)
-            ax.pcolormesh(depth_masked, vmin=self.calibration_data.z_range[0],
-                          vmax=self.calibration_data.z_range[1])
-
-            if self.contours is True:  # draw contours
-                self.contour_levels = numpy.arange(self.calibration_data.z_range[0],
-                                                   self.calibration_data.z_range[1],
-                                                   float(self.calibration_data.z_range[1] -
-                                                         self.calibration_data.z_range[
-                                                             0]) / self.n_contours)  # update contour levels
-                plt.contour(depth_masked, levels=self.contour_levels, linewidths=1.0, colors=[(0, 0, 0, 1.0)])
-
-            plt.savefig(os.path.join(self.associated_projector.work_directory, 'current_frame.png'), pad_inches=0)
-            plt.close(fig)
-
-            self.calibration_data = CalibrationData(
-                rot_angle=rot_angle,
-                x_lim=x_lim,
-                y_lim=y_lim,
-                x_pos=x_pos,
-                y_pos=y_pos,
-                scale_factor=scale_factor,
-                z_range=z_range,
-                box_width=box_width,
-                box_height=box_height,
-                legend_area=legend_area,
-                legend_x_lim=legend_x_lim,
-                legend_y_lim=legend_y_lim,
-                profile_area=profile_area,
-                profile_x_lim=profile_x_lim,
-                profile_y_lim=profile_y_lim,
-                hot_area=hot_area,
-                hot_x_lim=hot_x_lim,
-                hot_y_lim=hot_y_lim
-            )
-
-            if self.calibration_data.legend_area is not False:
-                legend = Image.new('RGB', (
-                    self.calibration_data.legend_x_lim[1] - self.calibration_data.legend_x_lim[0],
-                    self.calibration_data.legend_y_lim[1] - self.calibration_data.legend_y_lim[0]), color='white')
-                ImageDraw.Draw(legend).text((10, 10), "Legend", fill=(255, 255, 0))
-                legend.save(os.path.join(self.associated_projector.work_directory, 'legend.png'))
-            if self.calibration_data.profile_area is not False:
-                profile = Image.new('RGB', (
-                    self.calibration_data.profile_x_lim[1] - self.calibration_data.profile_x_lim[0],
-                    self.calibration_data.profile_y_lim[1] - self.calibration_data.profile_y_lim[0]), color='blue')
-                ImageDraw.Draw(profile).text((10, 10), "Profile", fill=(255, 255, 0))
-                profile.save(os.path.join(self.associated_projector.work_directory, 'profile.png'))
-            if self.calibration_data.hot_area is not False:
-                hot = Image.new('RGB', (self.calibration_data.hot_x_lim[1] - self.calibration_data.hot_x_lim[0],
-                                        self.calibration_data.hot_y_lim[1] - self.calibration_data.hot_y_lim[0]),
-                                color='red')
-                ImageDraw.Draw(hot).text((10, 10), "Hot Area", fill=(255, 255, 0))
-                hot.save(os.path.join(self.associated_projector.work_directory, 'hot.png'))
-            self.associated_projector.show()
-            if close_click == True:
-                calibration_widget.close()
-
-        calibration_widget = widgets.interactive(calibrate,
-                                                 rot_angle=widgets.IntSlider(
-                                                     value=self.calibration_data.rot_angle, min=-180, max=180,
-                                                     step=1, continuous_update=False),
-                                                 x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.x_lim[0],
-                                                            self.calibration_data.x_lim[1]],
-                                                     min=0, max=640, step=1, continuous_update=False),
-                                                 y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.y_lim[0],
-                                                            self.calibration_data.y_lim[1]],
-                                                     min=0, max=480, step=1, continuous_update=False),
-                                                 x_pos=widgets.IntSlider(value=self.calibration_data.x_pos, min=0,
-                                                                         max=self.projector_resolution[0]),
-                                                 y_pos=widgets.IntSlider(value=self.calibration_data.y_pos, min=0,
-                                                                         max=self.projector_resolution[1]),
-                                                 scale_factor=widgets.FloatSlider(
-                                                     value=self.calibration_data.scale_factor, min=0.1, max=6.0,
-                                                     step=0.01, continuous_update=False),
-                                                 z_range=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.z_range[0],
-                                                            self.calibration_data.z_range[1]],
-                                                     min=500, max=2000, step=1, continuous_update=False),
-                                                 box_width=widgets.IntSlider(value=self.calibration_data.box_dim[0],
-                                                                             min=0,
-                                                                             max=2000, continuous_update=False),
-                                                 box_height=widgets.IntSlider(value=self.calibration_data.box_dim[1],
-                                                                              min=0,
-                                                                              max=2000, continuous_update=False),
-                                                 legend_area=widgets.ToggleButton(
-                                                     value=self.calibration_data.legend_area,
-                                                     description='display a legend',
-                                                     disabled=False,
-                                                     button_style='',  # 'success', 'info', 'warning', 'danger' or ''
-                                                     tooltip='Description',
-                                                     icon='check'),
-                                                 legend_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.legend_x_lim[0],
-                                                            self.calibration_data.legend_x_lim[1]],
-                                                     min=0, max=self.projector_resolution[0], step=1,
-                                                     continuous_update=False),
-                                                 legend_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.legend_y_lim[0],
-                                                            self.calibration_data.legend_y_lim[1]],
-                                                     min=0, max=self.projector_resolution[1], step=1,
-                                                     continuous_update=False),
-                                                 profile_area=widgets.ToggleButton(
-                                                     value=self.calibration_data.profile_area,
-                                                     description='display a profile area',
-                                                     disabled=False,
-                                                     button_style='',  # 'success', 'info', 'warning', 'danger' or ''
-                                                     tooltip='display a profile area',
-                                                     icon='check'),
-                                                 profile_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.profile_x_lim[0],
-                                                            self.calibration_data.profile_x_lim[1]],
-                                                     min=0, max=self.projector_resolution[0], step=1,
-                                                     continuous_update=False),
-                                                 profile_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.profile_y_lim[0],
-                                                            self.calibration_data.profile_y_lim[1]],
-                                                     min=0, max=self.projector_resolution[1], step=1,
-                                                     continuous_update=False),
-                                                 hot_area=widgets.ToggleButton(
-                                                     value=self.calibration_data.hot_area,
-                                                     description='display a hot area for qr codes',
-                                                     disabled=False,
-                                                     button_style='',  # 'success', 'info', 'warning', 'danger' or ''
-                                                     tooltip='display a hot area for qr codes',
-                                                     icon='check'),
-                                                 hot_x_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.hot_x_lim[0],
-                                                            self.calibration_data.hot_x_lim[1]],
-                                                     min=0, max=self.projector_resolution[0], step=1,
-                                                     continuous_update=False),
-                                                 hot_y_lim=widgets.IntRangeSlider(
-                                                     value=[self.calibration_data.hot_y_lim[0],
-                                                            self.calibration_data.hot_y_lim[1]],
-                                                     min=0, max=self.projector_resolution[1], step=1,
-                                                     continuous_update=False),
-                                                 close_click=widgets.ToggleButton(
-                                                     value=False,
-                                                     description='Close calibration',
-                                                     disabled=False,
-                                                     button_style='',  # 'success', 'info', 'warning', 'danger' or ''
-                                                     tooltip='Close calibration',
-                                                     icon='check'
-                                                 )
-
-                                                 )
-        IPython.display.display(calibration_widget)
 
 
 class Projector:
@@ -1214,7 +947,7 @@ class Grid:
         self.depth_grid = depth_grid
 
 
-class Contour:  # TODO: change the whole thing to use keyword arguments!!
+class Contour:  # TODO: change the whole thing to use keyword arguments!! Move to Plot class!
     """
     class to handle contour lines in the sandbox. contours can shpow depth or anything else.
     TODO: pass on keyword arguments to the plot and label functions for more flexibility
@@ -1376,7 +1109,7 @@ class Module:
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, crop = True, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, crop=True, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
@@ -1389,6 +1122,8 @@ class Module:
         self._lock = threading.Lock()
         self.thread = None
         self.thread_running = False
+
+        self.setup()
 
     @abstractmethod
     def setup(self):
