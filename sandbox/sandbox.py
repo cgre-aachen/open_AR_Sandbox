@@ -313,7 +313,7 @@ class DummySensor(Sensor):
 
     def get_filtered_frame(self):
         self.get_frame()
-        
+
     def get_frame(self):
         # TODO: Add time check for 1/30sec
         self._alter_values()
@@ -1063,7 +1063,7 @@ class Plot:
 
         # return final figure
         #return self.figure
-        return True
+        return True #Todo: why is this return here?
 
     def add_contours(self, contour, data): # TODO: Check compability
         """
@@ -1219,9 +1219,13 @@ class BlockModule(Module):
             # querry the array:
             i, j = np.indices(data[..., 0].shape)  # create arrays with the indices in x and y
             result = data[i, j, index]
+            self.plot.ax.cla()
 
+            # self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
+            # self.ax.pcolormesh(self.block,
+            self.plot.ax.pcolormesh(data, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key])
             #render and display
-            self.plot.render_frame(result)
+
             self.projector.trigger()
 
 
