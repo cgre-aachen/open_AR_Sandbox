@@ -949,7 +949,7 @@ class Grid:
 
 class Contour:  # TODO: change the whole thing to use keyword arguments!! Move to Plot class!
     """
-    class to handle contour lines in the sandbox. contours can shpow depth or anything else.
+    class to handle contour lines in the sandbox. contours can show depth or anything else.
     TODO: pass on keyword arguments to the plot and label functions for more flexibility
 
     """
@@ -1186,30 +1186,53 @@ class BlockModule(Module):
     # child class of Model
 
     def __init__(self):
-        self.lithology = None
-        self.faults = None
-        self.fluid_contact = None
-
+        self.block_dict = None
+        self.cmap_dict = None
+        self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
 
     def setup(self):
-        pass
+        if self.block_dict is None:
+            print("No model loaded. Load a model first with load_module_vip(infile)")
+            pass
+        elif self.cmap_dict is None:
+            self.set_colormaps()
+
 
     def update(self):
-        with self.lock:
+        with self._lock:
             pass
 
-    def parse_block_vip(self, target, infile):
 
+    def set_colormaps(self, key=None, cmap=None):
+        if key==None:
+            for key in self.block_dict.keys():
+                min = self.block_dict[key].min()
+                max = self.block_dict[key].max()
+                if cmap==None:
+                    cmap='jet'
+                self.cmap_dict[key] = cmap
+        else:
+            self.cmap_dict[key] = cmap
+
+    def load_model_vip(self, infile):
+        # parse the file
         f = open(infile, "r")
-        for i in range(11):
-            f.readline()
+
+        while True:  # skip header
+            l = f.readline().split()
+            if len(l) > 2 and l[1] == "Size":
+                print(l)
+                break
+
         # n cells
         l = f.readline().split()
         nx = int(l[1])
         ny = int(l[2])
         nz = int(l[3])
 
-        while True:  # skip to Data section
+        print(nx, ny, nz)
+
+        while True:  # skip to Data section, ignoring Livecells
             l = f.readline()
             ls = l.split()
             if len(ls) == 3:
@@ -1220,9 +1243,31 @@ class BlockModule(Module):
             f.readline()
 
         # parse the data
+        Param_dict = {}
+
+        while True: #iterate over all available blocks
+            try:
+                self.parse_block_VIP(f, Param_dict, nx, ny, nz)
+            except:
+                break
+
+        f.close() #close the file
+        self.block_dict = Param_dict
+
+    def parse_block_VIP(self,current_file, value_dict, nx, ny, nz):
+
+        f = current_file
+
+        # prepare storage objects
+        key = f.readline().split()[0]
         values = []
-        target = numpy.empty((nx, ny, nz))
-        # data['values']=0
+        data_np = np.empty((nx, ny, nz))
+
+        # skip to Beginning of block
+        #   for i in range(4):
+        #       print(f.readline())
+
+        # read block data
         values_per_block = 8
         blocklength = nx // values_per_block
         if (nx % values_per_block) != 0:
@@ -1240,13 +1285,17 @@ class BlockModule(Module):
                     for i in range(values_per_block):
                         value = l[i]
                         # data.loc[x,y,z] = value
-                        values.append(value)
-                        target[x, y, z] = int(value)
+                        # values.append(value)
+                        data_np[x, y, z] = int(value)
                         x = x + 1
                 f.readline()
-        f.close()
-        # index = pd.MultiIndex.from_product([range(nx), range(ny), range(nz)], names=['x', 'y', 'z'])
-        # data_pandas = pd.Series(values, index=index)
+
+        value_dict[key] = data_np
+
+        # skip to end of block
+        for i in range(4):
+            f.readline()
+
 
     def rescale_block(self, interpolate=True):
         #rescale xy extend of the block to match projected resolution of the block to uses skimage!
