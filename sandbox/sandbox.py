@@ -311,6 +311,9 @@ class DummySensor(Sensor):
         self._interpolate()
         print("DummySensor initialized.")
 
+    def get_filtered_frame(self):
+        self.get_frame()
+        
     def get_frame(self):
         # TODO: Add time check for 1/30sec
         self._alter_values()
@@ -1189,6 +1192,7 @@ class BlockModule(Module):
         self.block_dict = None
         self.cmap_dict = None
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
+        self.index = None
 
     def setup(self):
         if self.block_dict is None:
@@ -1200,7 +1204,25 @@ class BlockModule(Module):
 
     def update(self):
         with self._lock:
-            pass
+            frame = self.sensor.get_filtered_frame()
+            if self.crop is True:
+                frame = self.crop_frame(frame)
+
+            data = self.block_dict[self.displayed_dataset_key]
+            zmin = self.calib.s_min
+            zmax = self.calib.s_max
+
+            index = (frame - zmin) / (zmax - zmin) * (data[2] - 1.0)  # convert the z dimension to index
+            index = index.round()  # round to next integer
+            index = index.astype('int')
+
+            # querry the array:
+            i, j = np.indices(data[..., 0].shape)  # create arrays with the indices in x and y
+            result = data[i, j, index]
+
+            #render and display
+            self.plot.render_frame(result)
+            self.projector.trigger()
 
 
     def set_colormaps(self, key=None, cmap=None):
