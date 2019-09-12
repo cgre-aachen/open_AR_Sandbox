@@ -1189,8 +1189,8 @@ class BlockModule(Module):
     # child class of Model
 
     def __init__(self):
-        self.block_dict = None
-        self.cmap_dict = None
+        self.block_dict = {}
+        self.cmap_dict = {}
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
         self.index = None
 
@@ -1269,16 +1269,19 @@ class BlockModule(Module):
             f.readline()
 
         # parse the data
-        Param_dict = {}
 
         while True: #iterate over all available blocks
             try:
-                self.parse_block_VIP(f, Param_dict, nx, ny, nz)
+                self.parse_block_VIP(f, self.block_dict, nx, ny, nz)
             except:
                 break
 
         f.close() #close the file
-        self.block_dict = Param_dict
+    def clear_models(self):
+        self.block_dict = {}
+
+    def clear_cmaps(self):
+        self.cmap_dict = {}
 
     def parse_block_VIP(self,current_file, value_dict, nx, ny, nz):
 
