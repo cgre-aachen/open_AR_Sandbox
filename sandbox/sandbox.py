@@ -56,7 +56,12 @@ import pandas as pd
 from copy import copy
 
 # TODO: When we move GeoMapModule import gempy just there
-import gempy as gp
+try:
+    import gempy as gp
+
+except ImportError:
+    warn('gempy not found, GeoMap Module will not work')
+
 
 
 class Sandbox:
