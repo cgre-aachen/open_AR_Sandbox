@@ -41,6 +41,9 @@ import panel as pn
 from scipy.spatial.distance import cdist
 from scipy.interpolate import griddata
 
+#for resizing of block data:
+import skimage
+
 from itertools import count
 from PIL import Image, ImageDraw
 import ipywidgets as widgets
@@ -1131,7 +1134,7 @@ class Module:
         self.thread = None
         self.thread_running = False
 
-        self.setup()
+       # self.setup() #TODO: why is this called on Setup? Setup and init should be separate!
 
     @abstractmethod
     def setup(self):
@@ -1193,10 +1196,12 @@ class TopoModule(Module):
 class BlockModule(Module):
     # child class of Model
 
-    def __init__(self):
+    def __init__(self, calibrationdata, sensor, projector, crop=True, **kwarg):
+        Module.__init__(self, calibrationdata, sensor, projector, crop, **kwarg) #call parent init
         self.block_dict = {}
         self.cmap_dict = {}
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
+        self.rescaled_block_dict = {}
         self.index = None
 
     def setup(self):
@@ -1205,7 +1210,9 @@ class BlockModule(Module):
             pass
         elif self.cmap_dict is None:
             self.set_colormaps()
+        self.rescale_blocks()
 
+        self.projector.frame.object = self.plot.figure #Link figure to projector
 
     def update(self):
         with self._lock:
@@ -1213,25 +1220,29 @@ class BlockModule(Module):
             if self.crop is True:
                 frame = self.crop_frame(frame)
 
-            data = self.block_dict[self.displayed_dataset_key]
+            data = self.rescaled_block_dict[self.displayed_dataset_key]
             zmin = self.calib.s_min
             zmax = self.calib.s_max
 
-            index = (frame - zmin) / (zmax - zmin) * (data[2] - 1.0)  # convert the z dimension to index
+            index = (frame - zmin) / (zmax - zmin) * (data.shape[2] - 1.0)  # convert the z dimension to index
             index = index.round()  # round to next integer
             index = index.astype('int')
 
             # querry the array:
-            i, j = np.indices(data[..., 0].shape)  # create arrays with the indices in x and y
+            i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
             result = data[i, j, index]
+
             self.plot.ax.cla()
 
             # self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
             # self.ax.pcolormesh(self.block,
-            self.plot.ax.pcolormesh(data, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key])
+            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key])
             #render and display
+            self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
+            self.plot.ax.set_axis_off()
 
             self.projector.trigger()
+            return True
 
 
     def set_colormaps(self, key=None, cmap=None):
@@ -1274,6 +1285,7 @@ class BlockModule(Module):
             f.readline()
 
         # parse the data
+        self.parse_block_VIP(f, self.block_dict, nx, ny, nz)
 
         while True: #iterate over all available blocks
             try:
@@ -1282,20 +1294,34 @@ class BlockModule(Module):
                 break
 
         f.close() #close the file
+
+    def rescale_blocks(self): #scale the blocks xy Size to the cropped size of the sensor
+        for key in self.block_dict.keys():
+            rescaled_block = skimage.transform.resize(
+                self.block_dict[key],
+                ( self.calib.s_frame_height, self.calib.s_frame_width),
+                order=0
+            )
+            self.rescaled_block_dict[key] = rescaled_block
+
     def clear_models(self):
         self.block_dict = {}
+
+    def clear_rescaled_models(self):
+        self.rescaled_block_dict = {}
 
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def parse_block_VIP(self,current_file, value_dict, nx, ny, nz):
+    def parse_block_VIP(self, current_file, value_dict, nx, ny, nz):
 
         f = current_file
 
         # prepare storage objects
         key = f.readline().split()[0]
+        print("loading "+key)
         values = []
-        data_np = np.empty((nx, ny, nz))
+        data_np = numpy.empty((nx, ny, nz))
 
         # skip to Beginning of block
         #   for i in range(4):
@@ -1323,19 +1349,12 @@ class BlockModule(Module):
                         data_np[x, y, z] = int(value)
                         x = x + 1
                 f.readline()
-
+        print('done')
         value_dict[key] = data_np
 
         # skip to end of block
         for i in range(4):
             f.readline()
-
-
-    def rescale_block(self, interpolate=True):
-        #rescale xy extend of the block to match projected resolution of the block to uses skimage!
-        #rescaled_data_np=resize(data_np,(960,1280), order=0 )
-        #TODO: z-scaling?
-        pass
 
 class GemPyModule(Module):
     # child class of Model
