@@ -1362,9 +1362,8 @@ class BlockModule(Module):
             f.readline()
 
         # parse the data
-        self.parse_block_VIP(f, self.block_dict, nx, ny, nz)
 
-        while True: #iterate over all available blocks
+        while True: #iterate over all available blocks, stop at first error
             try:
                 self.parse_block_VIP(f, self.block_dict, nx, ny, nz)
             except:
@@ -1376,7 +1375,7 @@ class BlockModule(Module):
         for key in self.block_dict.keys():
             rescaled_block = skimage.transform.resize(
                 self.block_dict[key],
-                ( self.calib.s_frame_height, self.calib.s_frame_width),
+                (self.calib.s_frame_height, self.calib.s_frame_width),
                 order=0
             )
             self.rescaled_block_dict[key] = rescaled_block
@@ -1390,24 +1389,31 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def parse_block_VIP(self, current_file, value_dict, nx, ny, nz):
+    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz, values_per_line=8 ):
+        """
+        Function to load a single block from a file that comes without any metadata.
+        A string for the key as well as the dimension of the Block model have to be specified.
 
-        f = current_file
+        If possible, all Data should be imported in a single VIP Text file. with load_model_vip()
+        This method is then obsolete.
 
-        # prepare storage objects
-        key = f.readline().split()[0]
-        print("loading "+key)
+        :param filename: string to the file location on disc
+        :param key: string under which the data will be accesible in the block_dict
+        :param value_dict: hand over the block_dict the data will be stored in
+        :param nx: number of cells in x
+        :param ny: number of cells in y
+        :param nz: number of cells in z
+        :return: nothing, changes value_dict in place.
+
+        """
+        f = open(filename, "r")
         values = []
         data_np = numpy.empty((nx, ny, nz))
 
-        # skip to Beginning of block
-        #   for i in range(4):
-        #       print(f.readline())
 
         # read block data
-        values_per_block = 8
-        blocklength = nx // values_per_block
-        if (nx % values_per_block) != 0:
+        blocklength = nx // values_per_line
+        if (nx % values_per_line) != 0:
             blocklength = blocklength + 1
 
         for z in range(nz):
@@ -1419,11 +1425,49 @@ class BlockModule(Module):
                 for line in range(blocklength):
                     l = f.readline().split()
 
-                    for i in range(values_per_block):
+                    for i in range(values_per_line):
                         value = l[i]
                         # data.loc[x,y,z] = value
                         # values.append(value)
-                        data_np[x, y, z] = int(value)
+                        data_np[x, y, z] = float(value)
+                        x = x + 1
+                f.readline()
+
+        value_dict[key] = data_np
+
+    def parse_block_VIP(self, current_file, value_dict, nx, ny, nz):
+
+        f = current_file
+
+        # prepare storage objects
+        key = f.readline().split()[0]
+        values = []
+        data_np = numpy.empty((nx, ny, nz))
+
+        # skip to Beginning of block
+        #   for i in range(4):
+        #       print(f.readline())
+
+        # read block data
+        values_per_line = 8
+        blocklength = nx // values_per_line
+        if (nx % values_per_line) != 0:
+            blocklength = blocklength + 1
+
+        for z in range(nz):
+            for i in range(3):
+                f.readline()
+            for y in range(ny):
+                x = 0
+
+                for line in range(blocklength):
+                    l = f.readline().split()
+
+                    for i in range(values_per_line):
+                        value = l[i]
+                        # data.loc[x,y,z] = value
+                        # values.append(value)
+                        data_np[x, y, z] = float(value)
                         x = x + 1
                 f.readline()
         print('done')
