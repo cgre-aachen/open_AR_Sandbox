@@ -39,11 +39,6 @@ import panel as pn
 from time import sleep
 
 import logging
-logging.basicConfig( filename="main.log",
-                     filemode='w',
-                     level=logging.DEBUG,
-                     format= '%(asctime)s - %(levelname)s - %(message)s',
-                   )
 
 # for DummySensor
 from scipy.spatial.distance import cdist
@@ -73,7 +68,16 @@ try:
 except ImportError:
     warn('gempy not found, GeoMap Module will not work')
 
+### General settings and options ###
 
+# logging and exception handling
+verbose = False
+if verbose:
+    logging.basicConfig( filename="main.log",
+                         filemode='w',
+                         level=logging.WARNING,
+                         format= '%(asctime)s - %(levelname)s - %(message)s',
+                       )
 
 class Sandbox:
     # Wrapping API-class
@@ -100,7 +104,7 @@ class Sandbox:
 class Sensor:
     """
     Masterclass for initializing the sensor (e.g. the Kinect).
-    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
+    Init the kinect and provide a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
     """
     __metaclass__ = ABCMeta
@@ -321,14 +325,11 @@ class DummySensor(Sensor):
     ## Methods
     def setup(self):
         # create grid, init values, and init interpolation
-        self.grid = self._create_grid()
-        self.positions = self._pick_positions()
+        self._create_grid()
+        self._pick_positions()
         self._pick_values()
         self._interpolate()
         print("DummySensor initialized.")
-
-    def get_filtered_frame(self):
-        self.get_frame()
 
     def get_frame(self):
         # TODO: Add time check for 1/30sec
@@ -337,7 +338,6 @@ class DummySensor(Sensor):
         return self.depth
 
     ## Private functions
-    # TODO: Make private
 
     def _oscillating_depth(self, random):
         r = (self.depth_lim[1] - self.depth_lim[0]) / 2
@@ -346,7 +346,8 @@ class DummySensor(Sensor):
     def _create_grid(self):
         # creates 2D grid for given resolution
         x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
-        return numpy.stack((x.ravel(), y.ravel())).T
+        self.grid = numpy.stack((x.ravel(), y.ravel())).T
+        return True
 
     def _pick_positions(self, corners=True, seed=None):
         '''
@@ -393,7 +394,8 @@ class DummySensor(Sensor):
             c[3, 1] = self.grid[:, 1].max()
             points = numpy.vstack((c, points))
 
-        return points
+        self.positions = points
+        return True
 
     def _pick_values(self):
         numpy.random.seed(seed=self.seed)
@@ -424,74 +426,86 @@ class Calibration:
         self.projector = projector
         self.module = module
 
+        # customization
+        self.c_under = '#DBD053'
+        self.c_over = '#DB3A34'
+        self.c_margin = '#084C61'
+        self.c_margin_alpha = 0.5
+
         # init panel visualization
         pn.extension()
 
         ### projector widgets and links
 
         self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
-                                                       value=self.calib.p_frame_top,
-                                                       start=0,
-                                                       end=200)
+                                                        value=self.calib.p_frame_top,
+                                                        start=0,
+                                                        end=self.calib.p_height - 20)
         self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
 
 
         self._widget_p_frame_left = pn.widgets.IntSlider(name='Projector left margin',
-                                                        value=self.calib.p_frame_left,
-                                                        start=0,
-                                                        end=200)
+                                                         value=self.calib.p_frame_left,
+                                                         start=0,
+                                                         end=self.calib.p_width - 20)
         self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
 
 
         self._widget_p_frame_width = pn.widgets.IntSlider(name='Projector frame width',
-                                                         value=self.calib.p_frame_width,
-                                                         start=self.calib.p_frame_width - 400,
-                                                         end=self.calib.p_frame_width + 800)
+                                                          value=self.calib.p_frame_width,
+                                                          start=10,
+                                                          end=self.calib.p_width)
         self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
 
 
         self._widget_p_frame_height = pn.widgets.IntSlider(name='Projector frame height',
-                                                          value=self.calib.p_frame_height,
-                                                         start=self.calib.p_frame_height - 400,
-                                                         end=self.calib.p_frame_height + 800)
+                                                           value=self.calib.p_frame_height,
+                                                           start=10,
+                                                           end=self.calib.p_height)
         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
 
         ### sensor widgets and links
 
         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
-                                                 value=self.calib.s_top,
-                                                 start=0,
-                                                 end=self.calib.s_height)
+                                                  bar_color=self.c_margin,
+                                                  value=self.calib.s_top,
+                                                  start=0,
+                                                  end=self.calib.s_height)
         self._widget_s_top.link(self.plot_sensor, callbacks={'value': self._callback_s_top})
 
         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
-                                                   value=self.calib.s_right,
-                                                   start=0,
-                                                   end=self.calib.s_width)
+                                                    bar_color=self.c_margin,
+                                                    value=self.calib.s_right,
+                                                    start=0,
+                                                    end=self.calib.s_width)
         self._widget_s_right.link(self.plot_sensor, callbacks={'value': self._callback_s_right})
 
         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
-                                                    value=self.calib.s_bottom,
-                                                    start=0,
-                                                    end=self.calib.s_height)
+                                                     bar_color=self.c_margin,
+                                                     value=self.calib.s_bottom,
+                                                     start=0,
+                                                     end=self.calib.s_height)
         self._widget_s_bottom.link(self.plot_sensor, callbacks={'value': self._callback_s_bottom})
 
         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
-                                                  value=self.calib.s_left,
-                                                  start=0,
-                                                  end=self.calib.s_width)
+                                                   bar_color=self.c_margin,
+                                                   value=self.calib.s_left,
+                                                   start=0,
+                                                   end=self.calib.s_width)
         self._widget_s_left.link(self.plot_sensor, callbacks={'value': self._callback_s_left})
 
         self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
-                                                 value=self.calib.s_min,
-                                                 start=0,
-                                                 end=2000)
+                                                  bar_color=self.c_under,
+                                                  value=self.calib.s_min,
+                                                  start=0,
+                                                  end=2000)
         self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
 
         self._widget_s_max = pn.widgets.IntSlider(name='Vartical maximum',
-                                                 value=self.calib.s_max,
-                                                 start=0,
-                                                 end=2000)
+                                                  bar_color=self.c_over,
+                                                  value=self.calib.s_max,
+                                                  start=0,
+                                                  end=2000)
         self._widget_s_max.link(self.plot_sensor, callbacks={'value': self._callback_s_max})
 
         # refresh button
@@ -500,11 +514,6 @@ class Calibration:
         self._button.link(self.plot_sensor, callbacks={'clicks': self._callback_new_frame})
 
         # sensor calibration visualization
-
-        self.c_under = '#DBD053'
-        self.c_over = '#DB3A34'
-        self.c_margin = '#084C61'
-        self.c_margin_alpha = 0.5
 
         self.frame = self.sensor.get_filtered_frame()
 
@@ -548,46 +557,35 @@ class Calibration:
 
     def _callback_p_frame_top(self, target, event):
         self.module.pause()
+        # set value in calib
+        self.calib.p_frame_top = event.new
         m = target.margin
         n = event.new
         # just changing single indices does not trigger updating of pane
         target.margin = [n, m[1], m[2], m[3]]
-        # also update calibration object
-        self.calib.p_frame_top = event.new
         self.module.resume()
 
     def _callback_p_frame_left(self, target, event):
         self.module.pause()
+        self.calib.p_frame_left = event.new
         m = target.margin
         n = event.new
-        # just changing single indices does not trigger updating of pane
         target.margin = [m[0], m[1], m[2], n]
-        # also update calibration object
-        self.calib.p_frame_left = event.new
         self.module.resume()
 
     def _callback_p_frame_width(self, target, event):
-        try:
-            self.module.pause()
-            self.calib.p_frame_width = event.new
-            self.module.plot.change_size()
-            target.width = event.new
-            target.param.trigger('object')
-            self.module.resume()
-        except Exception:
-            logging.exception('error in Callback function!')
+        self.module.pause()
+        self.calib.p_frame_width = event.new
+        target.width = event.new
+        target.param.trigger('object')
+        self.module.resume()
 
     def _callback_p_frame_height(self, target, event):
-        try:
-            self.module.pause()
-            target.height = event.new
-            target.param.trigger('object')
-            # also update calibration object
-            self.calib.p_frame_height = event.new
-            # self.plot.redraw_plot()
-            self.module.resume()
-        except Exception:
-            logging.exception('error in Callback function!')
+        self.module.pause()
+        self.calib.p_frame_height = event.new
+        target.height = event.new
+        target.param.trigger('object')
+        self.module.resume()
 
     ### sensor callbacks
 
@@ -661,55 +659,109 @@ class Projector:
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
+    css = '''
+    body {
+      margin:0px;
+      background-color: #FFFFFF;
+    }
+    .panel {
+      background-color: #000000;
+      overflow: hidden;
+    }
+    .bk.frame {
+    }
+    .bk.legend {
+      background-color: #16425B;
+      color: #CCCCCC;
+    }
+    .bk.hot {
+      background-color: #2896A5;
+      color: #CCCCCC;
+    }
+    .bk.profile {
+      background-color: #40C1C7;
+      color: #CCCCCC;
+    }
+    '''
+
     def __init__(self, calibrationdata):
         self.calib = calibrationdata
 
+        # flags
+        self.enable_legend = False
+        self.enable_hot = False
+        self.enable_profile = False
+
         # panel components (panes)
+        self.panel = None
         self.frame = None
         self.legend = None
-        self.panel = None
+        self.hot = None
+        self.profile = None
 
-        self.create_panel() # make explicit?
+        self.create_panel()
+        self.start_server()
+
+    def create_panel(self):
+
+        pn.extension(raw_css=[self.css])
+        # Create a panel object and serve it within an external bokeh browser that will be opened in a separate window
+
+        # In this special case, a "tight" layout would actually add again white space to the plt canvas,
+        # which was already cropped by specifying limits to the axis
+        self.frame = pn.pane.Matplotlib(plt.figure(),
+                                        width=self.calib.p_frame_width,
+                                        height=self.calib.p_frame_height,
+                                        margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left],
+                                        tight=False,
+                                        dpi=self.dpi,
+                                        css_classes=['frame']
+                                       )
+
+        if self.enable_legend:
+            self.legend = pn.Column("### Legend",
+                                    # add parameters from calibration for positioning
+                                    width = 100,
+                                    height = 100,
+                                    margin=[0, 0, 0, 0],
+                                    css_classes=['legend'])
+
+        if self.enable_hot:
+            self.hot = pn.Column("### Hot area",
+                                 width=100,
+                                 height=100,
+                                 margin=[0, 0, 0, 0],
+                                 css_classes=['hot']
+                                )
+
+        if self.enable_profile:
+            self.profile = pn.Column("### Profile",
+                                     width=100,
+                                     height=100,
+                                     margin=[0, 0, 0, 0],
+                                     css_classes=['profile']
+                                    )
+
+        # Combine panel and deploy bokeh server
+        self.sidebar = pn.Column(self.legend, self.hot, self.profile,
+                                 margin=[self.calib.p_frame_top, 0, 0, 0],
+                                )
+
+        self.panel = pn.Row(self.frame, self.sidebar,
+                            width=self.calib.p_width,
+                            height=self.calib.p_height,
+                            sizing_mode='fixed',
+                            css_classes=['panel']
+                           )
+
+    def start_server(self):
+        # TODO: Add specific port? port=4242
+        # Check for instances and close them?
+        self.panel.show(threaded=False)
 
     def show(self, figure):
         self.frame.object = figure
         #plt.close()
-
-    def create_panel(self):
-
-        css = '''
-        body {
-          margin:0px;
-          background-color: #ffffff;
-        }
-        .bk.frame {
-        }
-        .bk.legend {
-          background-color: #AAAAAA;
-        }
-        .panel {
-          background-color: #000000;
-        }
-        '''
-
-        pn.extension(raw_css=[css])
-        # Create a panel object and serve it within an external bokeh browser that will be opened in a separate window
-        # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
-
-
-        self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_frame_width, height=self.calib.p_frame_height,
-                                         margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left], tight=False, dpi=self.dpi, css_classes=['frame'])
-
-        self.legend = pn.Column("<br>\n# Legend",
-                                margin=[self.calib.p_frame_top, 0, 0, 0],
-                                css_classes=['legend'])
-
-        # Combine panel and deploy bokeh server
-        self.panel = pn.Row(self.frame, self.legend, width=self.calib.p_width, height=self.calib.p_height,
-                            sizing_mode='fixed', css_classes=['panel'])
-
-        # TODO: Add specific port? port=4242
-        self.panel.show(threaded=False)
 
     def trigger(self):
         self.frame.param.trigger('object')
@@ -1059,11 +1111,15 @@ class Plot:
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, contours=True, cmap=None, norm=None, lot=None):
+    def __init__(self, calibrationdata, contours=True, cmap=None, over=None, under=None, bad=None, norm=None, lot=None):
 
         self.calib = calibrationdata
 
-        self.cmap = cmap
+        self.cmap = plt.cm.get_cmap(cmap)
+        if over is not None: self.cmap.set_over(over)
+        if under is not None: self.cmap.set_under(under)
+        if bad is not None: self.cmap.set_bad(bad)
+
         self.norm = norm
         self.lot = lot
 
@@ -1268,6 +1324,12 @@ class TopoModule(Module):
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.trigger()
+
+class CalibModule(Module):
+    """
+    Module for calibration and responsive visualization
+    """
+    pass
 
 
 class BlockModule(Module):
