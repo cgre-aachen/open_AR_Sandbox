@@ -1570,22 +1570,20 @@ class BlockModule(Module):
         
         :return:
         """
-        self.widget = widgets.ToggleButtons(
-            options=self.block_dict.keys(),
-            disabled=False,
-        )
-        self.widget.observe(self.update_selection(), names='value')
-       # self.widget.open() #show widget
+        pn.extension()
+        self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
+                                                  options=list(self.block_dict.keys()),
+                                                  button_type='success')
+        self.widget.param.watch(self.update_selection, 'value', onlychanged=False)
+        return self.widget
 
-    def update_selection(self):
+    def update_selection(self, event):
         """
         callback function for the widget to update the self.
         :return:
         """
         with self.lock:
-            self.displayed_dataset_key = self.widget.value
-
-
+            self.displayed_dataset_key = event.new
 
 class GemPyModule(Module):
     # child class of Model
