@@ -1543,6 +1543,7 @@ class BlockModule(Module):
     def show_selector(self):
         """
         displays a widget to toggle between the currently active dataset while the sandbox is running
+        
         :return:
         """
         self.widget = widgets.ToggleButtons(
