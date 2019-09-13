@@ -426,6 +426,8 @@ class Calibration:
         self.projector = projector
         self.module = module
 
+        self.json_filename = None
+
         # customization
         self.c_under = '#DBD053'
         self.c_over = '#DB3A34'
@@ -501,7 +503,7 @@ class Calibration:
                                                   end=2000)
         self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
 
-        self._widget_s_max = pn.widgets.IntSlider(name='Vartical maximum',
+        self._widget_s_max = pn.widgets.IntSlider(name='Vertical maximum',
                                                   bar_color=self.c_over,
                                                   value=self.calib.s_max,
                                                   start=0,
@@ -510,8 +512,19 @@ class Calibration:
 
         # refresh button
 
-        self._button = pn.widgets.Button(name='Refresh sensor frame\n(3 sec. delay)!')
-        self._button.link(self.plot_sensor, callbacks={'clicks': self._callback_new_frame})
+        self._widget_refresh_frame = pn.widgets.Button(name='Refresh sensor frame\n(3 sec. delay)!')
+        self._widget_refresh_frame.param.watch(self._callback_refresh_frame, 'clicks', onlychanged=False)
+
+        # save selection
+
+        # Only for reading files --> Is there no location picker in panel widgets???
+        #self._widget_json_location = pn.widgets.FileInput(name='JSON location')
+        self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
+        self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
+        self._widget_json_filename.value = 'calibration.json'
+
+        self._widget_json_save = pn.widgets.Button(name='Save calibration')
+        self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
 
         # sensor calibration visualization
 
@@ -543,14 +556,18 @@ class Calibration:
                                self._widget_s_left,
                                self._widget_s_min,
                                self._widget_s_max,
-                               self._button)
+                               self._widget_refresh_frame
+                              )
         rows = pn.Row(widgets, self.pn_fig)
         panel = pn.Column("### Sensor calibration", rows)
         return panel
 
     def calibrate(self):
-        tabs = pn.Tabs(('Projector', self.calibrate_projector()), ('Sensor', self.calibrate_sensor()))
-        #panel = pn.Column(self.calibrate_sensor(), self.calibrate_projector())
+        tabs = pn.Tabs(('Projector', self.calibrate_projector()),
+                       ('Sensor', self.calibrate_sensor()),
+                       ('Save', pn.WidgetBox(self._widget_json_filename,
+                                             self._widget_json_save))
+                      )
         return tabs
 
     ### projector callbacks
@@ -621,11 +638,18 @@ class Calibration:
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
 
-    def _callback_new_frame(self, target, event):
+    def _callback_refresh_frame(self, event):
         sleep(3)
         self.frame = self.sensor.get_filtered_frame()
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+
+    def _callback_json_filename(self, event):
+        self.json_filename = event.new
+
+    def _callback_json_save(self, event):
+        if self.json_filename is not None:
+            self.calib.save_json(file=self.json_filename)
 
     ### other methods
 
