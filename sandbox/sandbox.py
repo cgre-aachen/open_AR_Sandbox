@@ -36,6 +36,14 @@ import scipy.ndimage
 
 # for new projector
 import panel as pn
+from time import sleep
+
+import logging
+logging.basicConfig( filename="main.log",
+                     filemode='w',
+                     level=logging.DEBUG,
+                     format= '%(asctime)s - %(levelname)s - %(message)s',
+                   )
 
 # for DummySensor
 from scipy.spatial.distance import cdist
@@ -410,10 +418,88 @@ class Calibration:
     """
     """
 
-    def __init__(self, calibrationdata, sensor, projector):
+    def __init__(self, calibrationdata, sensor, projector, module):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
+        self.module = module
+
+        # init panel visualization
+        pn.extension()
+
+        ### projector widgets and links
+
+        self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
+                                                       value=self.calib.p_frame_top,
+                                                       start=0,
+                                                       end=200)
+        self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
+
+
+        self._widget_p_frame_left = pn.widgets.IntSlider(name='Projector left margin',
+                                                        value=self.calib.p_frame_left,
+                                                        start=0,
+                                                        end=200)
+        self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
+
+
+        self._widget_p_frame_width = pn.widgets.IntSlider(name='Projector frame width',
+                                                         value=self.calib.p_frame_width,
+                                                         start=self.calib.p_frame_width - 400,
+                                                         end=self.calib.p_frame_width + 800)
+        self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
+
+
+        self._widget_p_frame_height = pn.widgets.IntSlider(name='Projector frame height',
+                                                          value=self.calib.p_frame_height,
+                                                         start=self.calib.p_frame_height - 400,
+                                                         end=self.calib.p_frame_height + 800)
+        self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
+
+        ### sensor widgets and links
+
+        self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
+                                                 value=self.calib.s_top,
+                                                 start=0,
+                                                 end=self.calib.s_height)
+        self._widget_s_top.link(self.plot_sensor, callbacks={'value': self._callback_s_top})
+
+        self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
+                                                   value=self.calib.s_right,
+                                                   start=0,
+                                                   end=self.calib.s_width)
+        self._widget_s_right.link(self.plot_sensor, callbacks={'value': self._callback_s_right})
+
+        self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
+                                                    value=self.calib.s_bottom,
+                                                    start=0,
+                                                    end=self.calib.s_height)
+        self._widget_s_bottom.link(self.plot_sensor, callbacks={'value': self._callback_s_bottom})
+
+        self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
+                                                  value=self.calib.s_left,
+                                                  start=0,
+                                                  end=self.calib.s_width)
+        self._widget_s_left.link(self.plot_sensor, callbacks={'value': self._callback_s_left})
+
+        self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
+                                                 value=self.calib.s_min,
+                                                 start=0,
+                                                 end=2000)
+        self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
+
+        self._widget_s_max = pn.widgets.IntSlider(name='Vartical maximum',
+                                                 value=self.calib.s_max,
+                                                 start=0,
+                                                 end=2000)
+        self._widget_s_max.link(self.plot_sensor, callbacks={'value': self._callback_s_max})
+
+        # refresh button
+
+        self._button = pn.widgets.Button(name='Refresh sensor frame\n(3 sec. delay)!')
+        self._button.link(self.plot_sensor, callbacks={'clicks': self._callback_new_frame})
+
+        # sensor calibration visualization
 
         self.c_under = '#DBD053'
         self.c_over = '#DB3A34'
@@ -425,117 +511,125 @@ class Calibration:
         self.fig = plt.figure()
         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
         self.fig.add_axes(self.ax)
+        # close figure to prevent inline display
+        plt.close(self.fig)
         self.plot_sensor()
 
-        pn.extension()
         self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
 
+    ### layouts
 
     def calibrate_projector(self):
+        widgets = pn.WidgetBox(self._widget_p_frame_top,
+                               self._widget_p_frame_left,
+                               self._widget_p_frame_width,
+                               self._widget_p_frame_height)
+        panel = pn.Column("### Map positioning", widgets)
+        return panel
 
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_frame_top, start=0, end=200)
-        def callback_mt(target, event):
-            m = target.margin
-            n = event.new
-            # just changing single indices does not trigger updating of pane
-            target.margin = [n, m[1], m[2], m[3]]
-            # also update calibration object
-            self.calib.p_frame_top = event.new
+    def calibrate_sensor(self):
+        widgets = pn.WidgetBox(self._widget_s_top,
+                               self._widget_s_right,
+                               self._widget_s_bottom,
+                               self._widget_s_left,
+                               self._widget_s_min,
+                               self._widget_s_max,
+                               self._button)
+        rows = pn.Row(widgets, self.pn_fig)
+        panel = pn.Column("### Sensor calibration", rows)
+        return panel
 
-        margin_top.link(self.projector.frame, callbacks={'value': callback_mt})
+    def calibrate(self):
+        tabs = pn.Tabs(('Projector', self.calibrate_projector()), ('Sensor', self.calibrate_sensor()))
+        #panel = pn.Column(self.calibrate_sensor(), self.calibrate_projector())
+        return tabs
 
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_frame_left, start=0, end=200)
-        def callback_ml(target, event):
-            m = target.margin
-            n = event.new
-            # just changing single indices does not trigger updating of pane
-            target.margin = [m[0], m[1], m[2], n]
-            # also update calibration object
-            self.calib.p_frame_left = event.new
-        margin_left.link(self.projector.frame, callbacks={'value': callback_ml})
+    ### projector callbacks
 
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 800)
-        def callback_width(target, event):
+    def _callback_p_frame_top(self, target, event):
+        self.module.pause()
+        m = target.margin
+        n = event.new
+        # just changing single indices does not trigger updating of pane
+        target.margin = [n, m[1], m[2], m[3]]
+        # also update calibration object
+        self.calib.p_frame_top = event.new
+        self.module.resume()
+
+    def _callback_p_frame_left(self, target, event):
+        self.module.pause()
+        m = target.margin
+        n = event.new
+        # just changing single indices does not trigger updating of pane
+        target.margin = [m[0], m[1], m[2], n]
+        # also update calibration object
+        self.calib.p_frame_left = event.new
+        self.module.resume()
+
+    def _callback_p_frame_width(self, target, event):
+        try:
+            self.module.pause()
+            self.calib.p_frame_width = event.new
+            self.module.plot.change_size()
             target.width = event.new
             target.param.trigger('object')
-            # also update calibration object
-            self.calib.p_frame_width = event.new
-        width.link(self.projector.frame, callbacks={'value': callback_width})
+            self.module.resume()
+        except Exception:
+            logging.exception('error in Callback function!')
 
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 800)
-        def callback_height(target, event):
+    def _callback_p_frame_height(self, target, event):
+        try:
+            self.module.pause()
             target.height = event.new
             target.param.trigger('object')
             # also update calibration object
             self.calib.p_frame_height = event.new
-            #self.plot.redraw_plot()
-        height.link(self.projector.frame, callbacks={'value': callback_height})
+            # self.plot.redraw_plot()
+            self.module.resume()
+        except Exception:
+            logging.exception('error in Callback function!')
 
-        widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
-        return widgets
+    ### sensor callbacks
 
+    def _callback_s_top(self, target, event):
+        # set value in calib
+        self.calib.s_top = event.new
+        # change plot and trigger panel update
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-    def calibrate_sensor(self):
-        def callback_mst(target, event):
-            # set value in calib
-            self.calib.s_top = event.new
-            # change plot and trigger panel update
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_s_right(self, target, event):
+        self.calib.s_right = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        def callback_msr(target, event):
-            self.calib.s_right = event.new
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_s_bottom(self, target, event):
+        self.calib.s_bottom = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        def callback_msb(target, event):
-            self.calib.s_bottom = event.new
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_s_left(self, target, event):
+        self.calib.s_left = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        def callback_msl(target, event):
-            self.calib.s_left = event.new
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_s_min(self, target, event):
+        self.calib.s_min = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        def callback_smin(target, event):
-            self.calib.s_min = event.new
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_s_max(self, target, event):
+        self.calib.s_max = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        def callback_smax(target, event):
-            self.calib.s_max = event.new
-            self.plot_sensor()
-            self.pn_fig.param.trigger('object')
+    def _callback_new_frame(self, target, event):
+        sleep(3)
+        self.frame = self.sensor.get_filtered_frame()
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
 
-        s_margin_top = pn.widgets.IntSlider(name='Sensor top margin', value=self.calib.s_top, start=0,
-                                            end=self.calib.s_height)
-        s_margin_top.link(self.plot_sensor, callbacks={'value': callback_mst})
-
-        s_margin_right = pn.widgets.IntSlider(name='Sensor right margin', value=self.calib.s_right, start=0,
-                                              end=self.calib.s_width)
-        s_margin_right.link(self.plot_sensor, callbacks={'value': callback_msr})
-
-        s_margin_bottom = pn.widgets.IntSlider(name='Sensor bottom margin', value=self.calib.s_bottom, start=0,
-                                               end=self.calib.s_height)
-        s_margin_bottom.link(self.plot_sensor, callbacks={'value': callback_msb})
-
-        s_margin_left = pn.widgets.IntSlider(name='Sensor left margin', value=self.calib.s_left, start=0,
-                                             end=self.calib.s_width)
-        s_margin_left.link(self.plot_sensor, callbacks={'value': callback_msl})
-
-        s_min = pn.widgets.IntSlider(name='Sensor minimum', value=self.calib.s_min, start=0,
-                                             end=2000)
-        s_min.link(self.plot_sensor, callbacks={'value': callback_smin})
-
-        s_max = pn.widgets.IntSlider(name='Sensor maximum', value=self.calib.s_max, start=0,
-                                             end=2000)
-        s_max.link(self.plot_sensor, callbacks={'value': callback_smax})
-
-        widgets = pn.Column(s_margin_top, s_margin_right, s_margin_bottom, s_margin_left, s_min, s_max)
-        panel = pn.Row(self.pn_fig, widgets)
-        return panel
-
+    ### other methods
 
     def plot_sensor(self):
         # clear old axes
@@ -569,7 +663,6 @@ class Projector:
 
     def __init__(self, calibrationdata):
         self.calib = calibrationdata
-        #self.plot = plot
 
         # panel components (panes)
         self.frame = None
@@ -579,7 +672,6 @@ class Projector:
         self.create_panel() # make explicit?
 
     def show(self, figure):
-        # TODO: Fix that nasty memory leak!
         self.frame.object = figure
         #plt.close()
 
@@ -621,49 +713,6 @@ class Projector:
 
     def trigger(self):
         self.frame.param.trigger('object')
-
-    def calibrate_projector(self):
-
-        margin_top = pn.widgets.IntSlider(name='Top margin', value=self.calib.p_frame_top, start=0, end=200)
-        def callback_mt(target, event):
-            m = target.margin
-            n = event.new
-            # just changing single indices does not trigger updating of pane
-            target.margin = [n, m[1], m[2], m[3]]
-            # also update calibration object
-            self.calib.p_frame_top = event.new
-
-        margin_top.link(self.frame, callbacks={'value': callback_mt})
-
-        margin_left = pn.widgets.IntSlider(name='Left margin', value=self.calib.p_frame_left, start=0, end=200)
-        def callback_ml(target, event):
-            m = target.margin
-            n = event.new
-            # just changing single indices does not trigger updating of pane
-            target.margin = [m[0], m[1], m[2], n]
-            # also update calibration object
-            self.calib.p_frame_left = event.new
-        margin_left.link(self.frame, callbacks={'value': callback_ml})
-
-        width = pn.widgets.IntSlider(name='Map width', value=self.calib.p_frame_width, start=self.calib.p_frame_width - 400, end=self.calib.p_frame_width + 400)
-        def callback_width(target, event):
-            target.width = event.new
-            target.param.trigger('object')
-            # also update calibration object
-            self.calib.p_frame_width = event.new
-        width.link(self.frame, callbacks={'value': callback_width})
-
-        height = pn.widgets.IntSlider(name='Map height', value=self.calib.p_frame_height, start=self.calib.p_frame_height - 400, end=self.calib.p_frame_height + 400)
-        def callback_height(target, event):
-            target.height = event.new
-            target.param.trigger('object')
-            # also update calibration object
-            self.calib.p_frame_height = event.new
-            #self.plot.redraw_plot()
-        height.link(self.frame, callbacks={'value': callback_height})
-
-        widgets = pn.Column("### Map positioning", margin_top, margin_left, width, height)
-        return widgets
 
 
 class CalibrationData:
@@ -1022,6 +1071,8 @@ class Plot:
         self.contours = contours
         #self.points = True
 
+        # save the figure's Matplotlib number to recall
+        self.number = None
         self.figure = None
         self.ax = None # current plot composition
 
@@ -1054,6 +1105,11 @@ class Plot:
 
         self.ax.set_axis_off()
 
+        # close figure to prevent inline display
+        plt.close(self.figure)
+
+        return True
+
     def render_frame(self, data):
         # clear axes to draw new ones on figure
         self.ax.cla()
@@ -1072,6 +1128,16 @@ class Plot:
         # return final figure
         #return self.figure
         return True #Todo: why is this return here?
+
+    def change_size(self):
+        self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
+                                                                   self.calib.p_frame_height / self.dpi))
+
+        # close figure to prevent inline display
+        plt.close(self.figure)
+
+        return True
+
 
     def add_contours(self, contour, data): # TODO: Check compability
         """
@@ -1130,15 +1196,15 @@ class Module:
         self.crop = crop
 
         # threading
-        self._lock = threading.Lock()
+        self.lock = threading.Lock()
         self.thread = None
-        self.thread_running = False
+        self.thread_status = 'stopped' # status: 'stopped', 'running', 'paused'
 
-       # self.setup() #TODO: why is this called on Setup? Setup and init should be separate!
+        #self.setup()
 
     @abstractmethod
     def setup(self):
-        # Wildcard: Everything necessary to set up before an model update can be performed.
+        # Wildcard: Everything necessary to set up before a model update can be performed.
         pass
 
     @abstractmethod
@@ -1147,25 +1213,40 @@ class Module:
         pass
 
     def thread_loop(self):
-        while self.thread_running:
-            self.update()
+        while self.thread_status == 'running':
+            with self.lock:
+                self.update()
 
     def run(self):
-        if not self.thread_running:
-            self.thread_running = True
+        if self.thread_status != 'running':
+            self.thread_status = 'running'
             self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
             self.thread.start()
-            print('Thread started...')
+            print('Thread started or resumed...')
         else:
-            print('Thread already running. First stop with stop().')
+            print('Thread already running.')
 
     def stop(self):
-        self.thread_running = False  # set flag to end thread loop
+        self.thread_status = 'stopped'  # set flag to end thread loop
         self.thread.join()  # wait for the thread to finish
         print('Thread stopped.')
 
+    def pause(self):
+        if self.thread_status == 'running':
+            self.thread_status = 'paused'  # set flag to end thread loop
+            self.thread.join()  # wait for the thread to finish
+            print('Thread paused.')
+        else:
+            print('There is no thread running.')
+
+    def resume(self):
+        if self.thread_status != 'stopped':
+            self.run()
+        else:
+            print('Thread already stopped.')
+
     def crop_frame(self, frame):
-        crop =  frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+        crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
         clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
         return clip
 
@@ -1175,21 +1256,17 @@ class TopoModule(Module):
     Module for simple Topography visualization without computing a geological model
     """
     def setup(self):
-        with self._lock:
-            frame = self.sensor.get_filtered_frame()
-            if self.crop is True:
-                frame = self.crop_frame(frame)
-            self.plot.render_frame(frame)
+        frame = self.sensor.get_filtered_frame()
+        if self.crop is True:
+            frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        with self._lock:
-            frame = self.sensor.get_filtered_frame()
-            if self.crop is True:
-                frame = self.crop_frame(frame)
-
+        frame = self.sensor.get_filtered_frame()
+        if self.crop is True:
+            frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
-        #self.projector.show(fig)
         self.projector.trigger()
 
 
@@ -1576,84 +1653,6 @@ class GeoMapModule:
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
         self.geol_map.save(outfile=output)
-
-
-class SandboxThread:
-    """
-    container for modules that handles threading. any kind of module can be loaded, as long as it contains a 'setup' and 'render_frame" method!
-    """
-
-    def __init__(self, module, kinect, projector, path=None):
-        """
-
-        Args:
-            module:
-            kinect:
-            projector:
-            path:
-        """
-        self.module = module
-        self.kinect = kinect
-        self.projector = projector
-        self.path = path
-        self.thread = None
-        self.lock = threading.Lock()
-        self.stop_thread = False
-        self.plot = None
-
-    def loop(self):
-        """
-
-        Returns:
-
-        """
-        while self.stop_thread is False:
-            depth = self.kinect.get_filtered_frame()
-            with self.lock:
-                # TODO: Making the next two lines agnostic from GemPy
-                lith, fault = self.module.compute_model(depth)
-                self.plot=self.module.render_geo_map(lith, fault)
-
-                self.projector.show(self.plot)
-
-    def run(self):
-        """
-
-        Returns:
-
-        """
-        self.stop_thread = False
-        self.thread = threading.Thread(target=self.loop, daemon=None)
-        self.thread.start()
-        # with thread and thread lock move these to main sandbox
-
-    def pause(self):
-        """
-
-        Returns:
-
-        """
-        self.lock.release()
-
-    def resume(self):
-        """
-
-        Returns:
-
-        """
-        self.lock.acquire()
-
-    def kill(self):
-        """
-
-        Returns:
-
-        """
-        self.stop_thread = True
-        try:
-            self.lock.release()
-        except:
-            pass
 
 
 class ArucoMarkers:
