@@ -1280,6 +1280,7 @@ class BlockModule(Module):
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
         self.index = None
+        self.widget = None #widget to change models in runtime
 
     def setup(self):
         if self.block_dict is None:
@@ -1476,6 +1477,28 @@ class BlockModule(Module):
         # skip to end of block
         for i in range(4):
             f.readline()
+
+    def show_selector(self):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        :return:
+        """
+        self.widget = widgets.ToggleButtons(
+            options=self.block_dict.keys(),
+            disabled=False,
+        )
+        self.widget.observe(self.update_selection(), names='value')
+       # self.widget.open() #show widget
+
+    def update_selection(self):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        with self.lock:
+            self.displayed_dataset_key = self.widget.value
+
+
 
 class GemPyModule(Module):
     # child class of Model
