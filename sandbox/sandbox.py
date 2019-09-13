@@ -1111,11 +1111,15 @@ class Plot:
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, contours=True, cmap=None, norm=None, lot=None):
+    def __init__(self, calibrationdata, contours=True, cmap=None, over=None, under=None, bad=None, norm=None, lot=None):
 
         self.calib = calibrationdata
 
-        self.cmap = cmap
+        self.cmap = plt.cm.get_cmap(cmap)
+        if over is not None: self.cmap.set_over(over)
+        if under is not None: self.cmap.set_under(under)
+        if bad is not None: self.cmap.set_bad(bad)
+
         self.norm = norm
         self.lot = lot
 
