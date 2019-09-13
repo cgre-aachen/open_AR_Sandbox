@@ -39,11 +39,6 @@ import panel as pn
 from time import sleep
 
 import logging
-logging.basicConfig( filename="main.log",
-                     filemode='w',
-                     level=logging.DEBUG,
-                     format= '%(asctime)s - %(levelname)s - %(message)s',
-                   )
 
 # for DummySensor
 from scipy.spatial.distance import cdist
@@ -73,7 +68,16 @@ try:
 except ImportError:
     warn('gempy not found, GeoMap Module will not work')
 
+### General settings and options ###
 
+# logging and exception handling
+verbose = False
+if verbose:
+    logging.basicConfig( filename="main.log",
+                         filemode='w',
+                         level=logging.WARNING,
+                         format= '%(asctime)s - %(levelname)s - %(message)s',
+                       )
 
 class Sandbox:
     # Wrapping API-class
@@ -100,7 +104,7 @@ class Sandbox:
 class Sensor:
     """
     Masterclass for initializing the sensor (e.g. the Kinect).
-    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do the gaussian
+    Init the kinect and provide a method that returns the scanned depth image as numpy array. Also we do the gaussian
     blurring to get smoother lines.
     """
     __metaclass__ = ABCMeta
@@ -321,14 +325,11 @@ class DummySensor(Sensor):
     ## Methods
     def setup(self):
         # create grid, init values, and init interpolation
-        self.grid = self._create_grid()
-        self.positions = self._pick_positions()
+        self._create_grid()
+        self._pick_positions()
         self._pick_values()
         self._interpolate()
         print("DummySensor initialized.")
-
-    def get_filtered_frame(self):
-        self.get_frame()
 
     def get_frame(self):
         # TODO: Add time check for 1/30sec
@@ -337,7 +338,6 @@ class DummySensor(Sensor):
         return self.depth
 
     ## Private functions
-    # TODO: Make private
 
     def _oscillating_depth(self, random):
         r = (self.depth_lim[1] - self.depth_lim[0]) / 2
@@ -346,7 +346,8 @@ class DummySensor(Sensor):
     def _create_grid(self):
         # creates 2D grid for given resolution
         x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
-        return numpy.stack((x.ravel(), y.ravel())).T
+        self.grid = numpy.stack((x.ravel(), y.ravel())).T
+        return True
 
     def _pick_positions(self, corners=True, seed=None):
         '''
@@ -393,7 +394,8 @@ class DummySensor(Sensor):
             c[3, 1] = self.grid[:, 1].max()
             points = numpy.vstack((c, points))
 
-        return points
+        self.positions = points
+        return True
 
     def _pick_values(self):
         numpy.random.seed(seed=self.seed)
@@ -1268,6 +1270,12 @@ class TopoModule(Module):
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.trigger()
+
+class CalibModule(Module):
+    """
+    Module for calibration and responsive visualization
+    """
+    pass
 
 
 class BlockModule(Module):
