@@ -108,3 +108,5 @@ venv.bak/
 .idea/
 
 notebooks/panel-examples/
+
+grids_do_not_push/
