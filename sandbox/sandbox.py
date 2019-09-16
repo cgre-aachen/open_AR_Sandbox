@@ -302,16 +302,20 @@ class DummySensor(Sensor):
 
     name = 'dummy'
 
-    def __init__(self, width=512, height=424, depth_limits=(500, 2000), points_n=5, points_distance=20,
+    def __init__(self, width=512, height=424, depth_limits=(500, 2000),
+                 corners=True, points_n=4, points_distance=0.3,
                  alteration_strength=0.1, random_seed=None, **kwds):
 
         self.depth_width = width
         self.depth_height = height
 
         self.depth_lim = depth_limits
+        self.corners = corners
         self.n = points_n
-        self.distance = points_distance
-        self.strength = alteration_strength # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+        # distance in percent of grid diagonal
+        self.distance = numpy.sqrt(self.depth_width**2 + self.depth_height**2) * points_distance
+        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+        self.strength = alteration_strength
         self.seed = random_seed
 
         self.grid = None
@@ -349,26 +353,34 @@ class DummySensor(Sensor):
         self.grid = numpy.stack((x.ravel(), y.ravel())).T
         return True
 
-    def _pick_positions(self, corners=True, seed=None):
+    def _pick_positions(self):
         '''
         grid: Set of possible points to pick from
-        n: desired number of points, not guaranteed to be reached
-        distance: distance or range, pilot points should be away from dat points
+        n: desired number of points (without corners counting), not guaranteed to be reached
+        distance: distance or range between points
         '''
 
-        numpy.random.seed(seed=seed)
-
+        numpy.random.seed(seed=self.seed)
         gl = self.grid.shape[0]
         gw = self.grid.shape[1]
-        points = numpy.zeros((self.n, gw))
+        n = self.n
 
-        # randomly pick initial point
-        ipos = numpy.random.randint(0, gl)
-        points[0, :2] = self.grid[ipos, :2]
+        if self.corners:
+            n += 4
+            points = numpy.zeros((n, gw))
+            points[1, 0] = self.grid[:, 0].max()
+            points[2, 1] = self.grid[:, 1].max()
+            points[3, 0] = self.grid[:, 0].max()
+            points[3, 1] = self.grid[:, 1].max()
+            i = 4 # counter
+        else:
+            points = numpy.zeros((n, gw))
+            # randomly pick initial point
+            ipos = numpy.random.randint(0, gl)
+            points[0, :2] = self.grid[ipos, :2]
+            i = 1  # counter
 
-        i = 1  # counter
-        while i < self.n:
-
+        while i < n:
             # calculate all distances between remaining candidates and sim points
             dist = cdist(points[:i, :2], self.grid[:, :2])
             # choose candidates which are out of range
@@ -377,24 +389,15 @@ class DummySensor(Sensor):
             # count candidates
             cl = candidates.shape[0]
             if cl < 1: break
-            # randomly pick candidate and set next pilot point
+            # randomly pick candidate and set next point
             pos = numpy.random.randint(0, cl)
             points[i, :2] = candidates[pos, :2]
 
             i += 1
 
         # just return valid points if early break occured
-        points = points[:i]
+        self.positions = points[:i]
 
-        if corners:
-            c = numpy.zeros((4, gw))
-            c[1, 0] = self.grid[:, 0].max()
-            c[2, 1] = self.grid[:, 1].max()
-            c[3, 0] = self.grid[:, 0].max()
-            c[3, 1] = self.grid[:, 1].max()
-            points = numpy.vstack((c, points))
-
-        self.positions = points
         return True
 
     def _pick_values(self):
@@ -1158,24 +1161,6 @@ class Plot:
 
         self.create_empty_frame() # initial figure for starting projector
 
-
-    # def __init__(self, calibration=None, cmap=None, norm=None, lot=None, outfile=None):
-
-    #     if isinstance(calibration, Calibration):
-    #         self.calibration = calibration
-    #     else:
-    #         raise TypeError("you must pass a valid calibration instance")
-
-    #     self.output_res = (
-    #         self.calibration.calibration_data.x_lim[1] -
-    #         self.calibration.calibration_data.x_lim[0],
-    #         self.calibration.calibration_data.y_lim[1] -
-    #         self.calibration.calibration_data.y_lim[0]
-    #     )
-    #
-    #     self.h = self.calibration.calibration_data.scale_factor * (self.output_res[1]) / 100.0
-    #     self.w = self.calibration.calibration_data.scale_factor * (self.output_res[0]) / 100.0
-
     def create_empty_frame(self):
         self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi,
                                           self.calib.p_frame_height / self.dpi),
@@ -1207,7 +1192,7 @@ class Plot:
 
         # return final figure
         #return self.figure
-        return True #Todo: why is this return here?
+        return True #Todo: why is this return here? Best practice ;)
 
     def change_size(self):
         self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
