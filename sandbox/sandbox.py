@@ -1245,6 +1245,14 @@ class Plot:
         """
         pass
 
+    def create_cmap(self, clist):
+        cmap = matplotlib.colors.ListedColormap(clist)
+        return cmap
+
+    def create_norm(self, _min, _max):
+        norm = matplotlib.colors.Normalize(vmin=_min, vmax=_max)
+        return norm
+
 class Module:
     """
     Parent Module with threading methods and abstract attributes and methods for child classes
@@ -1394,14 +1402,16 @@ class BlockModule(Module):
             return True
 
 
-    def set_colormaps(self, key=None, cmap=None):
+    def set_colormap(self, key=None, cmap=None, norm=None):
         if key==None:
             for key in self.block_dict.keys():
                 min = self.block_dict[key].min()
                 max = self.block_dict[key].max()
                 if cmap==None:
                     cmap='jet'
-                self.cmap_dict[key] = cmap
+                if norm==None:
+                    norm= Plot.create_norm(min, max)
+                self.cmap_dict[key] = [cmap,norm]
         else:
             self.cmap_dict[key] = cmap
 
@@ -1552,7 +1562,7 @@ class BlockModule(Module):
     def show_selector(self):
         """
         displays a widget to toggle between the currently active dataset while the sandbox is running
-        
+
         :return:
         """
         pn.extension()
