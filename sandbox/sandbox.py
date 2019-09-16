@@ -302,7 +302,7 @@ class DummySensor(Sensor):
 
     name = 'dummy'
 
-    def __init__(self, width=512, height=424, depth_limits=(500, 2000),
+    def __init__(self, width=512, height=424, depth_limits=(1170, 1370),
                  corners=True, points_n=4, points_distance=0.3,
                  alteration_strength=0.1, random_seed=None, **kwds):
 
