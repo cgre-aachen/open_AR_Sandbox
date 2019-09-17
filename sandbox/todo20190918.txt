@@ -1,0 +1,5 @@
+Adjust widget boxes
+Update plot levels when adjusting s_min and s_max
+Make sure s_min and s_max colors are shown in Projector within CalibrationModule
+Adjust panel_figure size
+Replace links by watchers

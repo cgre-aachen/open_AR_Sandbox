@@ -1375,15 +1375,15 @@ class TopoModule(Module):
     """
     def setup(self):
         frame = self.sensor.get_filtered_frame()
-        if self.crop is True:
-            frame = self.crop_frame(frame)
+        #if self.crop is True:
+        #    frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
         frame = self.sensor.get_filtered_frame()
-        if self.crop is True:
-            frame = self.crop_frame(frame)
+        #if self.crop is True:
+        #    frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.trigger()
 
@@ -1401,41 +1401,80 @@ class CalibModule(Module):
         self.c_margin = '#084C61'
         self.c_margin_alpha = 0.5
 
-        # call parents' class init
+        # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
 
         self.json_filename = None
 
-        #self.plot = Plot(self.calib,contours=True,cmap='Gray',over=self.c_over,under=self.c_under)
-        #self.interface_plot = Plot(self.calib, )
+        # sensor calibration visualization
+        self.calib_frame = None
+        self.calib_plot = Plot(self.calib, patches=True,
+                               contours=True, cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
 
         # init panel visualization
         pn.extension()
         self._create_widgets()
 
-        # sensor calibration visualization --> redo!
-        self.frame = self.sensor.get_filtered_frame()
-        self.fig = plt.figure()
-        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
-        self.fig.add_axes(self.ax)
-        # close figure to prevent inline display
-        plt.close(self.fig)
-        self.plot_sensor()
-        self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
-
+    ### standard methods
     def setup(self):
         frame = self.sensor.get_filtered_frame()
-        #frame = self.crop_frame(frame)
+        if self.crop:
+            frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
+        # sensor calibration visualization
+        self.calib_frame = self.sensor.get_filtered_frame()
+        self.calib_plot.render_frame(self.calib_frame)
+        self.pn_figure.object = self.calib_plot.figure
+
     def update(self):
         frame = self.sensor.get_filtered_frame()
-        #frame = self.crop_frame(frame)
+        if self.crop:
+            frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.trigger()
 
+    def update_calib_plot(self):
+        self.calib_plot.render_frame(self.calib_frame)
+        self.pn_figure.param.trigger('object')
+
+    ### layouts
+    def calibrate_projector(self):
+        widgets = pn.WidgetBox(self._widget_p_frame_top,
+                               self._widget_p_frame_left,
+                               self._widget_p_frame_width,
+                               self._widget_p_frame_height)
+        panel = pn.Column("### Map positioning", widgets)
+        return panel
+
+    def calibrate_sensor(self):
+        widgets = pn.WidgetBox(self._widget_s_top,
+                               self._widget_s_right,
+                               self._widget_s_bottom,
+                               self._widget_s_left,
+                               self._widget_s_min,
+                               self._widget_s_max,
+                               self._widget_refresh_frame
+                              )
+        rows = pn.Row(widgets, self.pn_figure)
+        panel = pn.Column("### Sensor calibration", rows)
+        return panel
+
+    def calibrate(self):
+        tabs = pn.Tabs(('Projector', self.calibrate_projector()),
+                       ('Sensor', self.calibrate_sensor()),
+                       ('Save', pn.WidgetBox(self._widget_json_filename,
+                                             self._widget_json_save))
+                      )
+        return tabs
+
     def _create_widgets(self):
+
+        ### sensor calibration visualization
+
+        self.pn_figure = pn.pane.Matplotlib(plt.figure(), tight=False)
+
         ### projector widgets and links
 
         self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
@@ -1472,42 +1511,42 @@ class CalibModule(Module):
                                                   value=self.calib.s_top,
                                                   start=0,
                                                   end=self.calib.s_height)
-        self._widget_s_top.link(self.plot_sensor, callbacks={'value': self._callback_s_top})
+        self._widget_s_top.link(self.update_calib_plot, callbacks={'value': self._callback_s_top})
 
         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
                                                     bar_color=self.c_margin,
                                                     value=self.calib.s_right,
                                                     start=0,
                                                     end=self.calib.s_width)
-        self._widget_s_right.link(self.plot_sensor, callbacks={'value': self._callback_s_right})
+        self._widget_s_right.link(self.update_calib_plot, callbacks={'value': self._callback_s_right})
 
         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
                                                      bar_color=self.c_margin,
                                                      value=self.calib.s_bottom,
                                                      start=0,
                                                      end=self.calib.s_height)
-        self._widget_s_bottom.link(self.plot_sensor, callbacks={'value': self._callback_s_bottom})
+        self._widget_s_bottom.link(self.update_calib_plot, callbacks={'value': self._callback_s_bottom})
 
         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
                                                    bar_color=self.c_margin,
                                                    value=self.calib.s_left,
                                                    start=0,
                                                    end=self.calib.s_width)
-        self._widget_s_left.link(self.plot_sensor, callbacks={'value': self._callback_s_left})
+        self._widget_s_left.link(self.update_calib_plot, callbacks={'value': self._callback_s_left})
 
         self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
                                                   bar_color=self.c_under,
                                                   value=self.calib.s_min,
                                                   start=0,
                                                   end=2000)
-        self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
+        self._widget_s_min.link(self.update_calib_plot, callbacks={'value': self._callback_s_min})
 
         self._widget_s_max = pn.widgets.IntSlider(name='Vertical maximum',
                                                   bar_color=self.c_over,
                                                   value=self.calib.s_max,
                                                   start=0,
                                                   end=2000)
-        self._widget_s_max.link(self.plot_sensor, callbacks={'value': self._callback_s_max})
+        self._widget_s_max.link(self.update_calib_plot, callbacks={'value': self._callback_s_max})
 
         # refresh button
 
@@ -1526,38 +1565,6 @@ class CalibModule(Module):
         self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
 
         return True
-
-
-    ### layouts
-
-    def calibrate_projector(self):
-        widgets = pn.WidgetBox(self._widget_p_frame_top,
-                               self._widget_p_frame_left,
-                               self._widget_p_frame_width,
-                               self._widget_p_frame_height)
-        panel = pn.Column("### Map positioning", widgets)
-        return panel
-
-    def calibrate_sensor(self):
-        widgets = pn.WidgetBox(self._widget_s_top,
-                               self._widget_s_right,
-                               self._widget_s_bottom,
-                               self._widget_s_left,
-                               self._widget_s_min,
-                               self._widget_s_max,
-                               self._widget_refresh_frame
-                              )
-        rows = pn.Row(widgets, self.pn_fig)
-        panel = pn.Column("### Sensor calibration", rows)
-        return panel
-
-    def calibrate(self):
-        tabs = pn.Tabs(('Projector', self.calibrate_projector()),
-                       ('Sensor', self.calibrate_sensor()),
-                       ('Save', pn.WidgetBox(self._widget_json_filename,
-                                             self._widget_json_save))
-                      )
-        return tabs
 
     ### projector callbacks
 
@@ -1600,51 +1607,45 @@ class CalibModule(Module):
         # set value in calib
         self.calib.s_top = event.new
         # change plot and trigger panel update
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_s_right(self, target, event):
         self.pause()
         self.calib.s_right = event.new
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_s_bottom(self, target, event):
         self.pause()
         self.calib.s_bottom = event.new
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_s_left(self, target, event):
         self.pause()
         self.calib.s_left = event.new
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_s_min(self, target, event):
         self.pause()
         self.calib.s_min = event.new
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_s_max(self, target, event):
         self.pause()
         self.calib.s_max = event.new
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        self.update_calib_plot()
         self.resume()
 
     def _callback_refresh_frame(self, event):
         self.pause()
         sleep(3)
-        self.frame = self.sensor.get_filtered_frame()
-        self.plot_sensor()
-        self.pn_fig.param.trigger('object')
+        # only here get a new frame before updating the plot
+        self.calib_frame = self.sensor.get_filtered_frame()
+        self.update_calib_plot()
         self.resume()
 
     def _callback_json_filename(self, event):
@@ -1653,33 +1654,6 @@ class CalibModule(Module):
     def _callback_json_save(self, event):
         if self.json_filename is not None:
             self.calib.save_json(file=self.json_filename)
-
-    ### other methods
-
-    def plot_sensor(self):
-        # clear old axes
-        self.ax.cla()
-
-        cmap = copy(plt.cm.gray)
-        cmap.set_under(self.c_under, 1.0)
-        cmap.set_over(self.c_over, 1.0)
-
-        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
-                              self.calib.s_top, fc=self.c_margin, alpha=self.c_margin_alpha)
-        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
-                              self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
-        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc=self.c_margin, alpha=self.c_margin_alpha)
-        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
-
-        self.ax.pcolormesh(self.frame, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=cmap)
-        self.ax.add_patch(rec_t)
-        self.ax.add_patch(rec_r)
-        self.ax.add_patch(rec_b)
-        self.ax.add_patch(rec_l)
-
-        self.ax.set_axis_off()
-
-        return True
 
 
 class BlockModule(Module):
