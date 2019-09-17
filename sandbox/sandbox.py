@@ -302,9 +302,9 @@ class DummySensor(Sensor):
 
     name = 'dummy'
 
-    def __init__(self, width=512, height=424, depth_limits=(1170, 1370),
+    def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
                  corners=True, points_n=4, points_distance=0.3,
-                 alteration_strength=0.1, random_seed=None, **kwds):
+                 alteration_strength=0.1, random_seed=None, **kwargs):
 
         self.depth_width = width
         self.depth_height = height
@@ -324,9 +324,9 @@ class DummySensor(Sensor):
         self.values = None
 
         # call parents' class init
-        super().__init__(**kwds)
+        super().__init__(*args, **kwargs)
 
-    ## Methods
+
     def setup(self):
         # create grid, init values, and init interpolation
         self._create_grid()
@@ -336,12 +336,9 @@ class DummySensor(Sensor):
         print("DummySensor initialized.")
 
     def get_frame(self):
-        # TODO: Add time check for 1/30sec
         self._alter_values()
         self._interpolate()
         return self.depth
-
-    ## Private functions
 
     def _oscillating_depth(self, random):
         r = (self.depth_lim[1] - self.depth_lim[0]) / 2
@@ -610,42 +607,56 @@ class Calibration:
     ### sensor callbacks
 
     def _callback_s_top(self, target, event):
+        self.module.pause()
         # set value in calib
         self.calib.s_top = event.new
         # change plot and trigger panel update
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_s_right(self, target, event):
+        self.module.pause()
         self.calib.s_right = event.new
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_s_bottom(self, target, event):
+        self.module.pause()
         self.calib.s_bottom = event.new
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_s_left(self, target, event):
+        self.module.pause()
         self.calib.s_left = event.new
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_s_min(self, target, event):
+        self.module.pause()
         self.calib.s_min = event.new
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_s_max(self, target, event):
+        self.module.pause()
         self.calib.s_max = event.new
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_refresh_frame(self, event):
+        self.module.pause()
         sleep(3)
         self.frame = self.sensor.get_filtered_frame()
         self.plot_sensor()
         self.pn_fig.param.trigger('object')
+        self.module.resume()
 
     def _callback_json_filename(self, event):
         self.json_filename = event.new
@@ -1138,112 +1149,154 @@ class Plot:
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, contours=True, cmap=None, over=None, under=None, bad=None, norm=None, lot=None):
+    def __init__(self, calibrationdata, contours=True, patches=False,
+                 cmap=None, over=None, under=None, bad=None,
+                 norm=None, lot=None, c_patch='#084C61', c_patch_alpha=0.5,
+                 contours_step=10, contours_width=1.0, contours_color=[(0, 0, 0, 1.0)],
+                 contours_label=False, contours_label_inline=0,
+                 contours_label_fontsize=15, contours_label_format='%3.0f'):
 
         self.calib = calibrationdata
 
+        ### flags
+        self.contours = contours
+        self.patches = patches
+
+        ### pcolormesh setup
         self.cmap = plt.cm.get_cmap(cmap)
-        if over is not None: self.cmap.set_over(over)
-        if under is not None: self.cmap.set_under(under)
-        if bad is not None: self.cmap.set_bad(bad)
+        if over is not None: self.cmap.set_over(over, 1.0)
+        if under is not None: self.cmap.set_under(under, 1.0)
+        if bad is not None: self.cmap.set_bad(bad, 1.0)
 
         self.norm = norm
         self.lot = lot
 
-        # flags
-        self.contours = contours
-        #self.points = True
+        ### contours setup
+        self.contours_levels = numpy.arange(self.calib.s_min, self.calib.s_max, contours_step)
+        self.contours_width = contours_width
+        self.contours_color = contours_color
+        self.contours_label = contours_label
+        self.contours_label_inline = contours_label_inline
+        self.contours_label_fontsize = contours_label_fontsize
+        self.contours_label_format = contours_label_format
+
+        ### patches_setup
+        self.c_patch = c_patch
+        self.c_patch_alpha = c_patch_alpha
 
         # save the figure's Matplotlib number to recall
-        self.number = None
+        #self.number = None
         self.figure = None
         self.ax = None # current plot composition
-
-        self.create_empty_frame() # initial figure for starting projector
+        # initial figure for starting projector
+        self.create_empty_frame()
 
     def create_empty_frame(self):
-        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi,
-                                          self.calib.p_frame_height / self.dpi),
-                                 dpi=self.dpi)  # , frameon=False) # curent figure
+        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+                                 dpi=self.dpi)
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
 
-        self.ax.set_axis_off()
-
         # close figure to prevent inline display
         plt.close(self.figure)
+        self.ax.set_axis_off()
 
         return True
 
     def render_frame(self, data):
-        # clear axes to draw new ones on figure
-        self.ax.cla()
-
-        #self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
-        #self.ax.pcolormesh(self.block,
+        self.ax.cla()  # clear axes to draw new ones on figure
         self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
+
         if self.contours:
-            self.ax.contour(data, colors='k')
+            self.add_contours(data)
 
+        if self.patches:
+            self.add_patches()
 
-        # crop axis (!!!input dimensions of calibrated sensor!!!)
-        self.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
+        # crop axis to input data dimensions, e.g. when labels are out of axes
+        self.ax.axis([0, data.shape[1], 0, data.shape[0]])
         self.ax.set_axis_off()
-
-        # return final figure
-        #return self.figure
-        return True #Todo: why is this return here? Best practice ;)
-
-    def change_size(self):
-        self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
-                                                                   self.calib.p_frame_height / self.dpi))
-
-        # close figure to prevent inline display
-        plt.close(self.figure)
 
         return True
 
-
-    def add_contours(self, contour, data): # TODO: Check compability
+    def add_contours(self, data):
         """
         renders contours to the current plot object. \
         The data has to come in a specific shape as needed by the matplotlib contour function.
         we explicity enforce to provide X and Y at this stage (you are welcome to change this)
 
         Args:
-            contour: a contour instance
             data:  a list with the form x,y,z
                 x: list of the coordinates in x direction (e.g. range(Scale.output_res[0])
                 y: list of the coordinates in y direction (e.g. range(Scale.output_res[1])
                 z: 2D array-like with the values to be contoured
 
+        self.contours_label = contours_label
+        self.contours_width = contours_width
+        self.contours_color = contours_color
+        self.contours_levels = numpy.arange(self.calib.s_min, self.calib.s_max, contours_step)
+        self.contours_label_inline = contours_inline
+        self.contours_label_fontsize = contours_label_fontsize
+        self.contours_label_format = contours_label_format
         Returns:
 
         """
 
-        if contour.show is True:
-            contour.contours = self.ax.contour(data[0], data[1], data[2], levels=contour.levels,
-                                               linewidths=contour.linewidth, colors=contour.colors)
-            if contour.show_labels is True:
-                self.ax.clabel(contour.contours, inline=contour.inline, fontsize=contour.fontsize,
-                               fmt=contour.label_format)
+        contours = self.ax.contour(data,
+                                   levels=self.contours_levels,
+                                   linewidths=self.contours_width,
+                                   colors=self.contours_color)
+        if self.contours_label is True:
+            self.ax.clabel(contours,
+                           inline=self.contours_label_inline,
+                           fontsize=self.contours_label_fontsize,
+                           fmt=self.contours_label_format)
 
-    def add_lith_contours(self, block, levels=None):
-        """
+    def add_patches(self):
+        ''' Only usefull when uncropped frame is passed. '''
 
-        Args:
-            block:
-            levels:
+        w = self.calib.scale_factor[0]
+        h = self.calib.scale_factor[1]
 
-        Returns:
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width, self.calib.s_top,
+                              fc=self.c_patch, alpha=self.c_patch_alpha)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right, self.calib.s_height,
+                              fc=self.c_patch, alpha=self.c_patch_alpha)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom,
+                              fc=self.c_patch, alpha=self.c_patch_alpha)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height,
+                              fc=self.c_patch, alpha=self.c_patch_alpha)
 
-        """
-        plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
+        self.ax.add_patch(rec_t)
+        self.ax.add_patch(rec_r)
+        self.ax.add_patch(rec_b)
+        self.ax.add_patch(rec_l)
 
-    def create_legend(self):
-        """ Returns:
-        """
-        pass
+    # def change_size(self):
+    #     self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
+    #                                                                self.calib.p_frame_height / self.dpi))
+    #
+    #     # close figure to prevent inline display
+    #     plt.close(self.figure)
+    #
+    #     return True
+    #
+    # def add_lith_contours(self, block, levels=None):
+    #     """
+    #
+    #     Args:
+    #         block:
+    #         levels:
+    #
+    #     Returns:
+    #
+    #     """
+    #     plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
+    #
+    # def create_legend(self):
+    #     """ Returns:
+    #     """
+    #     pass
 
 class Module:
     """
@@ -1334,11 +1387,299 @@ class TopoModule(Module):
         self.plot.render_frame(frame)
         self.projector.trigger()
 
+
 class CalibModule(Module):
     """
     Module for calibration and responsive visualization
     """
-    pass
+
+    def __init__(self,*args, **kwargs):
+
+        # customization
+        self.c_under = '#DBD053'
+        self.c_over = '#DB3A34'
+        self.c_margin = '#084C61'
+        self.c_margin_alpha = 0.5
+
+        # call parents' class init
+        super().__init__(*args, contours=True, cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
+
+        self.json_filename = None
+
+        #self.plot = Plot(self.calib,contours=True,cmap='Gray',over=self.c_over,under=self.c_under)
+        #self.interface_plot = Plot(self.calib, )
+
+        # init panel visualization
+        pn.extension()
+        self._create_widgets()
+
+        # sensor calibration visualization --> redo!
+        self.frame = self.sensor.get_filtered_frame()
+        self.fig = plt.figure()
+        self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
+        self.fig.add_axes(self.ax)
+        # close figure to prevent inline display
+        plt.close(self.fig)
+        self.plot_sensor()
+        self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
+
+    def setup(self):
+        frame = self.sensor.get_filtered_frame()
+        #frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+        self.projector.frame.object = self.plot.figure
+
+    def update(self):
+        frame = self.sensor.get_filtered_frame()
+        #frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+        self.projector.trigger()
+
+    def _create_widgets(self):
+        ### projector widgets and links
+
+        self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
+                                                        value=self.calib.p_frame_top,
+                                                        start=0,
+                                                        end=self.calib.p_height - 20)
+        self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
+
+
+        self._widget_p_frame_left = pn.widgets.IntSlider(name='Projector left margin',
+                                                         value=self.calib.p_frame_left,
+                                                         start=0,
+                                                         end=self.calib.p_width - 20)
+        self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
+
+
+        self._widget_p_frame_width = pn.widgets.IntSlider(name='Projector frame width',
+                                                          value=self.calib.p_frame_width,
+                                                          start=10,
+                                                          end=self.calib.p_width)
+        self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
+
+
+        self._widget_p_frame_height = pn.widgets.IntSlider(name='Projector frame height',
+                                                           value=self.calib.p_frame_height,
+                                                           start=10,
+                                                           end=self.calib.p_height)
+        self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
+
+        ### sensor widgets and links
+
+        self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
+                                                  bar_color=self.c_margin,
+                                                  value=self.calib.s_top,
+                                                  start=0,
+                                                  end=self.calib.s_height)
+        self._widget_s_top.link(self.plot_sensor, callbacks={'value': self._callback_s_top})
+
+        self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
+                                                    bar_color=self.c_margin,
+                                                    value=self.calib.s_right,
+                                                    start=0,
+                                                    end=self.calib.s_width)
+        self._widget_s_right.link(self.plot_sensor, callbacks={'value': self._callback_s_right})
+
+        self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
+                                                     bar_color=self.c_margin,
+                                                     value=self.calib.s_bottom,
+                                                     start=0,
+                                                     end=self.calib.s_height)
+        self._widget_s_bottom.link(self.plot_sensor, callbacks={'value': self._callback_s_bottom})
+
+        self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
+                                                   bar_color=self.c_margin,
+                                                   value=self.calib.s_left,
+                                                   start=0,
+                                                   end=self.calib.s_width)
+        self._widget_s_left.link(self.plot_sensor, callbacks={'value': self._callback_s_left})
+
+        self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
+                                                  bar_color=self.c_under,
+                                                  value=self.calib.s_min,
+                                                  start=0,
+                                                  end=2000)
+        self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
+
+        self._widget_s_max = pn.widgets.IntSlider(name='Vertical maximum',
+                                                  bar_color=self.c_over,
+                                                  value=self.calib.s_max,
+                                                  start=0,
+                                                  end=2000)
+        self._widget_s_max.link(self.plot_sensor, callbacks={'value': self._callback_s_max})
+
+        # refresh button
+
+        self._widget_refresh_frame = pn.widgets.Button(name='Refresh sensor frame\n(3 sec. delay)!')
+        self._widget_refresh_frame.param.watch(self._callback_refresh_frame, 'clicks', onlychanged=False)
+
+        # save selection
+
+        # Only for reading files --> Is there no location picker in panel widgets???
+        #self._widget_json_location = pn.widgets.FileInput(name='JSON location')
+        self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
+        self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
+        self._widget_json_filename.value = 'calibration.json'
+
+        self._widget_json_save = pn.widgets.Button(name='Save calibration')
+        self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
+
+        return True
+
+
+    ### layouts
+
+    def calibrate_projector(self):
+        widgets = pn.WidgetBox(self._widget_p_frame_top,
+                               self._widget_p_frame_left,
+                               self._widget_p_frame_width,
+                               self._widget_p_frame_height)
+        panel = pn.Column("### Map positioning", widgets)
+        return panel
+
+    def calibrate_sensor(self):
+        widgets = pn.WidgetBox(self._widget_s_top,
+                               self._widget_s_right,
+                               self._widget_s_bottom,
+                               self._widget_s_left,
+                               self._widget_s_min,
+                               self._widget_s_max,
+                               self._widget_refresh_frame
+                              )
+        rows = pn.Row(widgets, self.pn_fig)
+        panel = pn.Column("### Sensor calibration", rows)
+        return panel
+
+    def calibrate(self):
+        tabs = pn.Tabs(('Projector', self.calibrate_projector()),
+                       ('Sensor', self.calibrate_sensor()),
+                       ('Save', pn.WidgetBox(self._widget_json_filename,
+                                             self._widget_json_save))
+                      )
+        return tabs
+
+    ### projector callbacks
+
+    def _callback_p_frame_top(self, target, event):
+        self.pause()
+        # set value in calib
+        self.calib.p_frame_top = event.new
+        m = target.margin
+        n = event.new
+        # just changing single indices does not trigger updating of pane
+        target.margin = [n, m[1], m[2], m[3]]
+        self.resume()
+
+    def _callback_p_frame_left(self, target, event):
+        self.pause()
+        self.calib.p_frame_left = event.new
+        m = target.margin
+        n = event.new
+        target.margin = [m[0], m[1], m[2], n]
+        self.resume()
+
+    def _callback_p_frame_width(self, target, event):
+        self.pause()
+        self.calib.p_frame_width = event.new
+        target.width = event.new
+        target.param.trigger('object')
+        self.resume()
+
+    def _callback_p_frame_height(self, target, event):
+        self.pause()
+        self.calib.p_frame_height = event.new
+        target.height = event.new
+        target.param.trigger('object')
+        self.resume()
+
+    ### sensor callbacks
+
+    def _callback_s_top(self, target, event):
+        self.pause()
+        # set value in calib
+        self.calib.s_top = event.new
+        # change plot and trigger panel update
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_s_right(self, target, event):
+        self.pause()
+        self.calib.s_right = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_s_bottom(self, target, event):
+        self.pause()
+        self.calib.s_bottom = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_s_left(self, target, event):
+        self.pause()
+        self.calib.s_left = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_s_min(self, target, event):
+        self.pause()
+        self.calib.s_min = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_s_max(self, target, event):
+        self.pause()
+        self.calib.s_max = event.new
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_refresh_frame(self, event):
+        self.pause()
+        sleep(3)
+        self.frame = self.sensor.get_filtered_frame()
+        self.plot_sensor()
+        self.pn_fig.param.trigger('object')
+        self.resume()
+
+    def _callback_json_filename(self, event):
+        self.json_filename = event.new
+
+    def _callback_json_save(self, event):
+        if self.json_filename is not None:
+            self.calib.save_json(file=self.json_filename)
+
+    ### other methods
+
+    def plot_sensor(self):
+        # clear old axes
+        self.ax.cla()
+
+        cmap = copy(plt.cm.gray)
+        cmap.set_under(self.c_under, 1.0)
+        cmap.set_over(self.c_over, 1.0)
+
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
+                              self.calib.s_top, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
+                              self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc=self.c_margin, alpha=self.c_margin_alpha)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
+
+        self.ax.pcolormesh(self.frame, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=cmap)
+        self.ax.add_patch(rec_t)
+        self.ax.add_patch(rec_r)
+        self.ax.add_patch(rec_b)
+        self.ax.add_patch(rec_l)
+
+        self.ax.set_axis_off()
+
+        return True
 
 
 class BlockModule(Module):
