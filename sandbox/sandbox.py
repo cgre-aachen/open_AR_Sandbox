@@ -1685,6 +1685,9 @@ class BlockModule(Module):
     def update(self):
         with self.lock:
             frame = self.sensor.get_filtered_frame()
+            ### mask the frame values that are above and below the set sensor range (TODO: Move to sensor class)
+            frame = numpy.ma.masked_outside(frame, self.calib.s_min, self.calib.s_max)
+
             if self.crop is True:
                 frame = self.crop_frame(frame)
 
