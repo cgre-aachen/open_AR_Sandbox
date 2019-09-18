@@ -1172,7 +1172,7 @@ class Plot:
         self.lot = lot
 
         ### contours setup
-        self.contours_levels = numpy.arange(self.calib.s_min, self.calib.s_max, contours_step)
+        self.contours_step = contours_step  # levels will be supplied via property function
         self.contours_width = contours_width
         self.contours_color = contours_color
         self.contours_label = contours_label
@@ -1190,6 +1190,11 @@ class Plot:
         self.ax = None # current plot composition
         # initial figure for starting projector
         self.create_empty_frame()
+
+    @property
+    def contours_levels(self):
+        return numpy.arange(self.calib.s_min, self.calib.s_max, self.contours_step)
+
 
     def create_empty_frame(self):
         self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
@@ -1373,8 +1378,8 @@ class Module:
 
     def crop_frame(self, frame):
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-        clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
-        return clip
+        #clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
+        return crop
 
 
 class TopoModule(Module):
@@ -1415,12 +1420,11 @@ class CalibModule(Module):
         self.json_filename = None
 
         # sensor calibration visualization
-        self.calib_frame = None
+        pn.extension()
+        self.calib_frame = None # snapshot of sensor frame, only updated with refresh button
         self.calib_plot = Plot(self.calib, patches=True,
                                contours=True, cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
-
-        # init panel visualization
-        pn.extension()
+        self.calib_panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         self._create_widgets()
 
     ### standard methods
@@ -1434,7 +1438,7 @@ class CalibModule(Module):
         # sensor calibration visualization
         self.calib_frame = self.sensor.get_filtered_frame()
         self.calib_plot.render_frame(self.calib_frame)
-        self.pn_figure.object = self.calib_plot.figure
+        self.calib_panel_frame.object = self.calib_plot.figure
 
     def update(self):
         frame = self.sensor.get_filtered_frame()
@@ -1445,7 +1449,7 @@ class CalibModule(Module):
 
     def update_calib_plot(self):
         self.calib_plot.render_frame(self.calib_frame)
-        self.pn_figure.param.trigger('object')
+        self.calib_panel_frame.param.trigger('object')
 
     ### layouts
     def calibrate_projector(self):
@@ -1465,7 +1469,7 @@ class CalibModule(Module):
                                self._widget_s_max,
                                self._widget_refresh_frame
                               )
-        rows = pn.Row(widgets, self.pn_figure)
+        rows = pn.Row(widgets, self.calib_panel_frame)
         panel = pn.Column("### Sensor calibration", rows)
         return panel
 
@@ -1478,10 +1482,6 @@ class CalibModule(Module):
         return tabs
 
     def _create_widgets(self):
-
-        ### sensor calibration visualization
-
-        self.pn_figure = pn.pane.Matplotlib(plt.figure(), tight=False)
 
         ### projector widgets and links
 
