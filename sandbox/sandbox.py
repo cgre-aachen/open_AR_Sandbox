@@ -1519,42 +1519,42 @@ class CalibModule(Module):
                                                   value=self.calib.s_top,
                                                   start=0,
                                                   end=self.calib.s_height)
-        self._widget_s_top.link(self.update_calib_plot, callbacks={'value': self._callback_s_top})
+        self._widget_s_top.param.watch(self._callback_s_top, 'value', onlychanged=False)
 
         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
                                                     bar_color=self.c_margin,
                                                     value=self.calib.s_right,
                                                     start=0,
                                                     end=self.calib.s_width)
-        self._widget_s_right.link(self.update_calib_plot, callbacks={'value': self._callback_s_right})
+        self._widget_s_right.param.watch(self._callback_s_right, 'value', onlychanged=False)
 
         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
                                                      bar_color=self.c_margin,
                                                      value=self.calib.s_bottom,
                                                      start=0,
                                                      end=self.calib.s_height)
-        self._widget_s_bottom.link(self.update_calib_plot, callbacks={'value': self._callback_s_bottom})
+        self._widget_s_bottom.param.watch(self._callback_s_bottom, 'value', onlychanged=False)
 
         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
                                                    bar_color=self.c_margin,
                                                    value=self.calib.s_left,
                                                    start=0,
                                                    end=self.calib.s_width)
-        self._widget_s_left.link(self.update_calib_plot, callbacks={'value': self._callback_s_left})
+        self._widget_s_left.param.watch(self._callback_s_left, 'value', onlychanged=False)
 
         self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
                                                   bar_color=self.c_under,
                                                   value=self.calib.s_min,
                                                   start=0,
                                                   end=2000)
-        self._widget_s_min.link(self.update_calib_plot, callbacks={'value': self._callback_s_min})
+        self._widget_s_min.param.watch(self._callback_s_min, 'value', onlychanged=False)
 
         self._widget_s_max = pn.widgets.IntSlider(name='Vertical maximum',
                                                   bar_color=self.c_over,
                                                   value=self.calib.s_max,
                                                   start=0,
                                                   end=2000)
-        self._widget_s_max.link(self.update_calib_plot, callbacks={'value': self._callback_s_max})
+        self._widget_s_max.param.watch(self._callback_s_max, 'value', onlychanged=False)
 
         # refresh button
 
@@ -1610,7 +1610,7 @@ class CalibModule(Module):
 
     ### sensor callbacks
 
-    def _callback_s_top(self, target, event):
+    def _callback_s_top(self, event):
         self.pause()
         # set value in calib
         self.calib.s_top = event.new
@@ -1618,31 +1618,31 @@ class CalibModule(Module):
         self.update_calib_plot()
         self.resume()
 
-    def _callback_s_right(self, target, event):
+    def _callback_s_right(self, event):
         self.pause()
         self.calib.s_right = event.new
         self.update_calib_plot()
         self.resume()
 
-    def _callback_s_bottom(self, target, event):
+    def _callback_s_bottom(self, event):
         self.pause()
         self.calib.s_bottom = event.new
         self.update_calib_plot()
         self.resume()
 
-    def _callback_s_left(self, target, event):
+    def _callback_s_left(self, event):
         self.pause()
         self.calib.s_left = event.new
         self.update_calib_plot()
         self.resume()
 
-    def _callback_s_min(self, target, event):
+    def _callback_s_min(self, event):
         self.pause()
         self.calib.s_min = event.new
         self.update_calib_plot()
         self.resume()
 
-    def _callback_s_max(self, target, event):
+    def _callback_s_max(self, event):
         self.pause()
         self.calib.s_max = event.new
         self.update_calib_plot()
@@ -1651,7 +1651,7 @@ class CalibModule(Module):
     def _callback_refresh_frame(self, event):
         self.pause()
         sleep(3)
-        # only here get a new frame before updating the plot
+        # only here, get a new frame before updating the plot
         self.calib_frame = self.sensor.get_filtered_frame()
         self.update_calib_plot()
         self.resume()
