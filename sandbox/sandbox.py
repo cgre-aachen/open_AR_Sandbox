@@ -1666,6 +1666,8 @@ class BlockModule(Module):
         self.cmap_dict = {}
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
+        self.data_mask = None #stores the Livecell information from the VIP  File
+        self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
         self.index = None
         self.widget = None #widget to change models in runtime
 
@@ -1676,6 +1678,7 @@ class BlockModule(Module):
         elif self.cmap_dict is None:
             self.set_colormaps()
         self.rescale_blocks()
+        self.rescale_mask()
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
@@ -1685,7 +1688,14 @@ class BlockModule(Module):
             if self.crop is True:
                 frame = self.crop_frame(frame)
 
-            data = self.rescaled_block_dict[self.displayed_dataset_key]
+            if self.rescaled_data_mask is None: #check if there is a data_mask
+                data = self.rescaled_block_dict[self.displayed_dataset_key]
+            else:    #apply data mask
+                data = numpy.ma.masked_array(
+                    self.rescaled_block_dict[self.displayed_dataset_key],
+                    mask=self.rescaled_data_mask
+                )
+
             zmin = self.calib.s_min
             zmax = self.calib.s_max
 
@@ -1701,7 +1711,7 @@ class BlockModule(Module):
 
             # self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
             # self.ax.pcolormesh(self.block,
-            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key][0],norm=self.cmap_dict[self.displayed_dataset_key][1] )
+            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), bad="black", cmap=self.cmap_dict[self.displayed_dataset_key][0],norm=self.cmap_dict[self.displayed_dataset_key][1] )
             #render and display
             self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
             self.plot.ax.set_axis_off()
@@ -1770,7 +1780,14 @@ class BlockModule(Module):
 
         print(nx, ny, nz)
 
-        while True:  # skip to Data section, ignoring Livecells
+        while True:  # skip to Livecell
+            l = f.readline().split()
+            if len(l) > 0 and l[0] == "LIVECELL":
+                self.parse_Livecells_VIP(f, nx, ny, nz)
+                print("Livecells loaded")
+                break
+
+        while True:  # skip to Data section
             l = f.readline()
             ls = l.split()
             if len(ls) == 3:
@@ -1798,6 +1815,14 @@ class BlockModule(Module):
                 order=0
             )
             self.rescaled_block_dict[key] = rescaled_block
+
+    def rescale_mask(self): #scale the blocks xy Size to the cropped size of the sensor
+            rescaled_mask = skimage.transform.resize(
+                self.data_mask,
+                (self.calib.s_frame_height, self.calib.s_frame_width),
+                order=0
+            )
+            self.rescaled_data_mask = rescaled_mask
 
     def clear_models(self):
         self.block_dict = {}
@@ -1853,6 +1878,30 @@ class BlockModule(Module):
                 f.readline()
 
         value_dict[key] = data_np
+
+    def parse_Livecells_VIP(self,  current_file, nx, ny, nz):
+
+        data_np = numpy.empty((nx, ny, nz))
+        values_per_line = 50
+
+        for z in range(nz):
+            for y in range(ny):
+                x = 0
+                for n in range(nx // values_per_line):  # read values in full lines
+                    l = current_file.readline().split()
+
+                    for i in range(values_per_line):  # iterate values in the line
+                        value = l[i]
+                        data_np[x, y, z] = float(value)
+                        x = x + 1  # iterate x
+
+                l = current_file.readline().split()
+                for i in range(nx % values_per_line):  # read values in the last not full line
+                    value = l[i]
+                    data_np[x, y, z] = float(value)
+                    x = x + 1
+
+        self.data_mask = data_np
 
     def parse_block_VIP(self, current_file, value_dict, nx, ny, nz):
 
