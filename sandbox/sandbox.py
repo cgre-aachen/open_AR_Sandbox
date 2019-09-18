@@ -1303,13 +1303,6 @@ class Plot:
     #     """
     #     pass
 
-    def create_cmap(self, clist):
-        cmap = matplotlib.colors.ListedColormap(clist)
-        return cmap
-
-    def create_norm(self, _min, _max):
-        norm = matplotlib.colors.Normalize(vmin=_min, vmax=_max)
-        return norm
 
 class Module:
     """
@@ -1345,7 +1338,7 @@ class Module:
 
     def thread_loop(self):
         while self.thread_status == 'running':
-            with self.lock:
+           # with self.lock:
                 self.update()
 
     def run(self):
@@ -1687,7 +1680,7 @@ class BlockModule(Module):
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
     def update(self):
-        with self._lock:
+        with self.lock:
             frame = self.sensor.get_filtered_frame()
             if self.crop is True:
                 frame = self.crop_frame(frame)
@@ -1708,7 +1701,7 @@ class BlockModule(Module):
 
             # self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
             # self.ax.pcolormesh(self.block,
-            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key])
+            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=self.cmap_dict[self.displayed_dataset_key][0],norm=self.cmap_dict[self.displayed_dataset_key][1] )
             #render and display
             self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
             self.plot.ax.set_axis_off()
@@ -1716,14 +1709,28 @@ class BlockModule(Module):
             self.projector.trigger()
             return True
 
+    def create_cmap(self, clist):
+        """
+        create a matplotlib colormap object from a list of discrete colors
+        :param clist: list of colors
+        :return: colormap
+        """
+
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('default',clist, N=256)
+        return cmap
+
+    def create_norm(self, vmin, vmax):
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        return norm
+
     def set_colormap(self, key=None, cmap='jet', norm=None):
         min = self.block_dict[key].min()
         max = self.block_dict[key].max()
         if cmap==None:
             cmap='jet'
         if norm==None:
-            norm= Plot.create_norm(min, max)
-        self.cmap_dict[key] = [cmap,norm]
+            norm= self.create_norm(min, max)
+        self.cmap_dict[key] = [cmap, norm]
 
     def set_colormaps(self, cmap='jet', norm=None):
         """
@@ -1733,13 +1740,15 @@ class BlockModule(Module):
         :param norm:
         :return:
         """
-        for key in self.block_dict.keys:
+        for key in self.block_dict.keys():
             min = self.block_dict[key].min()
             max = self.block_dict[key].max()
+            if key not in self.cmap_dict.keys(): #add entry if not already in cmap_dict
+                self.cmap_dict[key] = None
             if self.cmap_dict[key] is None:
                 if norm is None:
-                    norm=Plot.create_norm(min, max)
-                self.cmap_dict[key]=[cmap, norm]
+                    norm = self.create_norm(min, max)
+                self.cmap_dict[key] = [cmap, norm]
 
 
 
