@@ -1369,10 +1369,37 @@ class Module:
         else:
             print('Thread already stopped.')
 
+    def depth_mask(self, frame):
+        """
+        creates a boolean mask with true for all values within the set sensor range and false for every pixel above and below
+        if you also want to use clipping, make sure to use the mask before
+        :param frame:
+        :return:
+        """
+
+        # mask the frame values that are above and below the set sensor range
+        mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.calib.s_min, self.calib.s_max))
+        return mask
+
     def crop_frame(self, frame):
+        """
+
+        :param frame:
+        :return:
+        """
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-        #clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
+       #clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
         return crop
+
+    def clip_frame(self, frame):
+        """
+        clips all values outside of the sensor range to the set s_min and s_max values.
+        If you want to create a mask make sure to call depth_mask before performing the clip
+        :param frame:
+        :return:
+        """
+        clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
+        return clip
 
 
 class TopoModule(Module):
@@ -1678,25 +1705,25 @@ class BlockModule(Module):
         elif self.cmap_dict is None:
             self.set_colormaps()
         self.rescale_blocks()
-        self.rescale_mask()
+        self.rescale_mask() #nearest neighbour?
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
     def update(self):
         with self.lock:
             frame = self.sensor.get_filtered_frame()
-            ### mask the frame values that are above and below the set sensor range (TODO: Move to sensor class)
-            frame = numpy.ma.masked_outside(frame, self.calib.s_min, self.calib.s_max)
 
             if self.crop is True:
                 frame = self.crop_frame(frame)
+            depth_mask = self.depth_mask(frame)
+            frame = self.clip_frame(frame)
 
             if self.rescaled_data_mask is None: #check if there is a data_mask
                 data = self.rescaled_block_dict[self.displayed_dataset_key]
             else:    #apply data mask
                 data = numpy.ma.masked_array(
                     self.rescaled_block_dict[self.displayed_dataset_key],
-                    mask=self.rescaled_data_mask
+                    mask=numpy.logical_not(self.rescaled_data_mask) # invert mask TODO: Tidy up!
                 )
 
             zmin = self.calib.s_min
@@ -1706,15 +1733,21 @@ class BlockModule(Module):
             index = index.round()  # round to next integer
             index = index.astype('int')
 
+
+
             # querry the array:
             i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
             result = data[i, j, index]
 
-            self.plot.ax.cla()
+            result = numpy.ma.masked_array(result, mask=depth_mask) #apply the depth mask
 
-            # self.block = rasterdata.reshape((self.calib.s_frame_height, self.calib.s_frame_width))
-            # self.ax.pcolormesh(self.block,
-            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), bad="black", cmap=self.cmap_dict[self.displayed_dataset_key][0],norm=self.cmap_dict[self.displayed_dataset_key][1] )
+            self.plot.ax.cla()
+            cmap=self.cmap_dict[self.displayed_dataset_key][0]
+            cmap.set_over('black')
+            cmap.set_under('black')
+            cmap.set_bad('black')
+            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=cmap, norm=self.cmap_dict[self.displayed_dataset_key][1] )
+
             #render and display
             self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
             self.plot.ax.set_axis_off()
