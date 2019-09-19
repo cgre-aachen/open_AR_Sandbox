@@ -1779,14 +1779,16 @@ class BlockModule(Module):
     def set_colormap(self, key=None, cmap='jet', norm=None):
         min = self.block_dict[key].min()
         max = self.block_dict[key].max()
-        if cmap==None:
-            cmap = matplotlib.cm.jet
 
-        if norm==None:
+        if isinstance(cmap, str):  # get colormap by name
+            cmap=matplotlib.cm.get_cmap(name=cmap, lut=None)
+
+        if norm is None:
             norm = self.create_norm(min, max)
+            
         self.cmap_dict[key] = [cmap, norm]
 
-    def set_colormaps(self, cmap='jet', norm=None):
+    def set_colormaps(self, cmap=None, norm=None):
         """
         iterates over all datasets and checks if a colormap has been set. if no colormaps exists it creates one.
         default colormap: jet
@@ -1795,14 +1797,10 @@ class BlockModule(Module):
         :return:
         """
         for key in self.block_dict.keys():
-            min = self.block_dict[key].min()
-            max = self.block_dict[key].max()
             if key not in self.cmap_dict.keys(): #add entry if not already in cmap_dict
                 self.cmap_dict[key] = None
-            if self.cmap_dict[key] is None:
-                if norm is None:
-                    norm = self.create_norm(min, max)
-                self.cmap_dict[key] = [cmap, norm]
+                self.set_colormap(key, cmap, norm)
+
 
 
 
