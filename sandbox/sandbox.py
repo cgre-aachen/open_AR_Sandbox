@@ -1773,12 +1773,12 @@ class BlockModule(Module):
         min = self.block_dict[key].min()
         max = self.block_dict[key].max()
 
-        if cmap is None:
-            cmap = matplotlib.cm.jet
-            print(cmap)
+        if isinstance(cmap, str):  # get colormap by name
+            cmap=matplotlib.cm.get_cmap(name=cmap, lut=None)
 
-        if norm==None:
+        if norm is None:
             norm = self.create_norm(min, max)
+            
         self.cmap_dict[key] = [cmap, norm]
 
     def set_colormaps(self, cmap=None, norm=None):
@@ -1790,8 +1790,6 @@ class BlockModule(Module):
         :return:
         """
         for key in self.block_dict.keys():
-            min = self.block_dict[key].min()
-            max = self.block_dict[key].max()
             if key not in self.cmap_dict.keys(): #add entry if not already in cmap_dict
                 self.cmap_dict[key] = None
                 self.set_colormap(key, cmap, norm)
