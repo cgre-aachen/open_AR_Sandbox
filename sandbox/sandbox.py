@@ -1142,8 +1142,9 @@ class Contour:  # TODO: change the whole thing to use keyword arguments!! Move t
 
 
 class Plot:
-    """
-    handles the plotting of a sandbox model
+    """ Standard class that handles the plot creation and update of a sandbox Module
+
+
 
     """
 
