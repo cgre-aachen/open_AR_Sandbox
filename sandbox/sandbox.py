@@ -1995,7 +1995,9 @@ class BlockModule(Module):
         pn.extension()
         self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
                                                   options=list(self.block_dict.keys()),
-                                                  button_type='success')
+                                                  value=self.displayed_dataset_key,
+                                                  button_type='success',
+                                                  style='height: 60px;')
         self.widget.param.watch(self.update_selection, 'value', onlychanged=False)
         return self.widget
 
