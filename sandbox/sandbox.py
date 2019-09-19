@@ -1773,9 +1773,10 @@ class BlockModule(Module):
         min = self.block_dict[key].min()
         max = self.block_dict[key].max()
         if cmap==None:
-            cmap='jet'
+            cmap = matplotlib.cm.jet
+
         if norm==None:
-            norm= self.create_norm(min, max)
+            norm = self.create_norm(min, max)
         self.cmap_dict[key] = [cmap, norm]
 
     def set_colormaps(self, cmap='jet', norm=None):
