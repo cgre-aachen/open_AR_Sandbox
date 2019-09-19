@@ -1798,8 +1798,7 @@ class BlockModule(Module):
         """
         for key in self.block_dict.keys():
             if key not in self.cmap_dict.keys(): #add entry if not already in cmap_dict
-                self.cmap_dict[key] = None
-                self.set_colormap(key, cmap, norm)
+                self.set_colormap(key)
 
 
 
