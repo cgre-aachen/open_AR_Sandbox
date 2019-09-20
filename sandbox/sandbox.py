@@ -1778,7 +1778,7 @@ class BlockModule(Module):
 
         if norm is None:
             norm = self.create_norm(min, max)
-            
+
         self.cmap_dict[key] = [cmap, norm]
 
     def set_colormaps(self, cmap=None, norm=None):
@@ -1868,7 +1868,7 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz, values_per_line=8 ):
+    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz):
         """
         Function to load a single block from a file that comes without any metadata.
         A string for the key as well as the dimension of the Block model have to be specified.
@@ -1889,9 +1889,16 @@ class BlockModule(Module):
         values = []
         data_np = numpy.empty((nx, ny, nz))
 
+        pointer = f.tell()#store pointer position to come back to after the values per line were determined
+        for i in range(3):
+            f.readline()
+        l = f.readline().split()
+        values_per_line = len(l)
+        print(values_per_line)
+        blocklength = nx // values_per_line
+        f.seek(pointer) #go back to pointer position
 
         # read block data
-        blocklength = nx // values_per_line
         if (nx % values_per_line) != 0:
             blocklength = blocklength + 1
 
@@ -1917,7 +1924,13 @@ class BlockModule(Module):
     def parse_Livecells_VIP(self,  current_file, nx, ny, nz):
 
         data_np = numpy.empty((nx, ny, nz))
-        values_per_line = 50
+
+        pointer = current_file.tell()#store pointer position to come back to after the values per line were determined
+        l = current_file.readline().split()
+        values_per_line = len(l)
+        print(values_per_line)
+        current_file.seek(pointer) #go back to pointer position
+
 
         for z in range(nz):
             for y in range(ny):
@@ -1952,8 +1965,16 @@ class BlockModule(Module):
         #       print(f.readline())
 
         # read block data
-        values_per_line = 8
+
+        pointer = f.tell()#store pointer position to come back to after the values per line were determined
+        for i in range(3):
+            f.readline()
+        l = f.readline().split()
+        values_per_line = len(l)
+        print(values_per_line)
         blocklength = nx // values_per_line
+        f.seek(pointer) #go back to pointer position
+
         if (nx % values_per_line) != 0:
             blocklength = blocklength + 1
 
@@ -1983,8 +2004,8 @@ class BlockModule(Module):
     def show_selector(self):
         """
         displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
 
-        :return:
         """
         pn.extension()
         self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
