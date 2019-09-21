@@ -166,7 +166,7 @@ class KinectV1(Sensor):
         freenect.close_device(self.device)  # TODO Test if this has to be done!
         # get the first Depth frame already (the first one takes much longer than the following)
         self.depth = self.get_frame()
-        print("kinect initialized")
+        print("KinectV1 initialized.")
 
     def set_angle(self, angle):  # TODO: throw out
         """
@@ -235,6 +235,7 @@ class KinectV2(Sensor):
         self.color = self.get_color()
         #self.ir_frame_raw = self.get_ir_frame_raw()
         #self.ir_frame = self.get_ir_frame()
+        print("KinectV2 initialized.")
 
     def get_frame(self):
         """
@@ -814,28 +815,24 @@ class CalibrationData:
     def __init__(self,
                  p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
                  p_frame_width=600, p_frame_height=450,
-                 s_top=0, s_right=0, s_bottom=0, s_left=0, s_min=700, s_max=1500,
+                 s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  file=None):
         """
 
         Args:
-            p_width=800
-            p_height=600
-            p_frame_top=0
-            p_frame_left=0
-            p_frame_width=600
-            p_frame_height=450
-            s_top=0
-            s_right=0
-            s_bottom=0
-            s_left=0
-            s_min=700
-            s_max=1500
-            file=None
-
-        Returns:
-            None
-
+            p_width:
+            p_height:
+            p_frame_top:
+            p_frame_left:
+            p_frame_width:
+            p_frame_height:
+            s_top:
+            s_right:
+            s_bottom:
+            s_left:
+            s_min:
+            s_max:
+            file:
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
@@ -1218,7 +1215,7 @@ class Plot(object):
         self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
 
         if self.contours:
-            if contourdata is not None:
+            if contourdata is None:
                 self.add_contours(data)
             else:
                 self.add_contours(contourdata)
@@ -1359,34 +1356,41 @@ class Module:
             print('Thread already stopped.')
 
     def depth_mask(self, frame):
-        """
-        creates a boolean mask with true for all values within the set sensor range and false for every pixel above and below
-        if you also want to use clipping, make sure to use the mask before
-        :param frame:
-        :return:
+        """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
+        above and below. If you also want to use clipping, make sure to use the mask before.
         """
 
-        # mask the frame values that are above and below the set sensor range
         mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.calib.s_min, self.calib.s_max))
         return mask
 
     def crop_frame(self, frame):
+        """ Crops the data frame according to the horizontal margins set up in the calibration
         """
 
-        :param frame:
-        :return:
-        """
+        # TODO: Does not work yet for s_top = 0 and s_right = 0, which currently returns an empty frame!
+        # TODO: Workaround: do not allow zeroes in calibration widget and use default value = 1
+        # TODO: File numpy issue?
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-       #clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
         return crop
 
+     def crop_frame_workaround(self, frame):
+         # bullet proof working example
+
+         if self.calib.s_top == 0 and self.calib.s_right == 0:
+             crop = frame[self.calib.s_bottom:, self.calib.s_left:]
+         elif self.calib.s_top == 0:
+             crop = frame[self.calib.s_bottom:, self.calib.s_left:-self.calib.s_right]
+         elif self.calib.s_right == 0:
+             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
+         else:
+             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+         return crop
+
     def clip_frame(self, frame):
+        """ Clips all values outside of the sensor range to the set s_min and s_max values.
+        If you want to create a mask make sure to call depth_mask before performing the clip.
         """
-        clips all values outside of the sensor range to the set s_min and s_max values.
-        If you want to create a mask make sure to call depth_mask before performing the clip
-        :param frame:
-        :return:
-        """
+
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
 
@@ -1532,28 +1536,28 @@ class CalibModule(Module):
         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
                                                   bar_color=self.c_margin,
                                                   value=self.calib.s_top,
-                                                  start=0,
+                                                  start=1,
                                                   end=self.calib.s_height)
         self._widget_s_top.param.watch(self._callback_s_top, 'value', onlychanged=False)
 
         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
                                                     bar_color=self.c_margin,
                                                     value=self.calib.s_right,
-                                                    start=0,
+                                                    start=1,
                                                     end=self.calib.s_width)
         self._widget_s_right.param.watch(self._callback_s_right, 'value', onlychanged=False)
 
         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
                                                      bar_color=self.c_margin,
                                                      value=self.calib.s_bottom,
-                                                     start=0,
+                                                     start=1,
                                                      end=self.calib.s_height)
         self._widget_s_bottom.param.watch(self._callback_s_bottom, 'value', onlychanged=False)
 
         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
                                                    bar_color=self.c_margin,
                                                    value=self.calib.s_left,
-                                                   start=0,
+                                                   start=1,
                                                    end=self.calib.s_width)
         self._widget_s_left.param.watch(self._callback_s_left, 'value', onlychanged=False)
 
