@@ -1835,7 +1835,7 @@ class BlockModule(Module):
                 if ls[2] == 'parameters':
                     break
 
-        for i in range(4):
+        for i in range(3): #was 4
             f.readline()
 
         # parse the data
@@ -1874,7 +1874,7 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz):
+    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz, values_per_line=8):
         """
         Function to load a single block from a file that comes without any metadata.
         A string for the key as well as the dimension of the Block model have to be specified.
@@ -1895,14 +1895,16 @@ class BlockModule(Module):
         values = []
         data_np = numpy.empty((nx, ny, nz))
 
-        pointer = f.tell()#store pointer position to come back to after the values per line were determined
-        for i in range(3):
-            f.readline()
-        l = f.readline().split()
-        values_per_line = len(l)
-        print(values_per_line)
+       # pointer = f.tell()#store pointer position to come back to after the values per line were determined
+       # for i in range(3):
+       #     f.readline()
+       # l = f.readline().split()
+       # values_per_line = len(l)
+       # print(values_per_line)
+
+      #  f.seek(pointer,0) #go back to pointer position
+
         blocklength = nx // values_per_line
-        f.seek(pointer) #go back to pointer position
 
         # read block data
         if (nx % values_per_line) != 0:
@@ -1932,11 +1934,10 @@ class BlockModule(Module):
         data_np = numpy.empty((nx, ny, nz))
 
         pointer = current_file.tell()#store pointer position to come back to after the values per line were determined
-        l = current_file.readline().split()
-        values_per_line = len(l)
+        line = current_file.readline().split()
+        values_per_line = len(line)
         print(values_per_line)
         current_file.seek(pointer) #go back to pointer position
-
 
         for z in range(nz):
             for y in range(ny):
@@ -1949,11 +1950,13 @@ class BlockModule(Module):
                         data_np[x, y, z] = float(value)
                         x = x + 1  # iterate x
 
-                l = current_file.readline().split()
-                for i in range(nx % values_per_line):  # read values in the last not full line
-                    value = l[i]
-                    data_np[x, y, z] = float(value)
-                    x = x + 1
+
+                if nx % values_per_line>0:
+                    l = current_file.readline().split()
+                    for i in range(nx % values_per_line):  # read values in the last not full line
+                        value = l[i]
+                        data_np[x, y, z] = float(value)
+                        x = x + 1
 
         self.data_mask = data_np
 
@@ -1963,12 +1966,14 @@ class BlockModule(Module):
 
         # prepare storage objects
         key = f.readline().split()[0]
+        print(key)
+        # skip to Beginning of block
+      #  for i in range(4):
+       #     print(f.readline())
         values = []
         data_np = numpy.empty((nx, ny, nz))
 
-        # skip to Beginning of block
-        #   for i in range(4):
-        #       print(f.readline())
+
 
         # read block data
 
@@ -2004,7 +2009,7 @@ class BlockModule(Module):
         value_dict[key] = data_np
 
         # skip to end of block
-        for i in range(4):
+        for i in range(3): #was 4
             f.readline()
 
     def show_selector(self):
