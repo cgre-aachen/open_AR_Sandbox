@@ -1373,18 +1373,17 @@ class Module:
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
         return crop
 
-     def crop_frame_workaround(self, frame):
-         # bullet proof working example
-
-         if self.calib.s_top == 0 and self.calib.s_right == 0:
-             crop = frame[self.calib.s_bottom:, self.calib.s_left:]
-         elif self.calib.s_top == 0:
-             crop = frame[self.calib.s_bottom:, self.calib.s_left:-self.calib.s_right]
-         elif self.calib.s_right == 0:
-             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
-         else:
-             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-         return crop
+    def crop_frame_workaround(self, frame):
+        # bullet proof working example
+        if self.calib.s_top == 0 and self.calib.s_right == 0:
+            crop = frame[self.calib.s_bottom:, self.calib.s_left:]
+        elif self.calib.s_top == 0:
+            crop = frame[self.calib.s_bottom:, self.calib.s_left:-self.calib.s_right]
+        elif self.calib.s_right == 0:
+            crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
+        else:
+            crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+        return crop
 
     def clip_frame(self, frame):
         """ Clips all values outside of the sensor range to the set s_min and s_max values.
