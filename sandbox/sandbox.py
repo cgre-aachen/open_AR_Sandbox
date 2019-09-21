@@ -1,8 +1,6 @@
-import os
-from warnings import warn
-
 # class infrastructre
 from abc import ABCMeta, abstractmethod
+from warnings import warn
 
 try:
     import freenect
@@ -28,8 +26,6 @@ except ImportError:
     # warn('opencv is not installed. Object detection will not work')
     pass
 
-import webbrowser
-import pickle
 import numpy
 import scipy
 import scipy.ndimage
@@ -47,19 +43,13 @@ from scipy.interpolate import griddata
 #for resizing of block data:
 import skimage
 
-from itertools import count
-from PIL import Image, ImageDraw
-import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import matplotlib
 # import gempy.hackathon as hackathon
-import IPython
 import threading
 
 import json
 import pandas as pd
-
-from copy import copy
 
 # TODO: When we move GeoMapModule import gempy just there
 try:
@@ -176,7 +166,7 @@ class KinectV1(Sensor):
         freenect.close_device(self.device)  # TODO Test if this has to be done!
         # get the first Depth frame already (the first one takes much longer than the following)
         self.depth = self.get_frame()
-        print("kinect initialized")
+        print("KinectV1 initialized.")
 
     def set_angle(self, angle):  # TODO: throw out
         """
@@ -245,6 +235,7 @@ class KinectV2(Sensor):
         self.color = self.get_color()
         #self.ir_frame_raw = self.get_ir_frame_raw()
         #self.ir_frame = self.get_ir_frame()
+        print("KinectV2 initialized.")
 
     def get_frame(self):
         """
@@ -336,6 +327,11 @@ class DummySensor(Sensor):
         print("DummySensor initialized.")
 
     def get_frame(self):
+        """
+
+        Returns:
+
+        """
         self._alter_values()
         self._interpolate()
         return self.depth
@@ -819,28 +815,24 @@ class CalibrationData:
     def __init__(self,
                  p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
                  p_frame_width=600, p_frame_height=450,
-                 s_top=0, s_right=0, s_bottom=0, s_left=0, s_min=700, s_max=1500,
+                 s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  file=None):
         """
 
         Args:
-            p_width=800
-            p_height=600
-            p_frame_top=0
-            p_frame_left=0
-            p_frame_width=600
-            p_frame_height=450
-            s_top=0
-            s_right=0
-            s_bottom=0
-            s_left=0
-            s_min=700
-            s_max=1500
-            file=None
-
-        Returns:
-            None
-
+            p_width:
+            p_height:
+            p_frame_top:
+            p_frame_left:
+            p_frame_width:
+            p_frame_height:
+            s_top:
+            s_right:
+            s_bottom:
+            s_left:
+            s_min:
+            s_max:
+            file:
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
@@ -1103,55 +1095,8 @@ class Grid:
         self.depth_grid = depth_grid
 
 
-class Contour:  # TODO: change the whole thing to use keyword arguments!! Move to Plot class!
-    """
-    class to handle contour lines in the sandbox. contours can show depth or anything else.
-    TODO: pass on keyword arguments to the plot and label functions for more flexibility
-
-    """
-
-    def __init__(self, start, end, step, show=True, show_labels=False, linewidth=1.0, colors=[(0, 0, 0, 1.0)],
-                 inline=0, fontsize=15, label_format='%3.0f'):
-        """
-
-        Args:
-            start:
-            end:
-            step:
-            show:
-            show_labels:
-            linewidth:
-            colors:
-            inline:
-            fontsize:
-            label_format:
-
-        Returns:
-            None
-
-        """
-        self.start = start
-        self.end = end
-        self.step = step
-        self.show = show
-        self.show_labels = show_labels
-        self.linewidth = linewidth
-        self.colors = colors
-        self.levels = numpy.arange(self.start, self.end, self.step)
-        self.contours = None
-        self.data = None  # Data has to be updated for each frame
-
-        # label attributes:
-        self.inline = inline
-        self.fontsize = fontsize
-        self.label_format = label_format
-
-
-class Plot:
-    """ Standard class that handles the plot creation and update of a sandbox Module
-
-
-
+class Plot(object):
+    """Standard class that handles the creation and update of a plot for sandbox Modules
     """
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
@@ -1159,26 +1104,61 @@ class Plot:
     def __init__(self, calibrationdata, contours=True, margins=False,
                  cmap=None, over=None, under=None, bad=None,
                  norm=None, lot=None, margin_color='r', margin_alpha=0.5,
-                 contours_step=10, contours_width=1.0, contours_color=[(0, 0, 0, 1.0)],
-                 contours_label=False, contours_label_inline=0,
+                 contours_step=10, contours_width=1.0, contours_color='k',
+                 contours_label=False, contours_label_inline=True,
                  contours_label_fontsize=15, contours_label_format='%3.0f'):
+        """Creates a new plot instance.
+
+        Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
+        Margin patches are e.g. used for the visualization of sensor calibration margins on an uncropped dataframe.
+        The rendered plot is accessible via the 'figure' attribute. Internally only the plot axes will be rendered
+        and updated. The dataframe will be supplied via the 'render_frame' method.
+
+        Args:
+            calibrationdata (CalibrationData): Instance that contains information of the current calibration values.
+            contours (bool): Flag that enables or disables contours plotting.
+                (default is True)
+            margins (bool): Flag that enables or disables plotting of margin patches.
+            cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
+            over (e.g. str): Color used for values above the expected data range.
+            under (e.g. str): Color used for values below the expected data range.
+            bad (e.g. str): Color used for invalid or masked data values.
+            norm: Future feature!
+            lot: Future feature!
+            margin_color (e.g. str): Color of margin patches if enabled.
+            margin_alpha (float): Transparency of margin patches.
+                (default is 0.5)
+            contours_step (int): Size of step between contour lines in model units.
+                (default is 10)
+            contours_width (float): Width of contour lines.
+                (default is 1.0)
+            contours_color (e.g. str): Color of contour lines.
+                (default is 'k')
+            contours_label (bool): Flag that enables labels on contour lines.
+                (default is False)
+            contours_label_inline (bool): Partly replace underlying contour line or not.
+                (default is True)
+            contours_label_fontsize (float or str): Size in points or relative size of contour label.
+                (default is 15)
+            contours_label_format (string or dict): Format string for the contour label.
+                (default is %3.0f)
+        """
 
         self.calib = calibrationdata
 
-        ### flags
+        # flags
         self.contours = contours
         self.margins = margins
 
-        ### pcolormesh setup
+        # pcolormesh setup
         self.cmap = plt.cm.get_cmap(cmap)
         if over is not None: self.cmap.set_over(over, 1.0)
         if under is not None: self.cmap.set_under(under, 1.0)
         if bad is not None: self.cmap.set_bad(bad, 1.0)
+        self.norm = norm  # TODO: Future feature
+        self.lot = lot  # TODO: Future feature
 
-        self.norm = norm
-        self.lot = lot
-
-        ### contours setup
+        # contours setup
         self.contours_step = contours_step  # levels will be supplied via property function
         self.contours_width = contours_width
         self.contours_color = contours_color
@@ -1187,22 +1167,28 @@ class Plot:
         self.contours_label_fontsize = contours_label_fontsize
         self.contours_label_format = contours_label_format
 
-        ### patches_setup
+        # margin patches setup
         self.margin_color = margin_color
         self.margin_alpha = margin_alpha
 
-        # save the figure's Matplotlib number to recall
+        # TODO: save the figure's Matplotlib number to recall?
         #self.number = None
         self.figure = None
-        self.ax = None # current plot composition
-        # initial figure for starting projector
+        self.ax = None
         self.create_empty_frame()
 
     @property
     def contours_levels(self):
+        """Returns the current contour levels, being aware of changes in calibration."""
+
         return numpy.arange(self.calib.s_min, self.calib.s_max, self.contours_step)
 
     def create_empty_frame(self):
+        """ Initializes the matplotlib figure and empty axes according to projector calibration.
+
+        The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
+        """
+
         self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
                                  dpi=self.dpi)
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
@@ -1212,43 +1198,40 @@ class Plot:
 
         return True
 
-    def render_frame(self, data):
+    def render_frame(self, data, contourdata=None):
+        """Renders a new frame according to class parameters.
+
+        Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
+        If the data frame represents geological information (i.e. not topographical height), an optional data frame
+        'contourdata' can be passed.
+
+        Args:
+            data (numpy.array): Current data frame representing surface height or geology
+            contourdata (numpy.array): Current data frame representing surface height, if data is not height
+                (default is None)
+        """
+
         self.ax.cla()  # clear axes to draw new ones on figure
         self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
 
         if self.contours:
-            self.add_contours(data)
+            if contourdata is None:
+                self.add_contours(data)
+            else:
+                self.add_contours(contourdata)
 
         if self.margins:
             self.add_margins()
 
-        # crop axis to input data dimensions, e.g. when labels are out of axes
+        # crop axis to input data dimensions, useful when labels are out of the intended plotting area.
         self.ax.axis([0, data.shape[1], 0, data.shape[0]])
         self.ax.set_axis_off()
 
         return True
 
     def add_contours(self, data):
-        """
-        renders contours to the current plot object. \
-        The data has to come in a specific shape as needed by the matplotlib contour function.
-        we explicity enforce to provide X and Y at this stage (you are welcome to change this)
-
-        Args:
-            data:  a list with the form x,y,z
-                x: list of the coordinates in x direction (e.g. range(Scale.output_res[0])
-                y: list of the coordinates in y direction (e.g. range(Scale.output_res[1])
-                z: 2D array-like with the values to be contoured
-
-        self.contours_label = contours_label
-        self.contours_width = contours_width
-        self.contours_color = contours_color
-        self.contours_levels = numpy.arange(self.calib.s_min, self.calib.s_max, contours_step)
-        self.contours_label_inline = contours_inline
-        self.contours_label_fontsize = contours_label_fontsize
-        self.contours_label_format = contours_label_format
-        Returns:
-
+        """Renders contours to the current plot object.
+        Uses the different attributes to style contour lines and contour labels.
         """
 
         contours = self.ax.contour(data,
@@ -1262,7 +1245,9 @@ class Plot:
                            fmt=self.contours_label_format)
 
     def add_margins(self):
-        ''' Only usefull when uncropped frame is passed. '''
+        """ Adds margin patches to the current plot object.
+        This is only useful when an uncropped dataframe is passed.
+        """
 
         rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width, self.calib.s_top,
                               fc=self.margin_color, alpha=self.margin_alpha)
@@ -1371,34 +1356,40 @@ class Module:
             print('Thread already stopped.')
 
     def depth_mask(self, frame):
-        """
-        creates a boolean mask with true for all values within the set sensor range and false for every pixel above and below
-        if you also want to use clipping, make sure to use the mask before
-        :param frame:
-        :return:
+        """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
+        above and below. If you also want to use clipping, make sure to use the mask before.
         """
 
-        # mask the frame values that are above and below the set sensor range
         mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.calib.s_min, self.calib.s_max))
         return mask
 
     def crop_frame(self, frame):
+        """ Crops the data frame according to the horizontal margins set up in the calibration
         """
 
-        :param frame:
-        :return:
-        """
+        # TODO: Does not work yet for s_top = 0 and s_right = 0, which currently returns an empty frame!
+        # TODO: Workaround: do not allow zeroes in calibration widget and use default value = 1
+        # TODO: File numpy issue?
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-       #clip = numpy.clip(crop, self.calib.s_min, self.calib.s_max)
+        return crop
+
+    def crop_frame_workaround(self, frame):
+        # bullet proof working example
+        if self.calib.s_top == 0 and self.calib.s_right == 0:
+            crop = frame[self.calib.s_bottom:, self.calib.s_left:]
+        elif self.calib.s_top == 0:
+            crop = frame[self.calib.s_bottom:, self.calib.s_left:-self.calib.s_right]
+        elif self.calib.s_right == 0:
+            crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
+        else:
+            crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
         return crop
 
     def clip_frame(self, frame):
+        """ Clips all values outside of the sensor range to the set s_min and s_max values.
+        If you want to create a mask make sure to call depth_mask before performing the clip.
         """
-        clips all values outside of the sensor range to the set s_min and s_max values.
-        If you want to create a mask make sure to call depth_mask before performing the clip
-        :param frame:
-        :return:
-        """
+
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
 
@@ -1544,28 +1535,28 @@ class CalibModule(Module):
         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
                                                   bar_color=self.c_margin,
                                                   value=self.calib.s_top,
-                                                  start=0,
+                                                  start=1,
                                                   end=self.calib.s_height)
         self._widget_s_top.param.watch(self._callback_s_top, 'value', onlychanged=False)
 
         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
                                                     bar_color=self.c_margin,
                                                     value=self.calib.s_right,
-                                                    start=0,
+                                                    start=1,
                                                     end=self.calib.s_width)
         self._widget_s_right.param.watch(self._callback_s_right, 'value', onlychanged=False)
 
         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
                                                      bar_color=self.c_margin,
                                                      value=self.calib.s_bottom,
-                                                     start=0,
+                                                     start=1,
                                                      end=self.calib.s_height)
         self._widget_s_bottom.param.watch(self._callback_s_bottom, 'value', onlychanged=False)
 
         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
                                                    bar_color=self.c_margin,
                                                    value=self.calib.s_left,
-                                                   start=0,
+                                                   start=1,
                                                    end=self.calib.s_width)
         self._widget_s_left.param.watch(self._callback_s_left, 'value', onlychanged=False)
 
