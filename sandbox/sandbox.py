@@ -1475,7 +1475,7 @@ class CalibModule(Module):
                                self._widget_p_frame_left,
                                self._widget_p_frame_width,
                                self._widget_p_frame_height)
-        panel = pn.Column("### Map positioning", widgets)
+        panel = pn.Column("### Projector dashboard arrangement", widgets)
         return panel
 
     def calibrate_sensor(self):
@@ -1503,28 +1503,28 @@ class CalibModule(Module):
 
         ### projector widgets and links
 
-        self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
+        self._widget_p_frame_top = pn.widgets.IntSlider(name='Main frame top margin',
                                                         value=self.calib.p_frame_top,
                                                         start=0,
                                                         end=self.calib.p_height - 20)
         self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
 
 
-        self._widget_p_frame_left = pn.widgets.IntSlider(name='Projector left margin',
+        self._widget_p_frame_left = pn.widgets.IntSlider(name='Main frame left margin',
                                                          value=self.calib.p_frame_left,
                                                          start=0,
                                                          end=self.calib.p_width - 20)
         self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
 
 
-        self._widget_p_frame_width = pn.widgets.IntSlider(name='Projector frame width',
+        self._widget_p_frame_width = pn.widgets.IntSlider(name='Main frame width',
                                                           value=self.calib.p_frame_width,
                                                           start=10,
                                                           end=self.calib.p_width)
         self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
 
 
-        self._widget_p_frame_height = pn.widgets.IntSlider(name='Projector frame height',
+        self._widget_p_frame_height = pn.widgets.IntSlider(name='Main frame height',
                                                            value=self.calib.p_frame_height,
                                                            start=10,
                                                            end=self.calib.p_height)
