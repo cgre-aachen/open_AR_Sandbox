@@ -1801,7 +1801,6 @@ class BlockModule(Module):
         while True:  # skip header
             l = f.readline().split()
             if len(l) > 2 and l[1] == "Size":
-                print(l)
                 break
 
         # n cells
@@ -1809,7 +1808,7 @@ class BlockModule(Module):
         nx = int(l[1])
         ny = int(l[2])
         nz = int(l[3])
-
+        print('nx ny, nz:')
         print(nx, ny, nz)
 
         while True:  # skip to Livecell
@@ -1819,25 +1818,96 @@ class BlockModule(Module):
                 print("Livecells loaded")
                 break
 
-        while True:  # skip to Data section
-            l = f.readline()
-            ls = l.split()
-            if len(ls) == 3:
-                if ls[2] == 'parameters':
-                    break
-
-        for i in range(3): #was 4
-            f.readline()
-
         # parse the data
-
-        while True: #iterate over all available blocks, stop at first error
-            try:
-                self.parse_block_VIP(f, self.block_dict, nx, ny, nz)
-            except:
+        while True: # skip to key
+            line = f.readline()
+            l = line.split()
+            if line == '':    # check if the end pf file was reeached and exit the loop if this is the case
+                print('end of file reached')
                 break
 
+            elif len(l) >= 2 and l[1] == "VALUE":
+                key = l[0]
+                try:
+                    self.parse_block_VIP(f, self.block_dict, key, nx, ny, nz) #parse one block of data and store irt under the given key in the dictionary
+                except:
+                    print('loading block "' +key+ "' failed: not a valid VALUE Format" )
+                    break
+
+
         f.close() #close the file
+
+
+    def parse_Livecells_VIP(self, current_file, nx, ny, nz):
+        data_np = numpy.empty((nx, ny, nz))
+
+        pointer = current_file.tell()  # store pointer position to come back to after the values per line were determined
+        line = current_file.readline().split()
+        values_per_line = len(line)
+        # print(values_per_line)
+        current_file.seek(pointer)  # go back to pointer position
+
+        for z in range(nz):
+            for y in range(ny):
+                x = 0
+                for n in range(nx // values_per_line):  # read values in full lines
+                    l = current_file.readline().split()
+
+                    for i in range(values_per_line):  # iterate values in the line
+                        value = l[i]
+                        data_np[x, y, z] = float(value)
+                        x = x + 1  # iterate x
+
+                if nx % values_per_line > 0:
+                    l = current_file.readline().split()
+                    for i in range(nx % values_per_line):  # read values in the last not full line
+                        value = l[i]
+                        data_np[x, y, z] = float(value)
+                        x = x + 1
+
+        self.data_mask = data_np
+
+
+    def parse_block_VIP(self, current_file, value_dict, key, nx, ny, nz):
+        data_np = numpy.empty((nx, ny, nz))
+
+        f = current_file
+
+
+        pointer = f.tell()  # store pointer position to come back to after the values per line were determined
+        for i in range(3):  # skip header
+            f.readline()
+
+        l = f.readline().split()
+        values_per_line = len(l)
+        #print('values per line: ' + str(values_per_line))
+        blocklength = nx // values_per_line
+        f.seek(pointer)  # go back to pointer position
+
+        # read block data
+        if (nx % values_per_line) != 0:
+            blocklength = blocklength + 1
+
+        for z in range(nz):
+            for i in range(3):
+                f.readline()
+            for y in range(ny):
+                x = 0
+
+                for line in range(blocklength):
+                    l = f.readline().split()
+
+                    for i in range(values_per_line):
+                        value = l[i]
+                        # data.loc[x,y,z] = value
+                        # values.append(value)
+                        data_np[x, y, z] = float(value)
+                        x = x + 1
+                f.readline()
+        print(key + ' loaded')
+        value_dict[key] = data_np
+
+        return True
 
     def rescale_blocks(self): #scale the blocks xy Size to the cropped size of the sensor
         for key in self.block_dict.keys():
@@ -1864,144 +1934,6 @@ class BlockModule(Module):
 
     def clear_cmaps(self):
         self.cmap_dict = {}
-
-    def load_single_block_file(self, filename, key, value_dict, nx, ny, nz, values_per_line=8):
-        """
-        Function to load a single block from a file that comes without any metadata.
-        A string for the key as well as the dimension of the Block model have to be specified.
-
-        If possible, all Data should be imported in a single VIP Text file. with load_model_vip()
-        This method is then obsolete.
-
-        :param filename: string to the file location on disc
-        :param key: string under which the data will be accesible in the block_dict
-        :param value_dict: hand over the block_dict the data will be stored in
-        :param nx: number of cells in x
-        :param ny: number of cells in y
-        :param nz: number of cells in z
-        :return: nothing, changes value_dict in place.
-
-        """
-        f = open(filename, "r")
-        values = []
-        data_np = numpy.empty((nx, ny, nz))
-
-       # pointer = f.tell()#store pointer position to come back to after the values per line were determined
-       # for i in range(3):
-       #     f.readline()
-       # l = f.readline().split()
-       # values_per_line = len(l)
-       # print(values_per_line)
-
-      #  f.seek(pointer,0) #go back to pointer position
-
-        blocklength = nx // values_per_line
-
-        # read block data
-        if (nx % values_per_line) != 0:
-            blocklength = blocklength + 1
-
-        for z in range(nz):
-            for i in range(3):
-                f.readline()
-            for y in range(ny):
-                x = 0
-
-                for line in range(blocklength):
-                    l = f.readline().split()
-
-                    for i in range(values_per_line):
-                        value = l[i]
-                        # data.loc[x,y,z] = value
-                        # values.append(value)
-                        data_np[x, y, z] = float(value)
-                        x = x + 1
-                f.readline()
-
-        value_dict[key] = data_np
-
-    def parse_Livecells_VIP(self,  current_file, nx, ny, nz):
-
-        data_np = numpy.empty((nx, ny, nz))
-
-        pointer = current_file.tell()#store pointer position to come back to after the values per line were determined
-        line = current_file.readline().split()
-        values_per_line = len(line)
-        print(values_per_line)
-        current_file.seek(pointer) #go back to pointer position
-
-        for z in range(nz):
-            for y in range(ny):
-                x = 0
-                for n in range(nx // values_per_line):  # read values in full lines
-                    l = current_file.readline().split()
-
-                    for i in range(values_per_line):  # iterate values in the line
-                        value = l[i]
-                        data_np[x, y, z] = float(value)
-                        x = x + 1  # iterate x
-
-
-                if nx % values_per_line>0:
-                    l = current_file.readline().split()
-                    for i in range(nx % values_per_line):  # read values in the last not full line
-                        value = l[i]
-                        data_np[x, y, z] = float(value)
-                        x = x + 1
-
-        self.data_mask = data_np
-
-    def parse_block_VIP(self, current_file, value_dict, nx, ny, nz):
-
-        f = current_file
-
-        # prepare storage objects
-        key = f.readline().split()[0]
-        print(key)
-        # skip to Beginning of block
-      #  for i in range(4):
-       #     print(f.readline())
-        values = []
-        data_np = numpy.empty((nx, ny, nz))
-
-
-
-        # read block data
-
-        pointer = f.tell()#store pointer position to come back to after the values per line were determined
-        for i in range(3):
-            f.readline()
-        l = f.readline().split()
-        values_per_line = len(l)
-        print(values_per_line)
-        blocklength = nx // values_per_line
-        f.seek(pointer) #go back to pointer position
-
-        if (nx % values_per_line) != 0:
-            blocklength = blocklength + 1
-
-        for z in range(nz):
-            for i in range(3):
-                f.readline()
-            for y in range(ny):
-                x = 0
-
-                for line in range(blocklength):
-                    l = f.readline().split()
-
-                    for i in range(values_per_line):
-                        value = l[i]
-                        # data.loc[x,y,z] = value
-                        # values.append(value)
-                        data_np[x, y, z] = float(value)
-                        x = x + 1
-                f.readline()
-        print('done')
-        value_dict[key] = data_np
-
-        # skip to end of block
-        for i in range(3): #was 4
-            f.readline()
 
     def show_selector(self):
         """
