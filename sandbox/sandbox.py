@@ -19,6 +19,18 @@ import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
 
+# optional imports
+try:
+    import freenect  # wrapper for KinectV1
+except ImportError:
+    print('Freenect module not found, KinectV1 will not work.')
+
+try:
+    from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
+    from pykinect2 import PyKinectRuntime
+except ImportError:
+    print('pykinect2 module not found, KinectV2 will not work.')
+
 # logging and exception handling
 verbose = False
 if verbose:
@@ -118,13 +130,9 @@ class KinectV1(Sensor):
     color_height = 480
     # TODO: Check!
 
-    def __init__(self):
-        super().__init__(*args, **kwargs)
-        import freenect
+    def setup(self):
         warn('Two kernels cannot access the Kinect at the same time. This will lead to a sudden death of the kernel. '
              'Be sure no other kernel is running before you initialize a KinectV1 object.')
-
-    def setup(self):
         print("looking for kinect...")
         ctx = freenect.init()
         self.device = freenect.open_device(ctx, self.id)
@@ -193,12 +201,6 @@ class KinectV2(Sensor):
     depth_height = 424
     color_width = 1920
     color_height = 1080
-
-    def __init__(self):
-        super().__init__(*args,**kwargs)
-        # Wrapper for KinectV2 Windows SDK
-        from pykinect2 import PyKinectV2
-        from pykinect2 import PyKinectRuntime
 
     def setup(self):
         self.device = PyKinectRuntime.PyKinectRuntime(
@@ -1377,17 +1379,14 @@ class TopoModule(Module):
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
-        #if self.crop is True:
-        #    frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
-        #if self.crop is True:
-        #    frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
-        self.projector.trigger()
+        with self.lock:
+            frame = self.sensor.get_filtered_frame()
+            self.plot.render_frame(frame)
+            self.projector.trigger()
 
 
 class CalibModule(Module):
