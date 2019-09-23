@@ -1814,7 +1814,7 @@ class BlockModule(Module):
         while True:  # skip to Livecell
             l = f.readline().split()
             if len(l) > 0 and l[0] == "LIVECELL":
-                self.parse_Livecells_VIP(f, nx, ny, nz)
+                self.parse_Livecells_vip(f, nx, ny, nz)
                 print("Livecells loaded")
                 break
 
@@ -1829,7 +1829,7 @@ class BlockModule(Module):
             elif len(l) >= 2 and l[1] == "VALUE":
                 key = l[0]
                 try:
-                    self.parse_block_VIP(f, self.block_dict, key, nx, ny, nz) #parse one block of data and store irt under the given key in the dictionary
+                    self.parse_block_vip(f, self.block_dict, key, nx, ny, nz) #parse one block of data and store irt under the given key in the dictionary
                 except:
                     print('loading block "' +key+ "' failed: not a valid VALUE Format" )
                     break
@@ -1868,7 +1868,7 @@ class BlockModule(Module):
         self.data_mask = data_np
 
 
-    def parse_block_VIP(self, current_file, value_dict, key, nx, ny, nz):
+    def parse_block_vip(self, current_file, value_dict, key, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
 
         f = current_file
