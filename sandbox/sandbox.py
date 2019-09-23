@@ -1838,7 +1838,7 @@ class BlockModule(Module):
         f.close() #close the file
 
 
-    def parse_Livecells_VIP(self, current_file, nx, ny, nz):
+    def parse_Livecells_vip(self, current_file, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
 
         pointer = current_file.tell()  # store pointer position to come back to after the values per line were determined
