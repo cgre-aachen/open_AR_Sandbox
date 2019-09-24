@@ -39,21 +39,57 @@ The open_AR_Sandbox as well as GemPy are currently under heavy development and w
 
 ## Requirements
 You will need: 
-* Microsoft Kinect (we tested first generation kinect with a usb adapter, but every kinect compatible with the freenect drivers will likely work)
+* Microsoft Kinect (we tested the first and second generation kinect with a usb adapter, but every kinect compatible with the freenect drivers will likely work)
 * Projector
-* A box of Sand 
+* A box of Sand
 
 
 Mount the kinect and projector facing down vertically in the center above of the box. The optimal distance will depend on the size of your sandbox and the optics of the projector, from our experience a distance of 150 cm is well suited for a 80 cm x 100 cm box. 
 More details on how to set up the kinect and projector can be found in the `calibrate sandbox.ipynb` notebook.
 
 ## Installation 
-First of all you will need a a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/)
-To make the sandbox run you need two libraries and their dependencies: [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) and [GemPy](https://github.com/cgre-aachen/gempy)
-clone or download both repositories and follow the Gempy Installation instructions. 
+First of all you will need a a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed installation instructions.
 
-To make open_AR_Sandbox talk to the kinect you will need the [Libfreenect Drivers](https://github.com/OpenKinect/libfreenect) with [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). The installation is kind of straight forward for Linux and MacOS but challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
-  
+### Standard packages
+
+The standard packages 
+
+```conda install numpy pandas jupyter notebook scipy panel scikit-image matplotlib```
+
+```pip install numpy pandas jupyter notebook scipy panel scikit-image matplotlib```
+
+Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
+
+### Kinect V1
+
+To make open_AR_Sandbox talk to the first generation kinect you will need the [Libfreenect Drivers](https://github.com/OpenKinect/libfreenect) with [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). The installation is kind of straight forward for Linux and MacOS but challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
+
+### Kinect V2
+
+If you are instead working with the second generation of the kinect sensor, you will need a different setup (Tested on Windows 10). First, install the current [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) including drivers. You can use the software bundle to test the connection to your kinect, before you continue.
+
+To make Python and the Kinect SDK communicate, install the related [PyKinect2](https://github.com/Kinect/PyKinect2) wrappers which can be easily installed via:
+
+```pip install pykinect2```
+
+Unfortunately, the configuration of PyKinect2 needs to be adjusted to work on a 64 bit System. Therefore, edit the _Lib/site-packages/pykinect2/PyKinectV2.py_ file, go to line **2216** and comment it:
+
+```python
+# assert sizeof(tagSTATSTG) == 72, sizeof(tagSTATSTG)
+```
+
+Add the following lines below:
+
+```python
+import numpy.distutils.system_info as sysinfo
+required_size = 64 + sysinfo.platform_bits / 4
+assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
+```
+
+### GemPy
+
+To use implicit geological models inside the sandbox, go to [GemPy](https://github.com/cgre-aachen/gempy),
+clone or download the repository and follow the Gempy Installation instructions.
 
 ## Getting started
 So now the necessary software is installed and (hopefully) running and you have set up your Sandbox with a projector and a kinect, it is time to calibrate your sandbox.
