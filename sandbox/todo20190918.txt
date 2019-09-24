@@ -1,7 +1,0 @@
-Create calibration notebook
-
-documentation:
-- Module
-- Plot
-- CalibModule
-- TopoModule

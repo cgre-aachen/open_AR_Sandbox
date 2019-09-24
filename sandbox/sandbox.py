@@ -1662,7 +1662,7 @@ class BlockModule(Module):
     # child class of Model
 
     def __init__(self, calibrationdata, sensor, projector, crop=True, **kwarg):
-        super().__init__(self, calibrationdata, sensor, projector, crop, **kwarg) #call parent init
+        super().__init__(calibrationdata, sensor, projector, crop, **kwarg) #call parent init
         self.block_dict = {}
         self.cmap_dict = {}
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
@@ -1684,50 +1684,50 @@ class BlockModule(Module):
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
     def update(self):
-        with self.lock:
-            frame = self.sensor.get_filtered_frame()
+        #with self.lock:
+        frame = self.sensor.get_filtered_frame()
 
-            if self.crop is True:
-                frame = self.crop_frame(frame)
-            depth_mask = self.depth_mask(frame)
-            frame = self.clip_frame(frame)
+        if self.crop is True:
+            frame = self.crop_frame(frame)
+        depth_mask = self.depth_mask(frame)
+        frame = self.clip_frame(frame)
 
-            if self.rescaled_data_mask is None: #check if there is a data_mask
-                data = self.rescaled_block_dict[self.displayed_dataset_key]
-            else:    #apply data mask
-                data = numpy.ma.masked_array(
-                    self.rescaled_block_dict[self.displayed_dataset_key],
-                    mask=numpy.logical_not(self.rescaled_data_mask) # invert mask TODO: Tidy up!
-                )
+        if self.rescaled_data_mask is None: #check if there is a data_mask
+            data = self.rescaled_block_dict[self.displayed_dataset_key]
+        else:    #apply data mask
+            data = numpy.ma.masked_array(
+                self.rescaled_block_dict[self.displayed_dataset_key],
+                mask=numpy.logical_not(self.rescaled_data_mask) # invert mask TODO: Tidy up!
+            )
 
-            zmin = self.calib.s_min
-            zmax = self.calib.s_max
+        zmin = self.calib.s_min
+        zmax = self.calib.s_max
 
-            index = (frame - zmin) / (zmax - zmin) * (data.shape[2] - 1.0)  # convert the z dimension to index
-            index = index.round()  # round to next integer
-            index = index.astype('int')
+        index = (frame - zmin) / (zmax - zmin) * (data.shape[2] - 1.0)  # convert the z dimension to index
+        index = index.round()  # round to next integer
+        index = index.astype('int')
 
 
 
-            # querry the array:
-            i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
-            result = data[i, j, index]
+        # querry the array:
+        i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
+        result = data[i, j, index]
 
-            result = numpy.ma.masked_array(result, mask=depth_mask) #apply the depth mask
+        result = numpy.ma.masked_array(result, mask=depth_mask) #apply the depth mask
 
-            self.plot.ax.cla()
-            cmap=self.cmap_dict[self.displayed_dataset_key][0]
-            cmap.set_over('black')
-            cmap.set_under('black')
-            cmap.set_bad('black')
-            self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=cmap, norm=self.cmap_dict[self.displayed_dataset_key][1] )
+        self.plot.ax.cla()
+        cmap=self.cmap_dict[self.displayed_dataset_key][0]
+        cmap.set_over('black')
+        cmap.set_under('black')
+        cmap.set_bad('black')
+        self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=cmap, norm=self.cmap_dict[self.displayed_dataset_key][1] )
 
-            #render and display
-            self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
-            self.plot.ax.set_axis_off()
+        #render and display
+        self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
+        self.plot.ax.set_axis_off()
 
-            self.projector.trigger()
-            return True
+        self.projector.trigger()
+        #return True
 
     def create_cmap(self, clist):
         """
