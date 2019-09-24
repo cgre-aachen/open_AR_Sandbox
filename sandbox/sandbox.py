@@ -1077,7 +1077,7 @@ class Plot(object):
     #     pass
 
 
-class Scale:
+class Scale(object):
     """
     class that handles the scaling of whatever the sandbox shows and the real world sandbox
     self.extent: 3d extent of the model in the sandbox in model units.
@@ -1161,7 +1161,7 @@ class Scale:
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
 
 
-class Grid:
+class Grid(object):
     """
     class for grid objects. a grid stores the 3D coordinate of each pixel recorded by the kinect in model coordinates
     a calibration object must be provided, it is used to crop the kinect data to the area of interest
@@ -1662,7 +1662,7 @@ class BlockModule(Module):
     # child class of Model
 
     def __init__(self, calibrationdata, sensor, projector, crop=True, **kwarg):
-        Module.__init__(self, calibrationdata, sensor, projector, crop, **kwarg) #call parent init
+        super().__init__(self, calibrationdata, sensor, projector, crop, **kwarg) #call parent init
         self.block_dict = {}
         self.cmap_dict = {}
         self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
@@ -2165,7 +2165,7 @@ class GemPyModule(Module):
 #         self.geol_map.save(outfile=output)
 
 
-class ArucoMarkers:
+class ArucoMarkers(object):
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
