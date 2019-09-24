@@ -888,7 +888,7 @@ class Plot(object):
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, contours=True, margins=False,
+    def __init__(self, calibrationdata, contours=True, margins=False, vmin=None, vmax=None,
                  cmap=None, over=None, under=None, bad=None,
                  norm=None, lot=None, margin_color='r', margin_alpha=0.5,
                  contours_step=100, contours_width=1.0, contours_color='k',
@@ -906,6 +906,8 @@ class Plot(object):
             contours (bool): Flag that enables or disables contours plotting.
                 (default is True)
             margins (bool): Flag that enables or disables plotting of margin patches.
+            vmin (float): ...
+            vmax (float): ...
             cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
             over (e.g. str): Color used for values above the expected data range.
             under (e.g. str): Color used for values below the expected data range.
@@ -936,6 +938,17 @@ class Plot(object):
         # flags
         self.contours = contours
         self.margins = margins
+
+        # z-range handling
+        if vmin is not None:
+            self.vmin = vmin
+        else:
+            self.vmin = self.calib.s_min
+
+        if vmax is not None:
+            self.vmax = vmax
+        else:
+            self.vmax = self.calib.s_max
 
         # pcolormesh setup
         self.cmap = plt.cm.get_cmap(cmap)
@@ -968,7 +981,7 @@ class Plot(object):
     def contours_levels(self):
         """Returns the current contour levels, being aware of changes in calibration."""
 
-        return numpy.arange(self.calib.s_min, self.calib.s_max, self.contours_step)
+        return numpy.arange(self.vmin, self.vmax, self.contours_step)
 
     def create_empty_frame(self):
         """ Initializes the matplotlib figure and empty axes according to projector calibration.
@@ -985,7 +998,7 @@ class Plot(object):
 
         return True
 
-    def render_frame(self, data, contourdata=None):
+    def render_frame(self, data, contourdata=None, vmin= None, vmax= None): #ToDo: use keyword arguments
         """Renders a new frame according to class parameters.
 
         Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
@@ -999,7 +1012,13 @@ class Plot(object):
         """
 
         self.ax.cla()  # clear axes to draw new ones on figure
-        self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
+        if vmin is None:
+            vmin=self.vmin
+        if vmax is None:
+            vmax=self.vmax
+
+
+        self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
 
         if self.contours:
             if contourdata is None:
@@ -1665,8 +1684,11 @@ class BlockModule(Module):
         super().__init__(calibrationdata, sensor, projector, crop, **kwarg) #call parent init
         self.block_dict = {}
         self.cmap_dict = {}
-        self.displayed_dataset_key = "Zone" # variable to choose displayed dataset in runtime
+        self.displayed_dataset_key = "Zone"  # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
+        self.coords_x = None  # arrays to store coordinates of cells
+        self.coords_y = None
+        self.coords_z = None
         self.data_mask = None #stores the Livecell information from the VIP  File
         self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
         self.index = None
@@ -1716,11 +1738,17 @@ class BlockModule(Module):
         result = numpy.ma.masked_array(result, mask=depth_mask) #apply the depth mask
 
         self.plot.ax.cla()
+
+        self.plot.vmin = zmin
+        self.plot.vmax = zmax
         cmap=self.cmap_dict[self.displayed_dataset_key][0]
         cmap.set_over('black')
         cmap.set_under('black')
         cmap.set_bad('black')
-        self.plot.ax.pcolormesh(result, vmin=data.min(), vmax=data.max(), cmap=cmap, norm=self.cmap_dict[self.displayed_dataset_key][1] )
+        norm= self.cmap_dict[self.displayed_dataset_key][1]
+        self.plot.cmap = cmap
+        self.plot.norm = norm
+        self.plot.render_frame(result, contourdata=frame, vmin=data.min(), vmax=data.max()) #ToDo: Use plot.render_frame
 
         #render and display
         self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
@@ -1843,6 +1871,33 @@ class BlockModule(Module):
 
         self.data_mask = data_np
 
+    def parse_coordinates(self, current_file, nx, ny, nz):
+        f = current_file
+
+        self.coords_x = numpy.empty((nx, ny, nz))
+        self.coords_y = numpy.empty((nx, ny, nz))
+        self.coords_z = numpy.empty((nx, ny, nz))
+
+        while True:  # skip to coordinates
+            l = f.readline().split()
+            if len(l) > 0 and l[0] == "CORP":
+
+                for z in range(nz):
+                    for i in range(3):  # skip Layer(nz)
+                        print(f.readline())
+
+                    for y in range(ny):
+
+                        for x in range(nx):
+
+                            for i in range(3):  # skip cell header (each cell)
+                                print(f.readline())
+                            l = f.readline().split()  # read and save the first corner point
+                            self.coords_x[x, y, z] = l[0]
+                            self.coords_y[x, y, z] = l[1]
+                            self.coords_z[x, y, z] = l[2]
+                            for i in range(3):  # skip to the end of cell, ignoring all other cornerpoints
+                                f.readline()
 
     def parse_block_vip(self, current_file, value_dict, key, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
