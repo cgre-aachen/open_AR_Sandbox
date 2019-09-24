@@ -60,10 +60,111 @@ class Sandbox:
 
         self.projector = Projector(self.calib)
         self.module = TopoModule(self.calib, self.sensor, self.projector, **kwargs)
-        self.calibration = Calibration(self.calib, self.sensor, self.projector)
+        #self.module = Calibration(self.calib, self.sensor, self.projector, **kwargs)
 
 
-class Sensor:
+class CalibrationData(object):
+    """
+
+    """
+
+    def __init__(self,
+                 p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
+                 p_frame_width=600, p_frame_height=450,
+                 s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
+                 file=None):
+        """
+
+        Args:
+            p_width:
+            p_height:
+            p_frame_top:
+            p_frame_left:
+            p_frame_width:
+            p_frame_height:
+            s_top:
+            s_right:
+            s_bottom:
+            s_left:
+            s_min:
+            s_max:
+            file:
+        """
+
+        # version identifier (will be changed if new calibration parameters are introduced / removed)
+        self.version = "0.8alpha"
+
+        # projector
+        self.p_width = p_width
+        self.p_height = p_height
+
+        self.p_frame_top = p_frame_top
+        self.p_frame_left = p_frame_left
+        self.p_frame_width = p_frame_width
+        self.p_frame_height = p_frame_height
+
+        #self.p_legend_top =
+        #self.p_legend_left =
+        #self.p_legend_width =
+        #self.p_legend_height =
+
+        # hot area
+        #self.p_hot_top =
+        #self.p_hot_left =
+        #self.p_hot_width =
+        #self.p_hot_height =
+
+        # profile area
+        #self.p_profile_top =
+        #self.p_profile_left =
+        #self.p_profile_width =
+        #self.p_profile_height =
+
+        # sensor (e.g. Kinect)
+        self.s_name = 'generic' # name to identify the associated sensor device
+        self.s_width = 500 # will be updated by sensor init
+        self.s_height = 400 # will be updated by sensor init
+
+        self.s_top = s_top
+        self.s_right = s_right
+        self.s_bottom = s_bottom
+        self.s_left = s_left
+        self.s_min = s_min
+        self.s_max = s_max
+
+        if file is not None:
+            self.load_json(file)
+
+    # computed parameters for easy access
+    @property
+    def s_frame_width(self):
+        return self.s_width - self.s_left - self.s_right
+
+    @property
+    def s_frame_height(self):
+        return self.s_height - self.s_top - self.s_bottom
+
+    @property
+    def scale_factor(self):
+        return (self.p_frame_width / self.s_frame_width), (self.p_frame_height / self.s_frame_height)
+
+    # JSON import/export
+    def load_json(self, file):
+        with open(file) as calibration_json:
+            data = json.load(calibration_json)
+            if data['version'] == self.version:
+                self.__dict__ = data
+                print("JSON configuration loaded.")
+            else:
+                print("JSON configuration incompatible.\nPlease recalibrate manually!")
+
+    def save_json(self, file='calibration.json'):
+        with open(file, "w") as calibration_json:
+            json.dump(self.__dict__, calibration_json)
+        print('JSON configuration file saved:', str(file))
+
+
+class Sensor(object):
     """
     Masterclass for initializing the sensor (e.g. the Kinect).
     Init the kinect and provide a method that returns the scanned depth image as numpy array. Also we do the gaussian
@@ -118,6 +219,129 @@ class Sensor:
         self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
 
         return self.depth
+
+
+class DummySensor(Sensor):
+
+    name = 'dummy'
+
+    def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
+                 corners=True, points_n=4, points_distance=0.3,
+                 alteration_strength=0.1, random_seed=None, **kwargs):
+
+        self.depth_width = width
+        self.depth_height = height
+
+        self.depth_lim = depth_limits
+        self.corners = corners
+        self.n = points_n
+        # distance in percent of grid diagonal
+        self.distance = numpy.sqrt(self.depth_width**2 + self.depth_height**2) * points_distance
+        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
+        self.strength = alteration_strength
+        self.seed = random_seed
+
+        self.grid = None
+        self.positions = None
+        self.os_values = None
+        self.values = None
+
+        # call parents' class init
+        super().__init__(*args, **kwargs)
+
+
+    def setup(self):
+        # create grid, init values, and init interpolation
+        self._create_grid()
+        self._pick_positions()
+        self._pick_values()
+        self._interpolate()
+        print("DummySensor initialized.")
+
+    def get_frame(self):
+        """
+
+        Returns:
+
+        """
+        self._alter_values()
+        self._interpolate()
+        return self.depth
+
+    def _oscillating_depth(self, random):
+        r = (self.depth_lim[1] - self.depth_lim[0]) / 2
+        return numpy.sin(random) * r + r + self.depth_lim[0]
+
+    def _create_grid(self):
+        # creates 2D grid for given resolution
+        x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
+        self.grid = numpy.stack((x.ravel(), y.ravel())).T
+        return True
+
+    def _pick_positions(self):
+        '''
+        grid: Set of possible points to pick from
+        n: desired number of points (without corners counting), not guaranteed to be reached
+        distance: distance or range between points
+        '''
+
+        numpy.random.seed(seed=self.seed)
+        gl = self.grid.shape[0]
+        gw = self.grid.shape[1]
+        n = self.n
+
+        if self.corners:
+            n += 4
+            points = numpy.zeros((n, gw))
+            points[1, 0] = self.grid[:, 0].max()
+            points[2, 1] = self.grid[:, 1].max()
+            points[3, 0] = self.grid[:, 0].max()
+            points[3, 1] = self.grid[:, 1].max()
+            i = 4 # counter
+        else:
+            points = numpy.zeros((n, gw))
+            # randomly pick initial point
+            ipos = numpy.random.randint(0, gl)
+            points[0, :2] = self.grid[ipos, :2]
+            i = 1  # counter
+
+        while i < n:
+            # calculate all distances between remaining candidates and sim points
+            dist = cdist(points[:i, :2], self.grid[:, :2])
+            # choose candidates which are out of range
+            mm = numpy.min(dist, axis=0)
+            candidates = self.grid[mm > self.distance]
+            # count candidates
+            cl = candidates.shape[0]
+            if cl < 1: break
+            # randomly pick candidate and set next point
+            pos = numpy.random.randint(0, cl)
+            points[i, :2] = candidates[pos, :2]
+
+            i += 1
+
+        # just return valid points if early break occured
+        self.positions = points[:i]
+
+        return True
+
+    def _pick_values(self):
+        numpy.random.seed(seed=self.seed)
+        n = self.positions.shape[0]
+        self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
+        self.values = self._oscillating_depth(self.os_values)
+
+    def _alter_values(self):
+        # maximum range in both directions the values should be altered
+        numpy.random.seed(seed=self.seed)
+        os_range = self.strength * (numpy.pi / 2)
+        for i, value in enumerate(self.os_values):
+            self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)
+        self.values = self._oscillating_depth(self.os_values)
+
+    def _interpolate(self):
+        inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
+        self.depth = inter.reshape(self.depth_height, self.depth_width)
 
 
 class KinectV1(Sensor):
@@ -261,129 +485,6 @@ class KinectV2(Sensor):
         position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (self.color_height, self.color_width))
         self.color = numpy.flipud(palette[position_palette])
         return self.color
-
-
-class DummySensor(Sensor):
-
-    name = 'dummy'
-
-    def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
-                 corners=True, points_n=4, points_distance=0.3,
-                 alteration_strength=0.1, random_seed=None, **kwargs):
-
-        self.depth_width = width
-        self.depth_height = height
-
-        self.depth_lim = depth_limits
-        self.corners = corners
-        self.n = points_n
-        # distance in percent of grid diagonal
-        self.distance = numpy.sqrt(self.depth_width**2 + self.depth_height**2) * points_distance
-        # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
-        self.strength = alteration_strength
-        self.seed = random_seed
-
-        self.grid = None
-        self.positions = None
-        self.os_values = None
-        self.values = None
-
-        # call parents' class init
-        super().__init__(*args, **kwargs)
-
-
-    def setup(self):
-        # create grid, init values, and init interpolation
-        self._create_grid()
-        self._pick_positions()
-        self._pick_values()
-        self._interpolate()
-        print("DummySensor initialized.")
-
-    def get_frame(self):
-        """
-
-        Returns:
-
-        """
-        self._alter_values()
-        self._interpolate()
-        return self.depth
-
-    def _oscillating_depth(self, random):
-        r = (self.depth_lim[1] - self.depth_lim[0]) / 2
-        return numpy.sin(random) * r + r + self.depth_lim[0]
-
-    def _create_grid(self):
-        # creates 2D grid for given resolution
-        x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
-        self.grid = numpy.stack((x.ravel(), y.ravel())).T
-        return True
-
-    def _pick_positions(self):
-        '''
-        grid: Set of possible points to pick from
-        n: desired number of points (without corners counting), not guaranteed to be reached
-        distance: distance or range between points
-        '''
-
-        numpy.random.seed(seed=self.seed)
-        gl = self.grid.shape[0]
-        gw = self.grid.shape[1]
-        n = self.n
-
-        if self.corners:
-            n += 4
-            points = numpy.zeros((n, gw))
-            points[1, 0] = self.grid[:, 0].max()
-            points[2, 1] = self.grid[:, 1].max()
-            points[3, 0] = self.grid[:, 0].max()
-            points[3, 1] = self.grid[:, 1].max()
-            i = 4 # counter
-        else:
-            points = numpy.zeros((n, gw))
-            # randomly pick initial point
-            ipos = numpy.random.randint(0, gl)
-            points[0, :2] = self.grid[ipos, :2]
-            i = 1  # counter
-
-        while i < n:
-            # calculate all distances between remaining candidates and sim points
-            dist = cdist(points[:i, :2], self.grid[:, :2])
-            # choose candidates which are out of range
-            mm = numpy.min(dist, axis=0)
-            candidates = self.grid[mm > self.distance]
-            # count candidates
-            cl = candidates.shape[0]
-            if cl < 1: break
-            # randomly pick candidate and set next point
-            pos = numpy.random.randint(0, cl)
-            points[i, :2] = candidates[pos, :2]
-
-            i += 1
-
-        # just return valid points if early break occured
-        self.positions = points[:i]
-
-        return True
-
-    def _pick_values(self):
-        numpy.random.seed(seed=self.seed)
-        n = self.positions.shape[0]
-        self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
-        self.values = self._oscillating_depth(self.os_values)
-
-    def _alter_values(self):
-        # maximum range in both directions the values should be altered
-        numpy.random.seed(seed=self.seed)
-        os_range = self.strength * (numpy.pi / 2)
-        for i, value in enumerate(self.os_values):
-            self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)
-        self.values = self._oscillating_depth(self.os_values)
-
-    def _interpolate(self):
-        inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
-        self.depth = inter.reshape(self.depth_height, self.depth_width)
 
 
 # class Calibration:
@@ -663,7 +764,7 @@ class DummySensor(Sensor):
 #         return True
 
 
-class Projector:
+class Projector(object):
 
     dpi = 100 # make sure that figures can be displayed pixel-precise
 
@@ -781,105 +882,200 @@ class Projector:
         return True
 
 
-class CalibrationData:
+class Plot(object):
+    """Standard class that handles the creation and update of a plot for sandbox Modules
     """
 
-    """
+    dpi = 100 # make sure that figures can be displayed pixel-precise
 
-    def __init__(self,
-                 p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
-                 p_frame_width=600, p_frame_height=450,
-                 s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
-                 file=None):
-        """
+    def __init__(self, calibrationdata, contours=True, margins=False,
+                 cmap=None, over=None, under=None, bad=None,
+                 norm=None, lot=None, margin_color='r', margin_alpha=0.5,
+                 contours_step=100, contours_width=1.0, contours_color='k',
+                 contours_label=False, contours_label_inline=True,
+                 contours_label_fontsize=15, contours_label_format='%3.0f'):
+        """Creates a new plot instance.
+
+        Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
+        Margin patches are e.g. used for the visualization of sensor calibration margins on an uncropped dataframe.
+        The rendered plot is accessible via the 'figure' attribute. Internally only the plot axes will be rendered
+        and updated. The dataframe will be supplied via the 'render_frame' method.
 
         Args:
-            p_width:
-            p_height:
-            p_frame_top:
-            p_frame_left:
-            p_frame_width:
-            p_frame_height:
-            s_top:
-            s_right:
-            s_bottom:
-            s_left:
-            s_min:
-            s_max:
-            file:
+            calibrationdata (CalibrationData): Instance that contains information of the current calibration values.
+            contours (bool): Flag that enables or disables contours plotting.
+                (default is True)
+            margins (bool): Flag that enables or disables plotting of margin patches.
+            cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
+            over (e.g. str): Color used for values above the expected data range.
+            under (e.g. str): Color used for values below the expected data range.
+            bad (e.g. str): Color used for invalid or masked data values.
+            norm: Future feature!
+            lot: Future feature!
+            margin_color (e.g. str): Color of margin patches if enabled.
+            margin_alpha (float): Transparency of margin patches.
+                (default is 0.5)
+            contours_step (int): Size of step between contour lines in model units.
+                (default is 10)
+            contours_width (float): Width of contour lines.
+                (default is 1.0)
+            contours_color (e.g. str): Color of contour lines.
+                (default is 'k')
+            contours_label (bool): Flag that enables labels on contour lines.
+                (default is False)
+            contours_label_inline (bool): Partly replace underlying contour line or not.
+                (default is True)
+            contours_label_fontsize (float or str): Size in points or relative size of contour label.
+                (default is 15)
+            contours_label_format (string or dict): Format string for the contour label.
+                (default is %3.0f)
         """
 
-        # version identifier (will be changed if new calibration parameters are introduced / removed)
-        self.version = "0.8alpha"
+        self.calib = calibrationdata
 
-        # projector
-        self.p_width = p_width
-        self.p_height = p_height
+        # flags
+        self.contours = contours
+        self.margins = margins
 
-        self.p_frame_top = p_frame_top
-        self.p_frame_left = p_frame_left
-        self.p_frame_width = p_frame_width
-        self.p_frame_height = p_frame_height
+        # pcolormesh setup
+        self.cmap = plt.cm.get_cmap(cmap)
+        if over is not None: self.cmap.set_over(over, 1.0)
+        if under is not None: self.cmap.set_under(under, 1.0)
+        if bad is not None: self.cmap.set_bad(bad, 1.0)
+        self.norm = norm  # TODO: Future feature
+        self.lot = lot  # TODO: Future feature
 
-        #self.p_legend_top =
-        #self.p_legend_left =
-        #self.p_legend_width =
-        #self.p_legend_height =
+        # contours setup
+        self.contours_step = contours_step  # levels will be supplied via property function
+        self.contours_width = contours_width
+        self.contours_color = contours_color
+        self.contours_label = contours_label
+        self.contours_label_inline = contours_label_inline
+        self.contours_label_fontsize = contours_label_fontsize
+        self.contours_label_format = contours_label_format
 
-        # hot area
-        #self.p_hot_top =
-        #self.p_hot_left =
-        #self.p_hot_width =
-        #self.p_hot_height =
+        # margin patches setup
+        self.margin_color = margin_color
+        self.margin_alpha = margin_alpha
 
-        # profile area
-        #self.p_profile_top =
-        #self.p_profile_left =
-        #self.p_profile_width =
-        #self.p_profile_height =
-
-        # sensor (e.g. Kinect)
-        self.s_name = 'generic' # name to identify the associated sensor device
-        self.s_width = 500 # will be updated by sensor init
-        self.s_height = 400 # will be updated by sensor init
-
-        self.s_top = s_top
-        self.s_right = s_right
-        self.s_bottom = s_bottom
-        self.s_left = s_left
-        self.s_min = s_min
-        self.s_max = s_max
-
-        if file is not None:
-            self.load_json(file)
-
-    # computed parameters for easy access
-    @property
-    def s_frame_width(self):
-        return self.s_width - self.s_left - self.s_right
+        # TODO: save the figure's Matplotlib number to recall?
+        #self.number = None
+        self.figure = None
+        self.ax = None
+        self.create_empty_frame()
 
     @property
-    def s_frame_height(self):
-        return self.s_height - self.s_top - self.s_bottom
+    def contours_levels(self):
+        """Returns the current contour levels, being aware of changes in calibration."""
 
-    @property
-    def scale_factor(self):
-        return (self.p_frame_width / self.s_frame_width), (self.p_frame_height / self.s_frame_height)
+        return numpy.arange(self.calib.s_min, self.calib.s_max, self.contours_step)
 
-    # JSON import/export
-    def load_json(self, file):
-        with open(file) as calibration_json:
-            data = json.load(calibration_json)
-            if data['version'] == self.version:
-                self.__dict__ = data
-                print("JSON configuration loaded.")
+    def create_empty_frame(self):
+        """ Initializes the matplotlib figure and empty axes according to projector calibration.
+
+        The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
+        """
+
+        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+                                 dpi=self.dpi)
+        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
+        self.figure.add_axes(self.ax)
+        plt.close(self.figure)  # close figure to prevent inline display
+        self.ax.set_axis_off()
+
+        return True
+
+    def render_frame(self, data, contourdata=None):
+        """Renders a new frame according to class parameters.
+
+        Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
+        If the data frame represents geological information (i.e. not topographical height), an optional data frame
+        'contourdata' can be passed.
+
+        Args:
+            data (numpy.array): Current data frame representing surface height or geology
+            contourdata (numpy.array): Current data frame representing surface height, if data is not height
+                (default is None)
+        """
+
+        self.ax.cla()  # clear axes to draw new ones on figure
+        self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
+
+        if self.contours:
+            if contourdata is None:
+                self.add_contours(data)
             else:
-                print("JSON configuration incompatible.\nPlease recalibrate manually!")
+                self.add_contours(contourdata)
 
-    def save_json(self, file='calibration.json'):
-        with open(file, "w") as calibration_json:
-            json.dump(self.__dict__, calibration_json)
-        print('JSON configuration file saved:', str(file))
+        if self.margins:
+            self.add_margins()
+
+        # crop axis to input data dimensions, useful when labels are out of the intended plotting area.
+        self.ax.axis([0, data.shape[1], 0, data.shape[0]])
+        self.ax.set_axis_off()
+
+        return True
+
+    def add_contours(self, data):
+        """Renders contours to the current plot object.
+        Uses the different attributes to style contour lines and contour labels.
+        """
+
+        contours = self.ax.contour(data,
+                                   levels=self.contours_levels,
+                                   linewidths=self.contours_width,
+                                   colors=self.contours_color)
+        if self.contours_label is True:
+            self.ax.clabel(contours,
+                           inline=self.contours_label_inline,
+                           fontsize=self.contours_label_fontsize,
+                           fmt=self.contours_label_format)
+
+    def add_margins(self):
+        """ Adds margin patches to the current plot object.
+        This is only useful when an uncropped dataframe is passed.
+        """
+
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width, self.calib.s_top,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right, self.calib.s_height,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+
+        self.ax.add_patch(rec_t)
+        self.ax.add_patch(rec_r)
+        self.ax.add_patch(rec_b)
+        self.ax.add_patch(rec_l)
+
+    # def change_size(self):
+    #     self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
+    #                                                                self.calib.p_frame_height / self.dpi))
+    #
+    #     # close figure to prevent inline display
+    #     plt.close(self.figure)
+    #
+    #     return True
+    #
+    # def add_lith_contours(self, block, levels=None):
+    #     """
+    #
+    #     Args:
+    #         block:
+    #         levels:
+    #
+    #     Returns:
+    #
+    #     """
+    #     plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
+    #
+    # def create_legend(self):
+    #     """ Returns:
+    #     """
+    #     pass
+
 
 class Scale:
     """
@@ -1069,202 +1265,7 @@ class Grid:
         self.depth_grid = depth_grid
 
 
-class Plot(object):
-    """Standard class that handles the creation and update of a plot for sandbox Modules
-    """
-
-    dpi = 100 # make sure that figures can be displayed pixel-precise
-
-    def __init__(self, calibrationdata, contours=True, margins=False,
-                 cmap=None, over=None, under=None, bad=None,
-                 norm=None, lot=None, margin_color='r', margin_alpha=0.5,
-                 contours_step=10, contours_width=1.0, contours_color='k',
-                 contours_label=False, contours_label_inline=True,
-                 contours_label_fontsize=15, contours_label_format='%3.0f'):
-        """Creates a new plot instance.
-
-        Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
-        Margin patches are e.g. used for the visualization of sensor calibration margins on an uncropped dataframe.
-        The rendered plot is accessible via the 'figure' attribute. Internally only the plot axes will be rendered
-        and updated. The dataframe will be supplied via the 'render_frame' method.
-
-        Args:
-            calibrationdata (CalibrationData): Instance that contains information of the current calibration values.
-            contours (bool): Flag that enables or disables contours plotting.
-                (default is True)
-            margins (bool): Flag that enables or disables plotting of margin patches.
-            cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
-            over (e.g. str): Color used for values above the expected data range.
-            under (e.g. str): Color used for values below the expected data range.
-            bad (e.g. str): Color used for invalid or masked data values.
-            norm: Future feature!
-            lot: Future feature!
-            margin_color (e.g. str): Color of margin patches if enabled.
-            margin_alpha (float): Transparency of margin patches.
-                (default is 0.5)
-            contours_step (int): Size of step between contour lines in model units.
-                (default is 10)
-            contours_width (float): Width of contour lines.
-                (default is 1.0)
-            contours_color (e.g. str): Color of contour lines.
-                (default is 'k')
-            contours_label (bool): Flag that enables labels on contour lines.
-                (default is False)
-            contours_label_inline (bool): Partly replace underlying contour line or not.
-                (default is True)
-            contours_label_fontsize (float or str): Size in points or relative size of contour label.
-                (default is 15)
-            contours_label_format (string or dict): Format string for the contour label.
-                (default is %3.0f)
-        """
-
-        self.calib = calibrationdata
-
-        # flags
-        self.contours = contours
-        self.margins = margins
-
-        # pcolormesh setup
-        self.cmap = plt.cm.get_cmap(cmap)
-        if over is not None: self.cmap.set_over(over, 1.0)
-        if under is not None: self.cmap.set_under(under, 1.0)
-        if bad is not None: self.cmap.set_bad(bad, 1.0)
-        self.norm = norm  # TODO: Future feature
-        self.lot = lot  # TODO: Future feature
-
-        # contours setup
-        self.contours_step = contours_step  # levels will be supplied via property function
-        self.contours_width = contours_width
-        self.contours_color = contours_color
-        self.contours_label = contours_label
-        self.contours_label_inline = contours_label_inline
-        self.contours_label_fontsize = contours_label_fontsize
-        self.contours_label_format = contours_label_format
-
-        # margin patches setup
-        self.margin_color = margin_color
-        self.margin_alpha = margin_alpha
-
-        # TODO: save the figure's Matplotlib number to recall?
-        #self.number = None
-        self.figure = None
-        self.ax = None
-        self.create_empty_frame()
-
-    @property
-    def contours_levels(self):
-        """Returns the current contour levels, being aware of changes in calibration."""
-
-        return numpy.arange(self.calib.s_min, self.calib.s_max, self.contours_step)
-
-    def create_empty_frame(self):
-        """ Initializes the matplotlib figure and empty axes according to projector calibration.
-
-        The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
-        """
-
-        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
-                                 dpi=self.dpi)
-        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
-        self.figure.add_axes(self.ax)
-        plt.close(self.figure)  # close figure to prevent inline display
-        self.ax.set_axis_off()
-
-        return True
-
-    def render_frame(self, data, contourdata=None):
-        """Renders a new frame according to class parameters.
-
-        Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
-        If the data frame represents geological information (i.e. not topographical height), an optional data frame
-        'contourdata' can be passed.
-
-        Args:
-            data (numpy.array): Current data frame representing surface height or geology
-            contourdata (numpy.array): Current data frame representing surface height, if data is not height
-                (default is None)
-        """
-
-        self.ax.cla()  # clear axes to draw new ones on figure
-        self.ax.pcolormesh(data, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=self.cmap, norm=self.norm)
-
-        if self.contours:
-            if contourdata is None:
-                self.add_contours(data)
-            else:
-                self.add_contours(contourdata)
-
-        if self.margins:
-            self.add_margins()
-
-        # crop axis to input data dimensions, useful when labels are out of the intended plotting area.
-        self.ax.axis([0, data.shape[1], 0, data.shape[0]])
-        self.ax.set_axis_off()
-
-        return True
-
-    def add_contours(self, data):
-        """Renders contours to the current plot object.
-        Uses the different attributes to style contour lines and contour labels.
-        """
-
-        contours = self.ax.contour(data,
-                                   levels=self.contours_levels,
-                                   linewidths=self.contours_width,
-                                   colors=self.contours_color)
-        if self.contours_label is True:
-            self.ax.clabel(contours,
-                           inline=self.contours_label_inline,
-                           fontsize=self.contours_label_fontsize,
-                           fmt=self.contours_label_format)
-
-    def add_margins(self):
-        """ Adds margin patches to the current plot object.
-        This is only useful when an uncropped dataframe is passed.
-        """
-
-        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width, self.calib.s_top,
-                              fc=self.margin_color, alpha=self.margin_alpha)
-        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right, self.calib.s_height,
-                              fc=self.margin_color, alpha=self.margin_alpha)
-        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom,
-                              fc=self.margin_color, alpha=self.margin_alpha)
-        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height,
-                              fc=self.margin_color, alpha=self.margin_alpha)
-
-        self.ax.add_patch(rec_t)
-        self.ax.add_patch(rec_r)
-        self.ax.add_patch(rec_b)
-        self.ax.add_patch(rec_l)
-
-    # def change_size(self):
-    #     self. figure = plt.figure(num=self.figure.number, figsize=(self.calib.p_frame_width / self.dpi,
-    #                                                                self.calib.p_frame_height / self.dpi))
-    #
-    #     # close figure to prevent inline display
-    #     plt.close(self.figure)
-    #
-    #     return True
-    #
-    # def add_lith_contours(self, block, levels=None):
-    #     """
-    #
-    #     Args:
-    #         block:
-    #         levels:
-    #
-    #     Returns:
-    #
-    #     """
-    #     plt.contourf(block, levels=levels, cmap=self.cmap, norm=self.norm, extend="both")
-    #
-    # def create_legend(self):
-    #     """ Returns:
-    #     """
-    #     pass
-
-
-class Module:
+class Module(object):
     """
     Parent Module with threading methods and abstract attributes and methods for child classes
     """
@@ -1298,8 +1299,9 @@ class Module:
 
     def thread_loop(self):
         while self.thread_status == 'running':
-           # with self.lock:
-                self.update()
+            self.lock.acquire()
+            self.update()
+            self.lock.release()
 
     def run(self):
         if self.thread_status != 'running':
@@ -1383,10 +1385,10 @@ class TopoModule(Module):
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        with self.lock:
-            frame = self.sensor.get_filtered_frame()
-            self.plot.render_frame(frame)
-            self.projector.trigger()
+        #with self.lock:
+        frame = self.sensor.get_filtered_frame()
+        self.plot.render_frame(frame)
+        self.projector.trigger()
 
 
 class CalibModule(Module):
@@ -1450,16 +1452,19 @@ class CalibModule(Module):
         return panel
 
     def calibrate_sensor(self):
-        widgets = pn.WidgetBox(self._widget_s_top,
+        widgets = pn.WidgetBox('<b>Distance from edges (pixel)</b>',
+                               self._widget_s_top,
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
+                               pn.layout.VSpacer(height=5),
+                               '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
                                self._widget_s_max,
                                self._widget_refresh_frame
                               )
         rows = pn.Row(widgets, self.calib_panel_frame)
-        panel = pn.Column("### Sensor calibration", rows)
+        panel = pn.Column('### Sensor calibration', rows)
         return panel
 
     def calibrate(self):
