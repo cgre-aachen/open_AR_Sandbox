@@ -1931,8 +1931,10 @@ class BlockModule(Module):
         callback function for the widget to update the self.
         :return:
         """
-        with self.lock:
-            self.displayed_dataset_key = event.new
+        # used to be with self.lock:
+        self.pause()
+        self.displayed_dataset_key = event.new
+        self.resume()
 
 class GemPyModule(Module):
     # child class of Model
