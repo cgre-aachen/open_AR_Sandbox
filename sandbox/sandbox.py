@@ -1702,7 +1702,8 @@ class BlockModule(Module):
             self.set_colormaps()
         self.rescale_blocks()
         self.rescale_mask() #nearest neighbour?
-        self.displayed_dataset_key = list(self.block_dict.keys())[0]
+
+        self.displayed_dataset_key = list(self.block_dict)[0]
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
@@ -1816,6 +1817,15 @@ class BlockModule(Module):
         print('nx ny, nz:')
         print(nx, ny, nz)
 
+
+        while True:  # skip to coordinates
+            l = f.readline().split()
+            if len(l) > 0 and l[0] == "CORP":
+                print("loading cell positions")
+               # self.parse_coordinates(f, nx, ny, nz)
+                print("coordinates loaded")
+                break
+
         while True:  # skip to Livecell
             l = f.readline().split()
             if len(l) > 0 and l[0] == "LIVECELL":
@@ -1857,7 +1867,8 @@ class BlockModule(Module):
                 x = 0
                 for n in range(nx // values_per_line):  # read values in full lines
                     l = current_file.readline().split()
-
+                    if len(l) < values_per_line: ##if there is an empty line, skip to the next
+                        l = current_file.readline().split()
                     for i in range(values_per_line):  # iterate values in the line
                         value = l[i]
                         data_np[x, y, z] = float(value)
@@ -1879,26 +1890,45 @@ class BlockModule(Module):
         self.coords_y = numpy.empty((nx, ny, nz))
         self.coords_z = numpy.empty((nx, ny, nz))
 
-        while True:  # skip to coordinates
-            l = f.readline().split()
-            if len(l) > 0 and l[0] == "CORP":
 
-                for z in range(nz):
-                    for i in range(3):  # skip Layer(nz)
-                        print(f.readline())
+        for z in range(nz):
+            print('processing layer '+str(z))
+            for i in range(3):  # skip Layer(nz)
+                print(f.readline())
 
-                    for y in range(ny):
+            for y in range(ny):
+                print(y)
+                for x in range(nx):
 
-                        for x in range(nx):
+                 # skip cell header (each cell)
 
-                            for i in range(3):  # skip cell header (each cell)
-                                print(f.readline())
-                            l = f.readline().split()  # read and save the first corner point
-                            self.coords_x[x, y, z] = l[0]
-                            self.coords_y[x, y, z] = l[1]
-                            self.coords_z[x, y, z] = l[2]
-                            for i in range(3):  # skip to the end of cell, ignoring all other cornerpoints
-                                f.readline()
+                    while f.readline().split[0]=='C':# skip header
+                        pass
+
+
+
+                    px=[]
+                    py=[]
+                    pz=[]
+                    for i in range(4):
+                        l = f.readline().split()  # read the corner points
+                        px.append(float(l[0]))
+                        py.append(float(l[1]))
+                        pz.append(float(l[2]))
+
+                        px.append(float(l[3]))
+                        py.append(float(l[4]))
+                        pz.append(float(l[5]))
+
+
+                    #calculate the arithmetic mean of all 4 corners elementwise:
+                    self.coords_x[x, y, z] = numpy.mean(numpy.array(px))
+                    self.coords_y[x, y, z] = numpy.mean(numpy.array(py))
+                    self.coords_z[x, y, z] = numpy.mean(numpy.array(pz))
+
+
+
+
 
     def parse_block_vip(self, current_file, value_dict, key, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
