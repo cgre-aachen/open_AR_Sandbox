@@ -1974,7 +1974,7 @@ class BlockModule(Module):
                         except:
                             print('failed to parse value ',x ,y ,z  )
 
-                f.readline()
+                
         print(key + ' loaded')
         value_dict[key] = data_np
 
