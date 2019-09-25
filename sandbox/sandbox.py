@@ -1702,6 +1702,7 @@ class BlockModule(Module):
             self.set_colormaps()
         self.rescale_blocks()
         self.rescale_mask() #nearest neighbour?
+        self.displayed_dataset_key = self.block_dict.keys()[0]
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
