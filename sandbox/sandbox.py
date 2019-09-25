@@ -1962,12 +1962,13 @@ class BlockModule(Module):
                 for line in range(blocklength):
                     l = f.readline().split()
 
-                    for i in range(values_per_line):
+                    for i in range(len(l)):
                         value = l[i]
                         # data.loc[x,y,z] = value
                         # values.append(value)
                         data_np[x, y, z] = float(value)
                         x = x + 1
+                    
                 f.readline()
         print(key + ' loaded')
         value_dict[key] = data_np
