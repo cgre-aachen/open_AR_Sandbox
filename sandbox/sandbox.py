@@ -1702,7 +1702,9 @@ class BlockModule(Module):
             self.set_colormaps()
         self.rescale_blocks()
         self.rescale_mask() #nearest neighbour?
-        self.displayed_dataset_key = list(self.block_dict.keys())[0]
+        self.displayed_dataset_key = list(self.block_dict)[0]
+
+        self.plot.contours_color = 'w'  # Adjust default contour color
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
@@ -1752,8 +1754,8 @@ class BlockModule(Module):
         self.plot.render_frame(result, contourdata=frame, vmin=data.min(), vmax=data.max()) #ToDo: Use plot.render_frame
 
         #render and display
-        self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
-        self.plot.ax.set_axis_off()
+        #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
+        #self.plot.ax.set_axis_off()
 
         self.projector.trigger()
         #return True
@@ -1977,8 +1979,7 @@ class BlockModule(Module):
         self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
                                                   options=list(self.block_dict.keys()),
                                                   value=self.displayed_dataset_key,
-                                                  button_type='success',
-                                                  style='height: 60px;')
+                                                  button_type='success')
         self.widget.param.watch(self.update_selection, 'value', onlychanged=False)
         return self.widget
 
