@@ -1702,6 +1702,7 @@ class BlockModule(Module):
             self.set_colormaps()
         self.rescale_blocks()
         self.rescale_mask() #nearest neighbour?
+
         self.displayed_dataset_key = list(self.block_dict)[0]
 
         self.plot.contours_color = 'w'  # Adjust default contour color
@@ -1818,6 +1819,15 @@ class BlockModule(Module):
         print('nx ny, nz:')
         print(nx, ny, nz)
 
+
+        while True:  # skip to coordinates
+            l = f.readline().split()
+            if len(l) > 0 and l[0] == "CORP":
+                print("loading cell positions")
+               # self.parse_coordinates(f, nx, ny, nz)
+                print("coordinates loaded")
+                break
+
         while True:  # skip to Livecell
             l = f.readline().split()
             if len(l) > 0 and l[0] == "LIVECELL":
@@ -1859,7 +1869,8 @@ class BlockModule(Module):
                 x = 0
                 for n in range(nx // values_per_line):  # read values in full lines
                     l = current_file.readline().split()
-
+                    if len(l) < values_per_line: ##if there is an empty line, skip to the next
+                        l = current_file.readline().split()
                     for i in range(values_per_line):  # iterate values in the line
                         value = l[i]
                         data_np[x, y, z] = float(value)
@@ -1881,6 +1892,9 @@ class BlockModule(Module):
         self.coords_y = numpy.empty((nx, ny, nz))
         self.coords_z = numpy.empty((nx, ny, nz))
 
+        while True:  # skip to coordinates
+            l = f.readline().split()
+            if len(l) > 0 and l[0] == "CORP":
 
         for z in range(nz):
             print('processing layer '+str(z))
@@ -1998,7 +2012,8 @@ class BlockModule(Module):
         self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
                                                   options=list(self.block_dict.keys()),
                                                   value=self.displayed_dataset_key,
-                                                  button_type='success')
+                                                  button_type='success',
+                                                  style='height: 60px;')
         self.widget.param.watch(self.update_selection, 'value', onlychanged=False)
         return self.widget
 
