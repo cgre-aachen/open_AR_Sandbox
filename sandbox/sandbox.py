@@ -1892,11 +1892,9 @@ class BlockModule(Module):
         self.coords_y = numpy.empty((nx, ny, nz))
         self.coords_z = numpy.empty((nx, ny, nz))
 
-        while True:  # skip to coordinates
-            l = f.readline().split()
-            if len(l) > 0 and l[0] == "CORP":
 
         for z in range(nz):
+
             print('processing layer '+str(z))
             for i in range(3):  # skip Layer(nz)
                 print(f.readline())
