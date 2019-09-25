@@ -1961,14 +1961,19 @@ class BlockModule(Module):
 
                 for line in range(blocklength):
                     l = f.readline().split()
+                    if len(l)<1:
+                        l = f.readline().split() #skip empty line that occours if value is dividable by 8
 
                     for i in range(len(l)):
-                        value = l[i]
-                        # data.loc[x,y,z] = value
-                        # values.append(value)
-                        data_np[x, y, z] = float(value)
-                        x = x + 1
-                    
+                        try:
+                            value = l[i]
+                            # data.loc[x,y,z] = value
+                            # values.append(value)
+                            data_np[x, y, z] = float(value)
+                            x = x + 1
+                        except:
+                            print('failed to parse value ',x ,y ,z  )
+
                 f.readline()
         print(key + ' loaded')
         value_dict[key] = data_np
