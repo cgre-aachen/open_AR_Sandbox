@@ -1824,7 +1824,7 @@ class BlockModule(Module):
             l = f.readline().split()
             if len(l) > 0 and l[0] == "CORP":
                 print("loading cell positions")
-               # self.parse_coordinates(f, nx, ny, nz)
+                self.parse_coordinates(f, nx, ny, nz)
                 print("coordinates loaded")
                 break
 
@@ -1854,6 +1854,48 @@ class BlockModule(Module):
 
         f.close() #close the file
 
+    def parse_coordinates(self, current_file, nx, ny, nz):
+        f = current_file
+
+        self.coords_x = numpy.empty((nx, ny, nz))
+        self.coords_y = numpy.empty((nx, ny, nz))
+        self.coords_z = numpy.empty((nx, ny, nz))
+
+
+        for z in range(nz):
+
+            print('processing coordinates in layer '+str(z))
+            for i in range(3):  # skip Layer(nz)
+                f.readline()
+
+            for y in range(ny):
+               # print(y)
+                for x in range(nx):
+
+                 # skip cell header (each cell)
+                    l = f.readline().split()
+                    while l[0]=='C':# skip header
+                        l = f.readline().split()
+
+                    px=[]
+                    py=[]
+                    pz=[]
+                    for i in range(4):
+                         # read the corner points
+                        px.append(float(l[0]))
+                        py.append(float(l[1]))
+                        pz.append(float(l[2]))
+
+                        px.append(float(l[3]))
+                        py.append(float(l[4]))
+                        pz.append(float(l[5]))
+                        l = f.readline().split() # read in next line
+
+
+                     #calculate the arithmetic mean of all 4 corners elementwise:
+                    self.coords_x[x, y, z] = numpy.mean(numpy.array(px))
+                    self.coords_y[x, y, z] = numpy.mean(numpy.array(py))
+                    self.coords_z[x, y, z] = numpy.mean(numpy.array(pz))
 
     def parse_Livecells_vip(self, current_file, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
@@ -1885,54 +1927,6 @@ class BlockModule(Module):
 
         self.data_mask = data_np
 
-    def parse_coordinates(self, current_file, nx, ny, nz):
-        f = current_file
-
-        self.coords_x = numpy.empty((nx, ny, nz))
-        self.coords_y = numpy.empty((nx, ny, nz))
-        self.coords_z = numpy.empty((nx, ny, nz))
-
-
-        for z in range(nz):
-
-            print('processing layer '+str(z))
-            for i in range(3):  # skip Layer(nz)
-                print(f.readline())
-
-            for y in range(ny):
-                print(y)
-                for x in range(nx):
-
-                 # skip cell header (each cell)
-
-                    while f.readline().split[0]=='C':# skip header
-                        pass
-
-
-
-                    px=[]
-                    py=[]
-                    pz=[]
-                    for i in range(4):
-                        l = f.readline().split()  # read the corner points
-                        px.append(float(l[0]))
-                        py.append(float(l[1]))
-                        pz.append(float(l[2]))
-
-                        px.append(float(l[3]))
-                        py.append(float(l[4]))
-                        pz.append(float(l[5]))
-
-
-                    #calculate the arithmetic mean of all 4 corners elementwise:
-                    self.coords_x[x, y, z] = numpy.mean(numpy.array(px))
-                    self.coords_y[x, y, z] = numpy.mean(numpy.array(py))
-                    self.coords_z[x, y, z] = numpy.mean(numpy.array(pz))
-
-
-
-
-
     def parse_block_vip(self, current_file, value_dict, key, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
 
@@ -1955,7 +1949,7 @@ class BlockModule(Module):
 
         for z in range(nz):
             for i in range(3):
-                f.readline()
+                l=f.readline().split()
             for y in range(ny):
                 x = 0
 
@@ -1963,7 +1957,8 @@ class BlockModule(Module):
                     l = f.readline().split()
                     if len(l)<1:
                         l = f.readline().split() #skip empty line that occours if value is dividable by 8
-
+                    while l[0] == "C":
+                        l = f.readline().split() #skip the header lines(can vary from file to file)
                     for i in range(len(l)):
                         try:
                             value = l[i]
@@ -1973,6 +1968,9 @@ class BlockModule(Module):
                             x = x + 1
                         except:
                             print('failed to parse value ',x ,y ,z  )
+                            print(l)
+                            x = x + 1
+            print(x,y+1,z+1) # to check if all cells are loaded
 
                 
         print(key + ' loaded')
