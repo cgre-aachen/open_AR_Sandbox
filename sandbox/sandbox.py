@@ -2035,7 +2035,7 @@ class BlockModule(Module):
         cmap=self.cmap_dict[self.displayed_dataset_key][0]
         cmap.set_over('black')
         cmap.set_under('black')
-        cmap.set_bad('grey')
+        cmap.set_bad('black')
       #  cmap.set_bad('black') #TODO: setb back to black!
         norm = self.cmap_dict[self.displayed_dataset_key][1]
         min = self.cmap_dict[self.displayed_dataset_key][2]
