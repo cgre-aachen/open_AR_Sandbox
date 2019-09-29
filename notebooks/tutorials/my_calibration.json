@@ -1,1 +1,1 @@
-{"version": "0.8alpha", "p_width": 1280, "p_height": 800, "p_frame_top": 0, "p_frame_left": 31, "p_frame_width": 1105, "p_frame_height": 800, "s_name": "kinect_v2", "s_width": 512, "s_height": 424, "s_top": 124, "s_right": 86, "s_bottom": 39, "s_left": 106, "s_min": 982, "s_max": 1366}
+{"version": "0.8alpha", "p_width": 1280, "p_height": 800, "p_frame_top": 0, "p_frame_left": 0, "p_frame_width": 1158, "p_frame_height": 800, "s_name": "kinect_v2", "s_width": 512, "s_height": 424, "s_top": 119, "s_right": 80, "s_bottom": 36, "s_left": 92, "s_min": 995, "s_max": 1368}

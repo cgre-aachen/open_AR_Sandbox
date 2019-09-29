@@ -1455,7 +1455,7 @@ class CalibModule(Module):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
             frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
+        self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max )
         self.projector.trigger()
 
     def update_calib_plot(self):
@@ -1963,7 +1963,7 @@ class BlockModule(Module):
         super().__init__(calibrationdata, sensor, projector, crop, **kwarg) #call parent init
         self.block_dict = {}
         self.cmap_dict = {}
-        self.displayed_dataset_key = "Zone"  # variable to choose displayed dataset in runtime
+        self.displayed_dataset_key = "mask"  # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
         self.reservoir_topography = None
         self.rescaled_reservoir_topography =None
@@ -1973,6 +1973,13 @@ class BlockModule(Module):
       #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
         self.index = None #index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
         self.widget = None #widget to change models in runtime
+        self.min_sensor_offset = 0
+        self.max_sensor_offset = 0
+        self.minmax_sensor_offset = 0
+        self.original_sensor_min = 0
+        self.original_sensor_max = 0
+
+
 
     def setup(self):
         if self.block_dict is None:
@@ -1983,7 +1990,7 @@ class BlockModule(Module):
         self.rescale_blocks()
         #self.rescale_mask() #nearest neighbour? obsolete! mask is now part of the block_dict
 
-        self.displayed_dataset_key = list(self.block_dict)[0]
+        self.displayed_dataset_key = list(self.block_dict)[1]
 
         self.plot.contours_color = 'w'  # Adjust default contour color
 
@@ -2005,11 +2012,6 @@ class BlockModule(Module):
             data = numpy.ma.masked_where(self.rescaled_block_dict['mask'] < 0.5,
                 self.rescaled_block_dict[self.displayed_dataset_key]
             )
-
-      #  data = numpy.ma.masked_array( #filter all nan values
-      #      data,
-      #      mask=numpy.logical_not(numpy.isnan(data))
-      #  )
 
         zmin = self.calib.s_min
         zmax = self.calib.s_max
@@ -2033,15 +2035,17 @@ class BlockModule(Module):
         cmap=self.cmap_dict[self.displayed_dataset_key][0]
         cmap.set_over('black')
         cmap.set_under('black')
-        cmap.set_bad('red')
+        cmap.set_bad('grey')
       #  cmap.set_bad('black') #TODO: setb back to black!
         norm = self.cmap_dict[self.displayed_dataset_key][1]
         min = self.cmap_dict[self.displayed_dataset_key][2]
         max =self.cmap_dict[self.displayed_dataset_key][3]
         self.plot.cmap = cmap
         self.plot.norm = norm
-        self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max) # use nanmin and nanmax!Tplot the current frame
+        self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max) # plot the current frame
 
+        if self.show_reservoir_topo is True:
+            self.plot.ax.contour(self.rescaled_reservoir_topography)
         #render and display
         #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
         #self.plot.ax.set_axis_off()
@@ -2141,22 +2145,35 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def show_widget(self):
+    def show_widgets(self):
+        self.original_sensor_min = self.calib.s_min #store original sensor values on start
+        self.original_sensor_max = self.calib.s_max
+
+        widgets = pn.WidgetBox(self._widget_model_selector(),
+                               self._widget_sensor_top_slider(),
+                               self._widget_sensor_bottom_slider(),
+                               self._widget_sensor_position_slider(),
+                               self._widget_show_reservoir_topography()
+                               )
+        panel = pn.Column("### Interaction widgets", widgets)
+        self.widget = panel
+        return panel
+
+    def _widget_model_selector(self):
         """
         displays a widget to toggle between the currently active dataset while the sandbox is running
         Returns:
 
         """
         pn.extension()
-        self.widget = pn.widgets.RadioButtonGroup(name='Model selector',
+        widget = pn.widgets.RadioButtonGroup(name='Model selector',
                                                   options=list(self.block_dict.keys()),
                                                   value=self.displayed_dataset_key,
-                                                  button_type='success',
-                                                  style='height: 60px;')
-        self.widget.param.watch(self. _callback_selection, 'value', onlychanged=False)
+                                                  button_type='success')
 
+        widget.param.watch(self. _callback_selection, 'value', onlychanged=False)
 
-        return self.widget
+        return widget
 
     def _callback_selection(self, event):
         """
@@ -2166,6 +2183,97 @@ class BlockModule(Module):
         # used to be with self.lock:
         self.pause()
         self.displayed_dataset_key = event.new
+        self.resume()
+
+    def _widget_sensor_top_slider(self):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
+
+        """
+        pn.extension()
+        widget = pn.widgets.IntSlider(name='offset top of the model ', start=-250, end=250, step=1, value=0)
+
+        widget.param.watch(self._callback_top_slider, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_top_slider(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.pause()
+        self.min_sensor_offset = event.new
+        self._update_sensor_calib()
+        self.resume()
+
+    def _widget_sensor_bottom_slider(self):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
+
+        """
+        pn.extension()
+        widget = pn.widgets.IntSlider(name='offset bottom of the model ', start=-250, end=250, step=1, value=0)
+
+        widget.param.watch(self._callback_bottom_slider, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_bottom_slider(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.pause()
+        self.max_sensor_offset = event.new
+        self._update_sensor_calib()
+        self.resume()
+
+    def _widget_sensor_position_slider(self):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
+
+        """
+        pn.extension()
+        widget = pn.widgets.IntSlider(name='offset the model in vertical direction ', start=-250, end=250, step=1, value=0)
+
+        widget.param.watch(self._callback_position_slider, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_position_slider(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.pause()
+        self.minmax_sensor_offset = event.new
+        self._update_sensor_calib()
+        self.resume()
+
+    def _update_sensor_calib(self):
+        self.calib.s_min = self.original_sensor_min + self.min_sensor_offset +self.minmax_sensor_offset
+        self.calib.s_max = self.original_sensor_max + self.max_sensor_offset + self.minmax_sensor_offset
+
+    def _widget_show_reservoir_topography(self):
+        widget = pn.widgets.Toggle(name='show reservoir top contours',
+                                   value=self.show_reservoir_topo,
+                                   button_type='success')
+        widget.param.watch(self._callback_show_reservoir_topography, 'value', onlychanged=False)
+
+        return widget
+
+
+    def _callback_show_reservoir_topography(self, event):
+        self.pause()
+        self.show_reservoir_topo = event.new
+        self._update_sensor_calib()
         self.resume()
 
 class GemPyModule(Module):
