@@ -1892,9 +1892,14 @@ class RMS_Grid():
 
         #iterate over all loaded datasets:
         for key in self.block_dict.keys():
-            print("processing grid: ",key)
+            print("processing grid: ", key)
             data = self.block_dict[key].ravel()
-            interp_grid = scipy.interpolate.griddata((x, y, z), data, grid)
+
+            if key == 'mask': #for the mask, fill NaN values with 0.0
+                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method='linear', fill_value=0.0)
+            else:
+                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method='nearest')
+
 
 
             #save to dictionary:
@@ -1963,6 +1968,7 @@ class BlockModule(Module):
         self.reservoir_topography = None
         self.rescaled_reservoir_topography =None
         self.show_reservoir_topo = False
+        self.result = None #stores the output array of the current frame
 
       #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
         self.index = None #index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
@@ -1992,28 +1998,33 @@ class BlockModule(Module):
         depth_mask = self.depth_mask(frame)
         frame = self.clip_frame(frame)
 
-        if self.rescaled_block_dict['mask'] is None: #check if there is a data_mask, TODO: try except key error
+        if self.displayed_dataset_key is 'mask': #check if there is a data_mask, TODO: try except key error
             data = self.rescaled_block_dict[self.displayed_dataset_key]
         else:    #apply data mask
-            data = numpy.ma.masked_array(
-                self.rescaled_block_dict[self.displayed_dataset_key],
-                mask=numpy.logical_not(self.rescaled_block_dict['mask']) # invert mask TODO: Tidy up!
+
+            data = numpy.ma.masked_where(self.rescaled_block_dict['mask'] < 0.5,
+                self.rescaled_block_dict[self.displayed_dataset_key]
             )
+
+      #  data = numpy.ma.masked_array( #filter all nan values
+      #      data,
+      #      mask=numpy.logical_not(numpy.isnan(data))
+      #  )
 
         zmin = self.calib.s_min
         zmax = self.calib.s_max
 
         index = (frame - zmin) / (zmax - zmin) * (data.shape[2] - 1.0)  # convert the z dimension to index
         index = index.round()  # round to next integer
-        index = index.astype('int')
+        self.index = index.astype('int')
 
 
 
         # querry the array:
         i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
-        result = data[i, j, index]
+        self.result = data[i, j, self.index]
 
-        result = numpy.ma.masked_array(result, mask=depth_mask) #apply the depth mask
+        self.result = numpy.ma.masked_array(self.result, mask=depth_mask) #apply the depth mask
 
         self.plot.ax.cla()
 
@@ -2022,11 +2033,14 @@ class BlockModule(Module):
         cmap=self.cmap_dict[self.displayed_dataset_key][0]
         cmap.set_over('black')
         cmap.set_under('black')
-        cmap.set_bad('black')
-        norm= self.cmap_dict[self.displayed_dataset_key][1]
+        cmap.set_bad('red')
+      #  cmap.set_bad('black') #TODO: setb back to black!
+        norm = self.cmap_dict[self.displayed_dataset_key][1]
+        min = self.cmap_dict[self.displayed_dataset_key][2]
+        max =self.cmap_dict[self.displayed_dataset_key][3]
         self.plot.cmap = cmap
         self.plot.norm = norm
-        self.plot.render_frame(result, contourdata=frame, vmin=data.min(), vmax=data.max()) #Tplot the current frame
+        self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max) # use nanmin and nanmax!Tplot the current frame
 
         #render and display
         #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
@@ -2047,11 +2061,11 @@ class BlockModule(Module):
 
         Returns: nothing, changes in place the 
 
-        """"
+        """
         data_list = pickle.load( open( model_filename, "rb" ) )
         self.block_dict = data_list[0]
         self.reservoir_topography = data_list[1]
-        print('Datasets loaded: ', self.block_dict.dict.keys())
+        print('Datasets loaded: ', self.block_dict.keys())
 
 
     def create_cmap(self, clist):
@@ -2069,16 +2083,16 @@ class BlockModule(Module):
         return norm
 
     def set_colormap(self, key=None, cmap='jet', norm=None):
-        min = self.block_dict[key].min()
-        max = self.block_dict[key].max()
+        min = numpy.nanmin(self.block_dict[key].ravel()) #find min ignoring NaNs
+        max = numpy.nanmax(self.block_dict[key].ravel())
 
         if isinstance(cmap, str):  # get colormap by name
-            cmap=matplotlib.cm.get_cmap(name=cmap, lut=None)
+            cmap = matplotlib.cm.get_cmap(name=cmap, lut=None)
 
         if norm is None:
             norm = self.create_norm(min, max)
 
-        self.cmap_dict[key] = [cmap, norm]
+        self.cmap_dict[key] = [cmap, norm, min, max]
 
     def set_colormaps(self, cmap=None, norm=None):
         """
@@ -2107,7 +2121,7 @@ class BlockModule(Module):
            self.rescaled_reservoir_topography = skimage.transform.resize(
                 self.reservoir_topography,
                 (self.calib.s_frame_height, self.calib.s_frame_width),
-                order=0
+                order=0 #nearest neighbour
            )
 
     def rescale_mask(self): #scale the blocks xy Size to the cropped size of the sensor
@@ -2127,7 +2141,7 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-    def show_selector(self):
+    def show_widget(self):
         """
         displays a widget to toggle between the currently active dataset while the sandbox is running
         Returns:
@@ -2139,10 +2153,12 @@ class BlockModule(Module):
                                                   value=self.displayed_dataset_key,
                                                   button_type='success',
                                                   style='height: 60px;')
-        self.widget.param.watch(self.update_selection, 'value', onlychanged=False)
+        self.widget.param.watch(self. _callback_selection, 'value', onlychanged=False)
+
+
         return self.widget
 
-    def update_selection(self, event):
+    def _callback_selection(self, event):
         """
         callback function for the widget to update the self.
         :return:
