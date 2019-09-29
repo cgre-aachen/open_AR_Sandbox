@@ -1962,6 +1962,7 @@ class BlockModule(Module):
         self.rescaled_block_dict = {}
         self.reservoir_topography = None
         self.rescaled_reservoir_topography =None
+        self.show_reservoir_topo = False
 
       #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
         self.index = None #index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
@@ -1974,7 +1975,7 @@ class BlockModule(Module):
         elif self.cmap_dict is None:
             self.set_colormaps()
         self.rescale_blocks()
-        self.rescale_mask() #nearest neighbour?
+        #self.rescale_mask() #nearest neighbour? obsolete! mask is now part of the block_dict
 
         self.displayed_dataset_key = list(self.block_dict)[0]
 
@@ -1991,12 +1992,12 @@ class BlockModule(Module):
         depth_mask = self.depth_mask(frame)
         frame = self.clip_frame(frame)
 
-        if self.rescaled_data_mask is None: #check if there is a data_mask
+        if self.rescaled_block_dict['mask'] is None: #check if there is a data_mask, TODO: try except key error
             data = self.rescaled_block_dict[self.displayed_dataset_key]
         else:    #apply data mask
             data = numpy.ma.masked_array(
                 self.rescaled_block_dict[self.displayed_dataset_key],
-                mask=numpy.logical_not(self.rescaled_data_mask) # invert mask TODO: Tidy up!
+                mask=numpy.logical_not(self.rescaled_block_dict['mask']) # invert mask TODO: Tidy up!
             )
 
         zmin = self.calib.s_min
@@ -2025,7 +2026,7 @@ class BlockModule(Module):
         norm= self.cmap_dict[self.displayed_dataset_key][1]
         self.plot.cmap = cmap
         self.plot.norm = norm
-        self.plot.render_frame(result, contourdata=frame, vmin=data.min(), vmax=data.max()) #ToDo: Use plot.render_frame
+        self.plot.render_frame(result, contourdata=frame, vmin=data.min(), vmax=data.max()) #Tplot the current frame
 
         #render and display
         #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
