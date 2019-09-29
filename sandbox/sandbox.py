@@ -1944,7 +1944,7 @@ class RMS_Grid():
         [1] the reservoir topography map
 
         """
-        pickle.dump([self.regular_grid_dict, open(filename, "wb"), self.reservoir_topography])
+        pickle.dump([self.regular_grid_dict, self.reservoir_topography], open(filename, "wb"))
 
 
 
@@ -1960,9 +1960,11 @@ class BlockModule(Module):
         self.cmap_dict = {}
         self.displayed_dataset_key = "Zone"  # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
+        self.reservoir_topography = None
+        self.rescaled_reservoir_topography =None
 
-        self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
-        self.index = None
+      #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
+        self.index = None #index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
         self.widget = None #widget to change models in runtime
 
     def setup(self):
@@ -2032,6 +2034,25 @@ class BlockModule(Module):
         self.projector.trigger()
         #return True
 
+    def load_model(self, model_filename):
+        """
+        loads a regular grid dataset parsed and prepared with the RMS Grid class.
+        the pickled list contains 2 entries:
+        1.  The regridded Block dictionary
+        2.  a 2d array of the lateral size of the blocks with the z values of the uppermost layer 
+            (= the shape of the reservoir top surface)
+        Args:
+            model_filename: string with the path to the file to load
+
+        Returns: nothing, changes in place the 
+
+        """"
+        data_list = pickle.load( open( model_filename, "rb" ) )
+        self.block_dict = data_list[0]
+        self.reservoir_topography = data_list[1]
+        print('Datasets loaded: ', self.block_dict.dict.keys())
+
+
     def create_cmap(self, clist):
         """
         create a matplotlib colormap object from a list of discrete colors
@@ -2072,8 +2093,6 @@ class BlockModule(Module):
 
 
 
-
-
     def rescale_blocks(self): #scale the blocks xy Size to the cropped size of the sensor
         for key in self.block_dict.keys():
             rescaled_block = skimage.transform.resize(
@@ -2082,6 +2101,13 @@ class BlockModule(Module):
                 order=0
             )
             self.rescaled_block_dict[key] = rescaled_block
+
+        if self.reservoir_topography is not None: #rescale the topography map
+           self.rescaled_reservoir_topography = skimage.transform.resize(
+                self.reservoir_topography,
+                (self.calib.s_frame_height, self.calib.s_frame_width),
+                order=0
+           )
 
     def rescale_mask(self): #scale the blocks xy Size to the cropped size of the sensor
             rescaled_mask = skimage.transform.resize(
