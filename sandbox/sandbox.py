@@ -2153,7 +2153,8 @@ class BlockModule(Module):
                                self._widget_sensor_top_slider(),
                                self._widget_sensor_bottom_slider(),
                                self._widget_sensor_position_slider(),
-                               self._widget_show_reservoir_topography()
+                               self._widget_show_reservoir_topography(),
+                               self._widget_contours_steps()
                                )
         panel = pn.Column("### Interaction widgets", widgets)
         self.widget = panel
@@ -2274,6 +2275,23 @@ class BlockModule(Module):
         self.pause()
         self.show_reservoir_topo = event.new
         self._update_sensor_calib()
+        self.resume()
+
+    def _widget_contours_steps(self):
+        """ Shows a widget that allows to change the contours step size"""
+
+        widget = pn.widgets.IntSlider(name='Step size between contour lines',
+                                      start=1,
+                                      end=round(self.plot.contours_step) * 10,
+                                      step=1,
+                                      value=round(self.plot.contours_step))
+
+        widget.param.watch(self._callback_contours_step, 'value', onlychanged=False)
+        return widget
+
+    def _callback_contours_step(self, event):
+        self.pause()
+        self.plot.contours_step = event.new
         self.resume()
 
 class GemPyModule(Module):
