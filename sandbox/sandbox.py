@@ -982,6 +982,7 @@ class Plot(object):
     def contours_levels(self):
         """Returns the current contour levels, being aware of changes in calibration."""
 
+
         return numpy.arange(self.vmin, self.vmax, self.contours_step)
 
     def create_empty_frame(self):
@@ -1694,6 +1695,8 @@ class RMS_Grid():
         self.coords_z = None
         self.data_mask = None #stores the Livecell information from the VIP  File
         self.reservoir_topography = None
+        self.method = 'nearest'
+        self.mask_method = 'nearest'
 
     def load_model_vip(self, infile):
         # parse the file
@@ -1866,7 +1869,7 @@ class RMS_Grid():
 
         return True
 
-    def convert_to_regular_grid(self):
+    def convert_to_regular_grid(self, method=None, mask_method=None):
         #prepare the cell coordinates of the original grid
         x = self.coords_x.ravel()
         y = self.coords_y.ravel()
@@ -1893,12 +1896,28 @@ class RMS_Grid():
         #iterate over all loaded datasets:
         for key in self.block_dict.keys():
             print("processing grid: ", key)
+            if key == 'mask':
+                self.block_dict[key][:, :, 0] = 0.0
+                self.block_dict[key][0, :, :] = 0.0  # exchange outer limits of the box so that nearest neighbour returns zeros outside the box
+                self.block_dict[key][-1, :, :] = 0.0
+                self.block_dict[key][:, -1, :] = 0.0
+                self.block_dict[key][:, 0, :] = 0.0
+                self.block_dict[key][:, :, -1] = 0.0
+                self.block_dict[key][:, :, 0] = 0.0
+
             data = self.block_dict[key].ravel()
 
             if key == 'mask': #for the mask, fill NaN values with 0.0
-                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method='linear', fill_value=0.0)
+                if mask_method==None:
+                    mask_method = self.mask_method #'linear' or 'nearest'
+                data = numpy.nan_to_num(data) #this does not work with nearest neighbour!
+
+                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method=mask_method)
+
             else:
-                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method='nearest')
+                if method==None:
+                    method=self.method
+                interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method=method)
 
 
 
@@ -1938,7 +1957,7 @@ class RMS_Grid():
         top_y = self.coords_y[:,:,0].ravel()
         top_z = self.coords_z[:,:,0].ravel()
 
-        topo = scipy.interpolate.griddata((top_x, top_y), top_z, grid2d)
+        topo = scipy.interpolate.griddata((top_x, top_y), top_z, grid2d) #this has to be done with the linear method!
         self.reservoir_topography = topo.reshape([self.regridding_resolution[1], self.regridding_resolution[0]])
 
     def save(self, filename):
@@ -1966,8 +1985,10 @@ class BlockModule(Module):
         self.displayed_dataset_key = "mask"  # variable to choose displayed dataset in runtime
         self.rescaled_block_dict = {}
         self.reservoir_topography = None
-        self.rescaled_reservoir_topography =None
+        self.rescaled_reservoir_topography = None
         self.show_reservoir_topo = False
+        self.num_contours_reservoir_topo = 10 #number of contours in
+        self.reservoir_topography_topo_levels = None #set in setup and in widget.
         self.result = None #stores the output array of the current frame
 
       #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
@@ -1978,7 +1999,9 @@ class BlockModule(Module):
         self.minmax_sensor_offset = 0
         self.original_sensor_min = 0
         self.original_sensor_max = 0
+        self.mask_threshold = 0.5 #set the threshold for the mask array, interpolated between 0.0 and 1.0 #obsolete!
 
+        self.num_contour_steps = 20
 
 
     def setup(self):
@@ -1996,6 +2019,8 @@ class BlockModule(Module):
 
         self.projector.frame.object = self.plot.figure #Link figure to projector
 
+        self.calculate_reservoir_contours()
+
     def update(self):
         #with self.lock:
         frame = self.sensor.get_filtered_frame()
@@ -2003,15 +2028,33 @@ class BlockModule(Module):
         if self.crop is True:
             frame = self.crop_frame(frame)
         depth_mask = self.depth_mask(frame)
+
+        ###workaround:resize depth mask
+        #depth_mask = skimage.transform.resize(
+        #    depth_mask,
+        #    (
+        #    self.block_dict[self.displayed_dataset_key].shape[0], self.block_dict[self.displayed_dataset_key].shape[1]),
+        #    order=0
+        #)
+
         frame = self.clip_frame(frame)
+
+        ##workaround: reshape frame to array size, not the other way around!
+      #  frame = skimage.transform.resize(
+      #          frame,
+      #          (self.block_dict[self.displayed_dataset_key].shape[0], self.block_dict[self.displayed_dataset_key].shape[1]),
+      #          order=1
+      #  )
 
         if self.displayed_dataset_key is 'mask': #check if there is a data_mask, TODO: try except key error
             data = self.rescaled_block_dict[self.displayed_dataset_key]
+          #  data = self.block_dict[self.displayed_dataset_key]
         else:    #apply data mask
 
-            data = numpy.ma.masked_where(self.rescaled_block_dict['mask'] < 0.5,
+            data = numpy.ma.masked_where(self.rescaled_block_dict['mask'] < self.mask_threshold,
                 self.rescaled_block_dict[self.displayed_dataset_key]
             )
+
 
         zmin = self.calib.s_min
         zmax = self.calib.s_max
@@ -2032,20 +2075,20 @@ class BlockModule(Module):
 
         self.plot.vmin = zmin
         self.plot.vmax = zmax
-        cmap=self.cmap_dict[self.displayed_dataset_key][0]
+        cmap = self.cmap_dict[self.displayed_dataset_key][0]
         cmap.set_over('black')
         cmap.set_under('black')
         cmap.set_bad('black')
-      #  cmap.set_bad('black') #TODO: setb back to black!
+
         norm = self.cmap_dict[self.displayed_dataset_key][1]
         min = self.cmap_dict[self.displayed_dataset_key][2]
-        max =self.cmap_dict[self.displayed_dataset_key][3]
+        max = self.cmap_dict[self.displayed_dataset_key][3]
         self.plot.cmap = cmap
         self.plot.norm = norm
         self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max) # plot the current frame
 
         if self.show_reservoir_topo is True:
-            self.plot.ax.contour(self.rescaled_reservoir_topography)
+            self.plot.ax.contour(self.rescaled_reservoir_topography,levels=self.reservoir_topography_topo_levels)
         #render and display
         #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
         #self.plot.ax.set_axis_off()
@@ -2119,6 +2162,7 @@ class BlockModule(Module):
                 (self.calib.s_frame_height, self.calib.s_frame_width),
                 order=0
             )
+
             self.rescaled_block_dict[key] = rescaled_block
 
         if self.reservoir_topography is not None: #rescale the topography map
@@ -2145,6 +2189,37 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
+
+    def calculate_reservoir_contours(self):
+        min=numpy.nanmin(self.rescaled_reservoir_topography.ravel())
+        max=numpy.nanmax(self.rescaled_reservoir_topography.ravel())
+        step = (max-min)/float(self.num_contours_reservoir_topo)
+        print(min, max,step)
+        self.reservoir_topography_topo_levels = numpy.arange(min, max, step=step)
+
+
+    def widget_mask_threshold(self):
+        """
+        displays a widget to adjust the mask threshold value
+
+        """
+        pn.extension()
+        widget = pn.widgets.FloatSlider(name='mask threshold (values smaller than the set threshold will be masked)', start=0.0, end=1.0, step=0.01, value=self.mask_threshold)
+
+        widget.param.watch(self._callback_mask_threshold, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_mask_threshold(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.pause()
+        self.mask_threshold = event.new
+        self.resume()
+
     def show_widgets(self):
         self.original_sensor_min = self.calib.s_min #store original sensor values on start
         self.original_sensor_max = self.calib.s_max
@@ -2154,8 +2229,10 @@ class BlockModule(Module):
                                self._widget_sensor_bottom_slider(),
                                self._widget_sensor_position_slider(),
                                self._widget_show_reservoir_topography(),
-                               self._widget_contours_steps()
+                               self._widget_reservoir_contours_num(),
+                               self._widget_contours_num()
                                )
+
         panel = pn.Column("### Interaction widgets", widgets)
         self.widget = panel
         return panel
@@ -2259,7 +2336,7 @@ class BlockModule(Module):
         self.resume()
 
     def _update_sensor_calib(self):
-        self.calib.s_min = self.original_sensor_min + self.min_sensor_offset +self.minmax_sensor_offset
+        self.calib.s_min = self.original_sensor_min + self.min_sensor_offset + self.minmax_sensor_offset
         self.calib.s_max = self.original_sensor_max + self.max_sensor_offset + self.minmax_sensor_offset
 
     def _widget_show_reservoir_topography(self):
@@ -2270,28 +2347,48 @@ class BlockModule(Module):
 
         return widget
 
-
     def _callback_show_reservoir_topography(self, event):
         self.pause()
         self.show_reservoir_topo = event.new
         self._update_sensor_calib()
         self.resume()
 
-    def _widget_contours_steps(self):
+    def _widget_reservoir_contours_num(self):
         """ Shows a widget that allows to change the contours step size"""
 
-        widget = pn.widgets.IntSlider(name='Step size between contour lines',
-                                      start=1,
-                                      end=round(self.plot.contours_step) * 10,
+        widget = pn.widgets.IntSlider(name='number of contours in the reservoir topography',
+                                      start=0,
+                                      end=100,
                                       step=1,
-                                      value=round(self.plot.contours_step))
+                                      value=round(self.num_contours_reservoir_topo))
 
-        widget.param.watch(self._callback_contours_step, 'value', onlychanged=False)
+        widget.param.watch(self._callback_reservoir_contours_num, 'value', onlychanged=False)
         return widget
 
-    def _callback_contours_step(self, event):
+    def _callback_reservoir_contours_num(self, event):
         self.pause()
-        self.plot.contours_step = event.new
+        self.num_contours_reservoir_topo = event.new
+        self.calculate_reservoir_contours()
+        self.resume()
+
+    def _widget_contours_num(self):
+        """ Shows a widget that allows to change the contours step size"""
+
+        widget = pn.widgets.IntSlider(name='number of contours in the sandbox',
+                                      start=0,
+                                      end=100,
+                                      step=1,
+                                      value=self.num_contour_steps)
+
+        widget.param.watch(self._callback_contours_num, 'value', onlychanged=False)
+        return widget
+
+    def _callback_contours_num(self, event):
+        self.pause()
+        self.plot.vmin=self.calib.s_min
+        self.plot.vmax=self.calib.s_max
+        self.num_contour_steps = event.new
+        self.plot.contours_step = (self.plot.vmax-self.plot.vmin)/float(self.num_contour_steps)
         self.resume()
 
 class GemPyModule(Module):
