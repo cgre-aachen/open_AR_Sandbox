@@ -1,5 +1,4 @@
 import json
-import numpy as np
 import numpy
 import param
 import pandas as pd
@@ -7,10 +6,14 @@ import panel as pn
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
 from scipy.interpolate import griddata
+<<<<<<< Updated upstream
 from time import sleep
 import threading
 import gc
 from abc import ABCMeta, abstractmethod
+=======
+
+>>>>>>> Stashed changes
 
 
 class Sandbox:
@@ -78,6 +81,16 @@ class Projector:
         self.frame.object = figure
         #plt.close()
 
+<<<<<<< Updated upstream
+=======
+    def show(self):
+        self.frame.object = self.plot.render_frame()
+
+    def show_loop(self, iterations=5, sleep_s=0.1):
+        for i in numpy.arange(0, iterations):
+            self.show()
+            sleep(sleep_s)
+>>>>>>> Stashed changes
 
     def create_panel(self):
 
@@ -101,8 +114,13 @@ class Projector:
         # in this special case, a "tight" layout would actually add again white space to the plt canvas, which was already cropped by specifying limits to the axis
 
 
+<<<<<<< Updated upstream
         self.frame = pn.pane.Matplotlib(plt.figure(), width=self.calib.p_area_width, height=self.calib.p_area_height,
                                          margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['frame'])
+=======
+        self.frame = pn.pane.Matplotlib(self.plot.figure, width=self.calib.p_area_width, height=self.calib.p_area_height,
+                                         margin=[self.calib.p_top_margin, 0, 0, self.calib.p_left_margin], tight=False, dpi=self.calib.p_dpi, css_classes=['output'])
+>>>>>>> Stashed changes
 
         self.legend = pn.Column("<br>\n# Legend",
                                 margin=[self.calib.p_top_margin, 0, 0, 0],
@@ -128,6 +146,10 @@ class Projector:
             target.margin = [n, m[1], m[2], m[3]]
             # also update calibration object
             self.calib.p_top_margin = event.new
+<<<<<<< Updated upstream
+=======
+        margin_top.link(self.frame, callbacks={'value': callback_mt})
+>>>>>>> Stashed changes
 
         margin_top.link(self.frame, callbacks={'value': callback_mt})
 
@@ -292,6 +314,12 @@ class DummySensor:
         self.interpolation = inter.reshape(self.height, self.width)
 
 
+<<<<<<< Updated upstream
+=======
+
+
+
+>>>>>>> Stashed changes
 class Plot:
 
     def __init__(self, calibration):
@@ -307,13 +335,20 @@ class Plot:
         self.figure = None
         self.ax = None # current plot composition
 
-        self.empty_frame() # initial figure for starting projector
+        self.create_empty_frame() # initial figure for starting projector
 
 
+<<<<<<< Updated upstream
     def render_frame(self, data):
         # clear axes to draw new ones on figure
         self.ax.cla()
 
+=======
+    def render_frame(self):
+        # reset old figure
+        plt.close(self.figure)
+        self.create_empty_frame()
+>>>>>>> Stashed changes
         if self.colormap:
             self.add_colormap(data)
         if self.contours:
@@ -331,7 +366,7 @@ class Plot:
         return True
 
 
-    def empty_frame(self):
+    def create_empty_frame(self):
         self.figure = plt.figure(figsize=(self.calib.p_area_width / self.calib.p_dpi, self.calib.p_area_height / self.calib.p_dpi),
                                  dpi=self.calib.p_dpi)  # , frameon=False) # curent figure
         self.ax = None
@@ -413,12 +448,35 @@ class TopoModule(Module):
 
 
 
+class Module:
+    def __init__(self, kinect, projector, calibrationdata):
+        self.kinect = kinect
+        self.projector = projector
+        self.calibrationData = calibrationdata
 
+    def setup(self):
+        pass
+
+    def run(self):
+        pass
+
+<<<<<<< Updated upstream
 
 class BlockModule(Module):
     # child class of Model
     pass
 
 class GemPyModel(Module):
+=======
+class BlockModule(Module):
+    # child class of Model
+    pass
+
+class TopoModule(Module):
+    # child class of Model
+    pass
+
+class GemPyModule(Module):
+>>>>>>> Stashed changes
     # child class of Model
     pass
