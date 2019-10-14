@@ -32,6 +32,13 @@ try:
 except ImportError:
     print('pykinect2 module not found, KinectV2 will not work.')
 
+try:
+    import cv2
+    from cv2 import aruco
+except ImportError:
+    # warn('opencv is not installed. Object detection will not work')
+    pass
+
 # logging and exception handling
 verbose = False
 if verbose:
@@ -2628,21 +2635,13 @@ class ArucoMarkers(object):
     An Area of interest can be specified, markers outside this area will be ignored
     TODO: run as loop in a thread, probably implement in API
     """
-
-    try:
-        import cv2
-        from cv2 import aruco
-    except ImportError:
-        # warn('opencv is not installed. Object detection will not work')
-        pass
-
-    def __init__(self, aruco_dict=None, Area=None):
+    def __init__(self, sensor, aruco_dict=None, Area=None):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
         self.Area = Area  # set a square Area of interest here (Hot-Area)
-        self.kinect = KinectV2()
+        self.kinect = sensor
         self.ir_markers = self.find_markers_ir(self.kinect)
         self.rgb_markers = self.find_markers_rgb(self.kinect)
         self.dict_markers_current = self.update_dict_markers_current()  # markers that were detected in the last frame
@@ -2651,6 +2650,7 @@ class ArucoMarkers(object):
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         #self.trs_dst = self.change_point_RGB_to_DepthIR()
         self.ArucoImage = self.create_aruco_marker()
+        self.middle = self.middle_point()
 
 
     def get_location_marker(self, corners):
@@ -2665,49 +2665,50 @@ class ArucoMarkers(object):
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
 
-    def find_markers_ir(self, kinect: KinectV2):
+    def find_markers_ir(self, kinect: KinectV2, amount = None):
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'} #TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values = df.set_index('ids')
+        if amount is not None:
+            while len(list_values) < amount:
 
-        while len(list_values) < 4:
+                minim = 0
+                maxim = numpy.arange(1000, 30000, 500)
+                IR = kinect.get_ir_frame_raw()
+                for i in maxim:
+                    ir_use = numpy.interp(IR, (minim, i), (0, 255)).astype('uint8')
+                    ir3 = numpy.stack((ir_use, ir_use, ir_use), axis=2)
+                    corners, ids, rejectedImgPoints = self.aruco_detect(ir3)
 
-            minim = 0
-            maxim = numpy.arange(1000, 30000, 500)
-            IR = kinect.get_ir_frame_raw()
-            for i in maxim:
-                ir_use = numpy.interp(IR, (minim, i), (0, 255)).astype('uint8')
-                ir3 = numpy.stack((ir_use, ir_use, ir_use), axis=2)
-                corners, ids, rejectedImgPoints = self.aruco_detect(ir3)
-
-                if not ids is None:
-                    for j in range(len(ids)):
-                        if ids[j] not in list_values.index.values:
-                            x_loc, y_loc = self.get_location_marker(corners[j][0])
-                            df_temp = pd.DataFrame({'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
-                            df = pd.concat([df, df_temp], sort=False)
-                            list_values = df.set_index('ids')
+                    if not ids is None:
+                        for j in range(len(ids)):
+                            if ids[j] not in list_values.index.values:
+                                x_loc, y_loc = self.get_location_marker(corners[j][0])
+                                df_temp = pd.DataFrame({'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
+                                df = pd.concat([df, df_temp], sort=False)
+                                list_values = df.set_index('ids')
 
         self.ir_markers = list_values
 
         return self.ir_markers
 
-    def find_markers_rgb(self, kinect :KinectV2):
+    def find_markers_rgb(self, kinect :KinectV2, amount = None):
         labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  #TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values_color = df.set_index("ids")
 
-        while len(list_values_color) < 5:
-            color = kinect.get_color()
-            corners, ids, rejectedImgPoints = self.aruco_detect(color)
+        if amount is not None:
+            while len(list_values_color) < amount:
+                color = kinect.get_color()
+                corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
-            if not ids is None:
-                for j in range(len(ids)):
-                    if ids[j] not in list_values_color.index.values:
-                        x_loc, y_loc = self.get_location_marker(corners[j][0])
-                        df_temp = pd.DataFrame({"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
-                        df = pd.concat([df, df_temp], sort=False)
-                        list_values_color = df.set_index("ids")
+                if not ids is None:
+                    for j in range(len(ids)):
+                        if ids[j] not in list_values_color.index.values:
+                            x_loc, y_loc = self.get_location_marker(corners[j][0])
+                            df_temp = pd.DataFrame({"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
+                            df = pd.concat([df, df_temp], sort=False)
+                            list_values_color = df.set_index("ids")
 
         self.rgb_markers = list_values_color
 
@@ -2730,6 +2731,23 @@ class ArucoMarkers(object):
     def erase_dict_markers_all(self):
         self.dict_markers_all = pd.DataFrame({})
         return self.dict_markers_all
+
+    def middle_point(self, autocalib = None):
+
+
+        if autocalib is not None:
+            to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
+            to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
+            depthPoint = PyKinectV2._DepthSpacePoint(to_x, to_y)
+            depth = self.kinect.get_frame()[to_x][to_y]
+            ColorSpacePoint = self.kinect.device._mapper.MapDepthPointToColorSpace(depthPoint=depthPoint, depth=depth)
+            est_x = int(ColorSpacePoint.x)
+            est_y = int(ColorSpacePoint.y)
+
+            self.middle = pd.DataFrame({"Middle_IR_x": [to_x], "Middle_IR_y": [to_y],
+                            "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
+
+            return self.middle
 
     def change_point_RGB_to_DepthIR(self):
         """
@@ -2784,9 +2802,6 @@ class ArucoMarkers(object):
         plt.imshow(kinect.get_ir_frame(), cmap="gray")
         plt.plot(self.dict_markers_current["Corners_IR_x"], self.dict_markers_current["Corners_IR_y"], "or")
         plt.show()
-        self.ArucoImage = img
-        return self.ArucoImage
-
 
     def plot_rgb_aruco_location(self, kinect: KinectV2):
         plt.figure(figsize=(20, 20))
