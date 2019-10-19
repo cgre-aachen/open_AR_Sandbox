@@ -19,6 +19,7 @@ from scipy.interpolate import griddata  # for DummySensor
 import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
+import bokeh.models.widgets as temp_import ##TODO: temporal import until combine with panel import(Used for the automatic calibration)
 
 # optional imports
 try:
@@ -816,6 +817,7 @@ class Projector(object):
         self.hot = None
         self.profile = None
 
+
         self.create_panel()
         self.start_server()
 
@@ -888,7 +890,6 @@ class Projector(object):
     def trigger(self):
         self.frame.param.trigger('object')
         return True
-
 
 class Plot(object):
     """Standard class that handles the creation and update of a plot for sandbox Modules
@@ -1299,14 +1300,11 @@ class Module(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, crop=True, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-
-        # flags
-        self.crop = crop
 
         # threading
         self.lock = threading.Lock()
@@ -1393,7 +1391,6 @@ class Module(object):
         """ Clips all values outside of the sensor range to the set s_min and s_max values.
         If you want to create a mask make sure to call depth_mask before performing the clip.
         """
-
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
 
@@ -1424,7 +1421,7 @@ class CalibModule(Module):
     Module for calibration and responsive visualization
     """
 
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, automatic = False, **kwargs):
 
         # customization
         self.c_under = '#DBD053'
@@ -1445,6 +1442,11 @@ class CalibModule(Module):
         self.calib_panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
         self._create_widgets()
+
+        ## Start the automatic calibration
+        if automatic == True:
+            self.ArucoImage = ArucoMarkers(self.sensor).create_aruco_marker(show=True) #TODO: is this the way of creating the image instead of calling the aruco class?
+
 
     ### standard methods
     def setup(self):
@@ -1475,7 +1477,10 @@ class CalibModule(Module):
         widgets = pn.WidgetBox(self._widget_p_frame_top,
                                self._widget_p_frame_left,
                                self._widget_p_frame_width,
-                               self._widget_p_frame_height)
+                               self._widget_p_frame_height,
+                               self._widget_p_enable_auto_calibration,
+                               self._widget_p_automatic_calibration)
+
         panel = pn.Column("### Projector dashboard arrangement", widgets)
         return panel
 
@@ -1485,6 +1490,8 @@ class CalibModule(Module):
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
+                               self._widget_s_enable_auto_calibration,
+                               self._widget_s_automatic_calibration,
                                pn.layout.VSpacer(height=5),
                                '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
@@ -1534,6 +1541,13 @@ class CalibModule(Module):
                                                            end=self.calib.p_height)
         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
 
+        ## Auto- Calibration widgets
+
+        self._widget_p_enable_auto_calibration = temp_import.CheckboxGroup(labels=["Enable Automatic Projector Calibration"], active = [1])
+
+        self._widget_p_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
+
+
         ### sensor widgets and links
 
         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
@@ -1577,6 +1591,13 @@ class CalibModule(Module):
                                                   start=0,
                                                   end=2000)
         self._widget_s_max.param.watch(self._callback_s_max, 'value', onlychanged=False)
+
+        ## Auto- Calibration widgets
+
+        self._widget_s_enable_auto_calibration = temp_import.CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
+                                                                           active=[1])
+
+        self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
 
         # refresh button
 
@@ -1684,6 +1705,21 @@ class CalibModule(Module):
     def _callback_json_save(self, event):
         if self.json_filename is not None:
             self.calib.save_json(file=self.json_filename)
+
+
+
+class AutomaticModule(Module):
+    """
+        Module for performing an automatic calibration of the proyector and the size of the image to perform the visualization
+    """
+
+    def __init__(self, *args, **kwargs):
+        # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
+
+    def automatic_crop(self):
+
+        return
 
 class RMS_Grid():
 
@@ -2732,10 +2768,8 @@ class ArucoMarkers(object):
         self.dict_markers_all = pd.DataFrame({})
         return self.dict_markers_all
 
-    def middle_point(self, autocalib = None):
-
-
-        if autocalib is not None:
+    def middle_point(self, autocalib = False):
+        if autocalib is True:
             to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
             to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
             depthPoint = PyKinectV2._DepthSpacePoint(to_x, to_y)
@@ -2791,7 +2825,7 @@ class ArucoMarkers(object):
                 plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
                 ax.axis("off")
 
-            plt.savefig("markers.pdf")
+            plt.savefig("markers.jpg")
             plt.show()
             self.ArucoImage = img
 
