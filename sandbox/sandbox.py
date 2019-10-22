@@ -19,7 +19,7 @@ from scipy.interpolate import griddata  # for DummySensor
 import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
-import bokeh.models.widgets as temp_import ##TODO: temporal import until combine with panel import(Used for the automatic calibration)
+from bokeh.models.widgets import CheckboxGroup ##TODO: temporal import until combine with panel import(Used for the automatic calibration)
 
 # optional imports
 try:
@@ -816,6 +816,7 @@ class Projector(object):
         self.legend = None
         self.hot = None
         self.profile = None
+        self.auto_calibration = False
 
 
         self.create_panel()
@@ -828,7 +829,32 @@ class Projector(object):
 
         # In this special case, a "tight" layout would actually add again white space to the plt canvas,
         # which was already cropped by specifying limits to the axis
-        self.frame = pn.pane.Matplotlib(plt.figure(),
+
+        if self.auto_calibration == True:
+
+            fig, ax = plt.subplots()
+
+            ax.set_xlim(0, self.calib.p_frame_width)
+            ax.set_ylim(0, self.calib.p_frame_height)
+
+            arr_aruco = plt.imread('ArucoMarker.PNG')
+
+            imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
+
+            ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (self.calib.p_frame_width/2, self.calib.p_frame_height/2))
+
+            ax.add_artist(ab)
+            ax.set_axis_off()
+
+            plt_figure = fig
+
+            plt.close()
+
+        else:
+            plt_figure = plt.figure()
+            plt.close()
+
+        self.frame = pn.pane.Matplotlib(plt_figure,
                                         width=self.calib.p_frame_width,
                                         height=self.calib.p_frame_height,
                                         margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left],
@@ -1541,9 +1567,10 @@ class CalibModule(Module):
                                                            end=self.calib.p_height)
         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
 
-        ## Auto- Calibration widgets
+        ## Auto- Calibration wnoidgets
 
-        self._widget_p_enable_auto_calibration = temp_import.CheckboxGroup(labels=["Enable Automatic Projector Calibration"], active = [1])
+        self._widget_p_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Projector Calibration"])
+        #self._widget_p_enable_auto_calibration.(self._callback_enable_auto_calibration, 'clicks', onlychanged=False)
 
         self._widget_p_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
 
@@ -1594,7 +1621,7 @@ class CalibModule(Module):
 
         ## Auto- Calibration widgets
 
-        self._widget_s_enable_auto_calibration = temp_import.CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
+        self._widget_s_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
                                                                            active=[1])
 
         self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
@@ -1706,7 +1733,11 @@ class CalibModule(Module):
         if self.json_filename is not None:
             self.calib.save_json(file=self.json_filename)
 
-
+    def _callback_enable_auto_calibration(self, event):
+        self.pause()
+        Projector.auto_calibration = True
+        Projector.create_panel()
+        self.resume()
 
 class AutomaticModule(Module):
     """
@@ -1715,11 +1746,11 @@ class AutomaticModule(Module):
 
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
+        super().__init__(*args, **kwargs)
 
     def automatic_crop(self):
 
-        return
+        return True
 
 class RMS_Grid():
 
