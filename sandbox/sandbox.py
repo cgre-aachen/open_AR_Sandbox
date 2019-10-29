@@ -19,8 +19,7 @@ from scipy.interpolate import griddata  # for DummySensor
 import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
-from bokeh.models.widgets import CheckboxGroup ##TODO: temporal import until combine with panel import(Used for the automatic calibration)
-
+from PIL import Image
 # optional imports
 try:
     import freenect  # wrapper for KinectV1
@@ -816,7 +815,6 @@ class Projector(object):
         self.legend = None
         self.hot = None
         self.profile = None
-        self.auto_calibration = False
 
 
         self.create_panel()
@@ -829,32 +827,7 @@ class Projector(object):
 
         # In this special case, a "tight" layout would actually add again white space to the plt canvas,
         # which was already cropped by specifying limits to the axis
-
-        if self.auto_calibration == True:
-
-            fig, ax = plt.subplots()
-
-            ax.set_xlim(0, self.calib.p_frame_width)
-            ax.set_ylim(0, self.calib.p_frame_height)
-
-            arr_aruco = plt.imread('ArucoMarker.PNG')
-
-            imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
-
-            ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (self.calib.p_frame_width/2, self.calib.p_frame_height/2))
-
-            ax.add_artist(ab)
-            ax.set_axis_off()
-
-            plt_figure = fig
-
-            plt.close()
-
-        else:
-            plt_figure = plt.figure()
-            plt.close()
-
-        self.frame = pn.pane.Matplotlib(plt_figure,
+        self.frame = pn.pane.Matplotlib(plt.figure(),
                                         width=self.calib.p_frame_width,
                                         height=self.calib.p_frame_height,
                                         margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left],
@@ -1034,7 +1007,7 @@ class Plot(object):
 
         return True
 
-    def render_frame(self, data, contourdata=None, vmin= None, vmax= None): #ToDo: use keyword arguments
+    def render_frame(self, data, contourdata=None, vmin=None, vmax=None): #ToDo: use keyword arguments
         """Renders a new frame according to class parameters.
 
         Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
@@ -1326,17 +1299,23 @@ class Module(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, crop=True, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
 
+        #flags
+        self.crop = crop
+
         # threading
         self.lock = threading.Lock()
         self.thread = None
         self.thread_status = 'stopped' # status: 'stopped', 'running', 'paused'
-
+        self.crop = None
+        self.automatic_calibration = False
+        self.marker = ArucoMarkers(sensor)
+        self.test = False #Testing, eliminate later
         #self.setup()
 
     @abstractmethod
@@ -1399,6 +1378,7 @@ class Module(object):
         # TODO: Workaround: do not allow zeroes in calibration widget and use default value = 1
         # TODO: File numpy issue?
         crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+
         return crop
 
     def crop_frame_workaround(self, frame):
@@ -1411,6 +1391,7 @@ class Module(object):
             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
         else:
             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
+        
         return crop
 
     def clip_frame(self, frame):
@@ -1469,11 +1450,6 @@ class CalibModule(Module):
         plt.close()  # close figure to prevent inline display
         self._create_widgets()
 
-        ## Start the automatic calibration
-        if automatic == True:
-            self.ArucoImage = ArucoMarkers(self.sensor).create_aruco_marker(show=True) #TODO: is this the way of creating the image instead of calling the aruco class?
-
-
     ### standard methods
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -1486,6 +1462,13 @@ class CalibModule(Module):
         self.calib_frame = self.sensor.get_filtered_frame()
         self.calib_plot.render_frame(self.calib_frame)
         self.calib_panel_frame.object = self.calib_plot.figure
+
+    def setup_auto(self):
+        if self.automatic_calibration:
+            frame = self.marker.create_aruco_marker()
+
+        self.plot.render_frame(frame, vmin =0, vmax =300)
+        self.projector.frame.object = self.plot.figure
 
     def update(self):
         frame = self.sensor.get_filtered_frame()
@@ -1516,8 +1499,8 @@ class CalibModule(Module):
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
-                               self._widget_s_enable_auto_calibration,
-                               self._widget_s_automatic_calibration,
+                               #self._widget_s_enable_auto_calibration,
+                               #self._widget_s_automatic_calibration,
                                pn.layout.VSpacer(height=5),
                                '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
@@ -1567,13 +1550,13 @@ class CalibModule(Module):
                                                            end=self.calib.p_height)
         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
 
-        ## Auto- Calibration wnoidgets
+        ## Auto- Calibration widgets
 
-        self._widget_p_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Projector Calibration"])
-        #self._widget_p_enable_auto_calibration.(self._callback_enable_auto_calibration, 'clicks', onlychanged=False)
+        self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name = 'Enable Automatic Calibration', value = False)
+        self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value', onlychanged=False)
 
-        self._widget_p_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
-
+        self._widget_p_automatic_calibration = pn.widgets.Button(name="Run", button_type="success")
+        self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks', onlychanged=False)
 
         ### sensor widgets and links
 
@@ -1621,10 +1604,10 @@ class CalibModule(Module):
 
         ## Auto- Calibration widgets
 
-        self._widget_s_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
-                                                                           active=[1])
+        #self._widget_s_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
+         #                                                                  active=[1])
 
-        self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
+        #self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
 
         # refresh button
 
@@ -1734,10 +1717,15 @@ class CalibModule(Module):
             self.calib.save_json(file=self.json_filename)
 
     def _callback_enable_auto_calibration(self, event):
-        self.pause()
-        Projector.auto_calibration = True
-        Projector.create_panel()
-        self.resume()
+        self.automatic_calibration = event.new
+        self.plot.contours = False
+        self.setup_auto()
+        self.plot.contours = True
+        #self.update_calib_plot()
+
+    def _callback_automatic_calibration(self, event):
+        if self.automatic_calibration == True:
+            self.test = True
 
 class AutomaticModule(Module):
     """
@@ -1747,6 +1735,58 @@ class AutomaticModule(Module):
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, **kwargs)
+
+    def setup_auto(self):
+        if self.automatic_calibration:
+            frame = ArucoMarkers.create_aruco_marker()
+
+        self.plot.render_frame(frame)
+        self.projector.frame.object = self.plot.figure
+
+
+        #fig, ax = plt.subplots()
+        #ax.set_xlim(0, self.calib.p_frame_width)
+        #ax.set_ylim(0, self.calib.p_frame_height)
+        #arr_aruco = plt.imread('ArucoMarker.PNG')
+        #imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
+        #ab = matplotlib.offsetbox.AnnotationBbox(imagebox,
+                                #                 (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2))
+       # ax.add_artist(ab)
+        #ax.set_axis_off()
+        #plt.close()
+       # frame = arr_aruco
+
+        #self.plot.render_frame(frame)
+        #self.projector.frame.object = self.plot.figure
+
+        # sensor calibration visualization
+        #self.calib_frame = self.sensor.get_filtered_frame()
+        #self.calib_plot.render_frame(self.calib_frame)
+        #self.calib_panel_frame.object = self.calib_plot.figure
+
+   # def update(self):
+      #  frame = self.sensor.get_filtered_frame()
+       # if self.crop:
+       #     frame = self.crop_frame(frame)
+       # self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max )
+        #self.projector.trigger()
+
+   # def update_calib_plot(self):
+     #   self.calib_plot.render_frame(self.calib_frame)
+    #    self.calib_panel_frame.param.trigger('object')
+
+    def create_aruco_plot(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, self.calib.p_frame_width)
+        ax.set_ylim(0, self.calib.p_frame_height)
+        arr_aruco = plt.imread('ArucoMarker.PNG')
+        imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
+        ab = matplotlib.offsetbox.AnnotationBbox(imagebox,
+                                                 (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2))
+        ax.add_artist(ab)
+        ax.set_axis_off()
+        plt.close()
+        frame = fig
 
     def automatic_crop(self):
 
@@ -2843,22 +2883,35 @@ class ArucoMarkers(object):
 
         return self.dict_markers_current
 
-    def create_aruco_marker(self, nx=1, ny=1,show=False):
+    def create_aruco_marker(self, nx=1, ny=1,show=False, save = False):
         self.ArucoImage = 0
-        if show is True:
-            aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
 
-            fig = plt.figure()
-            for i in range(1, nx * ny + 1):
-                ax = fig.add_subplot(ny, nx, i)
-                img = aruco.drawMarker(aruco_dictionary, i, 2000)
+        aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
 
+        fig = plt.figure()
+        for i in range(1, nx * ny + 1):
+            ax = fig.add_subplot(ny, nx, i)
+            img = aruco.drawMarker(aruco_dictionary, i, 50)
+            if show is True:
                 plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
                 ax.axis("off")
+            else:
+                plt.close()
 
+        if save is True:
             plt.savefig("markers.jpg")
-            plt.show()
-            self.ArucoImage = img
+
+        def add_margin(pil_img, top, right, bottom, left, color):
+            width, height = pil_img.shape
+            new_width = width + right + left
+            new_height = height + top + bottom
+            result = Image.new(pil_img.mode, (new_width, new_height), color)
+            result.paste(pil_img, (left, top))
+            return result
+
+        im_new = add_margin(img, 200, 200, 200, 200, (255, 255, 255))
+
+        self.ArucoImage = im_new
 
         return self.ArucoImage
 
