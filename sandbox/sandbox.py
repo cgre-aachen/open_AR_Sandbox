@@ -73,13 +73,14 @@ class Sandbox:
 
 class CalibrationData(object):
     """
-
+        changes from 0.8alpha to 0.9alpha: introduction of box_width and box_height
     """
 
     def __init__(self,
                  p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
                  p_frame_width=600, p_frame_height=450,
                  s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
+                 box_width=1000.0, box_height=800.0,
                  file=None):
         """
 
@@ -96,11 +97,13 @@ class CalibrationData(object):
             s_left:
             s_min:
             s_max:
+            box_width: physical dimensions of the sandbox along x-axis in millimeters
+            box_height: physical dimensions of the sandbox along y-axis in millimeters
             file:
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
-        self.version = "0.8alpha"
+        self.version = "0.9alpha"
 
         # projector
         self.p_width = p_width
@@ -139,6 +142,9 @@ class CalibrationData(object):
         self.s_left = s_left
         self.s_min = s_min
         self.s_max = s_max
+
+        self.box_width = box_width
+        self.box_height = box_height
 
         if file is not None:
             self.load_json(file)
@@ -1112,7 +1118,7 @@ class Scale(object):
 
     """
 
-    def __init__(self, calibrationdata=None, xy_isometric=True, extent=None):
+    def __init__(self, calibrationdata, xy_isometric=True, extent=None):
         """
 
         Args:
@@ -1120,13 +1126,12 @@ class Scale(object):
             xy_isometric:
             extent:
         """
-        self.calibration = calibrationdata
-        """
-        if isinstance(calibration, Calibration):
-            self.calibration = calibration
+
+        if isinstance(calibrationdata, CalibrationData):
+            self.calibration = calibrationdata
         else:
             raise TypeError("you must pass a valid calibration instance")
-        """
+
         self.xy_isometric = xy_isometric
         self.scale = [None, None, None]
         self.pixel_size = [None, None]
@@ -1136,11 +1141,11 @@ class Scale(object):
         if extent is None:  # extent should be array with shape (6,) or convert to list?
             self.extent = numpy.asarray([
                 0.0,
-                self.calibration.calibration_data.box_width,
+                self.calibration.box_width,
                 0.0,
-                self.calibration.calibration_data.box_height,
-                self.calibration.calibration_data.z_range[0],
-                self.calibration.calibration_data.z_range[1],
+                self.calibration.box_height,
+                self.calibration.z_range[0],
+                self.calibration.z_range[1],
             ])
 
         else:
@@ -1495,9 +1500,20 @@ class CalibModule(Module):
         panel = pn.Column('### Sensor calibration', rows)
         return panel
 
+    def calibrate_box(self):
+        widgets = pn.WidgetBox('<b>Physical dimensions of the sandbox)</b>',
+                               self._widget_box_width,
+                               self._widget_box_height,
+                               )
+        rows = pn.Row(widgets, self.calib_panel_frame)
+        panel = pn.Column('### box calibration', rows)
+        return panel
+
+
     def calibrate(self):
         tabs = pn.Tabs(('Projector', self.calibrate_projector()),
                        ('Sensor', self.calibrate_sensor()),
+                       ('Box Dimensions', self.calibrate_box()),
                        ('Save', pn.WidgetBox(self._widget_json_filename,
                                              self._widget_json_save))
                       )
@@ -1577,6 +1593,22 @@ class CalibModule(Module):
                                                   start=0,
                                                   end=2000)
         self._widget_s_max.param.watch(self._callback_s_max, 'value', onlychanged=False)
+
+        # box widgets:
+
+        self._widget_box_width = pn.widgets.IntSlider(name='width of sandbox in mm',
+                                                      bar_color=self.c_margin,
+                                                      value=int(self.calib.box_width),
+                                                      start=1,
+                                                      end=2000)
+        self._widget_box_width.param.watch(self._callback_box_width, 'value', onlychanged=False)
+
+        self._widget_box_height = pn.widgets.IntSlider(name='height of sandbox in mm',
+                                                       bar_color=self.c_margin,
+                                                       value=int(self.calib.box_height),
+                                                       start=1,
+                                                       end=2000)
+        self._widget_box_height.param.watch(self._callback_box_height, 'value', onlychanged=False)
 
         # refresh button
 
@@ -1684,6 +1716,20 @@ class CalibModule(Module):
     def _callback_json_save(self, event):
         if self.json_filename is not None:
             self.calib.save_json(file=self.json_filename)
+
+    ### box dimensions callbacks:
+
+    def _callback_box_width(self, event):
+        self.pause()
+        self.calib.box_width = float(event.new)
+        # self.update_calib_plot()
+        self.resume()
+
+    def _callback_box_height(self, event):
+        self.pause()
+        self.calib.box_height = float(event.new)
+        # self.update_calib_plot()
+        self.resume()
 
 class RMS_Grid():
 
@@ -2408,225 +2454,225 @@ class GemPyModule(Module):
     pass
 
 
-# class GeoMapModule:
-#     """
-#
-#     """
-#
-#     # TODO: When we move GeoMapModule import gempy just there
-#     try:
-#         import gempy as gp
-#     except ImportError:
-#         warn('gempy not found, GeoMap Module will not work')
-#
-#     def __init__(self, geo_model, grid: Grid, geol_map: Plot):
-#         """
-#
-#         Args:
-#             geo_model:
-#             grid:
-#             geol_map:
-#             work_directory:
-#
-#         Returns:
-#             None
-#
-#         """
-#
-#         self.geo_model = geo_model
-#         self.kinect_grid = grid
-#         self.geol_map = geol_map
-#
-#         self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
-#         self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
-#                                                        self.kinect_grid.scale.extent[5])
-#         self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
-#                                                      self.kinect_grid.scale.extent[5])
-#
-#         self.x_grid = range(self.kinect_grid.scale.output_res[0])
-#         self.y_grid = range(self.kinect_grid.scale.output_res[1])
-#
-#         self.plot_topography = True
-#         self.plot_faults = True
-#
-#     def compute_model(self, kinect_array):
-#         """
-#
-#         Args:
-#             kinect_array:
-#
-#         Returns:
-#
-#         """
-#         self.kinect_grid.update_grid(kinect_array)
-#         sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
-#         lith_block = sol[0][0]
-#         fault_blocks = sol[1][0::2]
-#         block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
-#                                     self.kinect_grid.scale.output_res[0]))
-#
-#         return block, fault_blocks
-#
-#     # TODO: Miguel: outfile folder should follow by default whatever is set in projection!
-#     # TODO: Temporal fix. Eventually we need a container class or metaclass with this data
-#     def render_geo_map(self, block, fault_blocks):
-#         """
-#
-#         Args:
-#             block:
-#             fault_blocks:
-#             outfile:
-#
-#         Returns:
-#
-#         """
-#
-#         self.geol_map.render_frame(block)
-#
-#         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
-#                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
-#         # This line is for GemPy 1.2: fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1],
-#         # scale.output_res[0]))
-#
-#         if self.plot_faults is True:
-#             for fault in fault_blocks:
-#                 fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
-#                 self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
-#         if self.plot_topography is True:
-#             self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-#             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
-#
-#         return self.geol_map.figure
-#
-#
-#     def create_fault_line(self,
-#                           start=0.5,
-#                           end=50.5,  # TODO Miguel:increase?
-#                           step=1.0,
-#                           linewidth=3.0,
-#                           colors=[(1.0, 1.0, 1.0, 1.0)]):
-#         """
-#
-#         Args:
-#             start:
-#             end:
-#             step:
-#             linewidth:
-#             colors:
-#
-#         Returns:
-#
-#         """
-#
-#         self.fault_line = Contour(start=start, end=end, step=step, linewidth=linewidth,
-#                                   colors=colors)
-#
-#         return self.fault_line
-#
-#     def create_main_contours(self, start, end, step=100, linewidth=1.0,
-#                              colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
-#         """
-#
-#         Args:
-#             start:
-#             end:
-#             step:
-#             linewidth:
-#             colors:
-#             show_labels:
-#
-#         Returns:
-#
-#         """
-#
-#         self.main_contours = Contour(start=start,
-#                                      end=end,
-#                                      step=step,
-#                                      show_labels=show_labels,
-#                                      linewidth=linewidth, colors=colors)
-#         return self.main_contours
-#
-#     def create_sub_contours(self,
-#                             start,
-#                             end,
-#                             step=25,
-#                             linewidth=0.8,
-#                             colors=[(0.0, 0.0, 0.0, 0.8)],
-#                             show_labels=False
-#                             ):
-#         """
-#
-#         Args:
-#             start:
-#             end:
-#             step:
-#             linewidth:
-#             colors:
-#             show_labels:
-#
-#         Returns:
-#
-#         """
-#
-#         self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors,
-#                                     show_labels=show_labels)
-#         return self.sub_contours
-#
-#     def export_topographic_map(self, output="topographic_map.pdf"):
-#         """
-#
-#         Args:
-#             output:
-#
-#         Returns:
-#
-#         """
-#         self.geol_map.create_empty_frame()
-#         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
-#                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
-#         self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-#         self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
-#         self.geol_map.save(outfile=output)
-#
-#     def export_geological_map(self, kinect_array, output="geological_map.pdf"):
-#         """
-#
-#         Args:
-#             kinect_array:
-#             output:
-#
-#         Returns:
-#
-#         """
-#
-#         print("there is still a bug in the map that causes the uppermost lithology to be displayed in the basement"
-#               " color. Unfortunately we do not have a quick fix for this currently... Sorry! Please fix the map "
-#               "yourself, for example using illustrator")
-#
-#         lith_block, fault_blocks = self.compute_model(kinect_array)
-#
-#         # This line is for GemPy 1.2: lith_block = sol.lith_block.reshape((scale.output_res[1], scale.output_res[0]))
-#
-#         self.geol_map.create_empty_frame()
-#
-#         lith_levels = self.geo_model.potential_at_interfaces[-1].sort()
-#         self.geol_map.add_lith_contours(lith_block, levels=lith_levels)
-#
-#         elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
-#                                                          self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
-#         # This line is for GemPy 1.2: fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1],
-#         # scale.output_res[0]))
-#
-#         if self.plot_faults is True:
-#             for fault in fault_blocks:
-#                 fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
-#                 self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
-#
-#         if self.plot_topography is True:
-#             self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-#             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
-#
-#         self.geol_map.save(outfile=output)
+class GeoMapModule:
+    """
+
+    """
+
+    # TODO: When we move GeoMapModule import gempy just there
+    try:
+        import gempy as gp
+    except ImportError:
+        warn('gempy not found, GeoMap Module will not work')
+
+    def __init__(self, geo_model, grid: Grid, geol_map: Plot):
+        """
+
+        Args:
+            geo_model:
+            grid:
+            geol_map:
+            work_directory:
+
+        Returns:
+            None
+
+        """
+
+        self.geo_model = geo_model
+        self.kinect_grid = grid
+        self.geol_map = geol_map
+
+        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
+        self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
+                                                       self.kinect_grid.scale.extent[5])
+        self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
+                                                     self.kinect_grid.scale.extent[5])
+
+        self.x_grid = range(self.kinect_grid.scale.output_res[0])
+        self.y_grid = range(self.kinect_grid.scale.output_res[1])
+
+        self.plot_topography = True
+        self.plot_faults = True
+
+    def compute_model(self, kinect_array):
+        """
+
+        Args:
+            kinect_array:
+
+        Returns:
+
+        """
+        self.kinect_grid.update_grid(kinect_array)
+        sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
+        lith_block = sol[0][0]
+        fault_blocks = sol[1][0::2]
+        block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
+                                    self.kinect_grid.scale.output_res[0]))
+
+        return block, fault_blocks
+
+    # TODO: Miguel: outfile folder should follow by default whatever is set in projection!
+    # TODO: Temporal fix. Eventually we need a container class or metaclass with this data
+    def render_geo_map(self, block, fault_blocks):
+        """
+
+        Args:
+            block:
+            fault_blocks:
+            outfile:
+
+        Returns:
+
+        """
+
+        self.geol_map.render_frame(block)
+
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        # This line is for GemPy 1.2: fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1],
+        # scale.output_res[0]))
+
+        if self.plot_faults is True:
+            for fault in fault_blocks:
+                fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+                self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+        if self.plot_topography is True:
+            self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+            self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+
+        return self.geol_map.figure
+
+
+    def create_fault_line(self,
+                          start=0.5,
+                          end=50.5,  # TODO Miguel:increase?
+                          step=1.0,
+                          linewidth=3.0,
+                          colors=[(1.0, 1.0, 1.0, 1.0)]):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+
+        Returns:
+
+        """
+
+        self.fault_line = Contour(start=start, end=end, step=step, linewidth=linewidth,
+                                  colors=colors)
+
+        return self.fault_line
+
+    def create_main_contours(self, start, end, step=100, linewidth=1.0,
+                             colors=[(0.0, 0.0, 0.0, 1.0)], show_labels=True):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+            show_labels:
+
+        Returns:
+
+        """
+
+        self.main_contours = Contour(start=start,
+                                     end=end,
+                                     step=step,
+                                     show_labels=show_labels,
+                                     linewidth=linewidth, colors=colors)
+        return self.main_contours
+
+    def create_sub_contours(self,
+                            start,
+                            end,
+                            step=25,
+                            linewidth=0.8,
+                            colors=[(0.0, 0.0, 0.0, 0.8)],
+                            show_labels=False
+                            ):
+        """
+
+        Args:
+            start:
+            end:
+            step:
+            linewidth:
+            colors:
+            show_labels:
+
+        Returns:
+
+        """
+
+        self.sub_contours = Contour(start=start, end=end, step=step, linewidth=linewidth, colors=colors,
+                                    show_labels=show_labels)
+        return self.sub_contours
+
+    def export_topographic_map(self, output="topographic_map.pdf"):
+        """
+
+        Args:
+            output:
+
+        Returns:
+
+        """
+        self.geol_map.create_empty_frame()
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+        self.geol_map.save(outfile=output)
+
+    def export_geological_map(self, kinect_array, output="geological_map.pdf"):
+        """
+
+        Args:
+            kinect_array:
+            output:
+
+        Returns:
+
+        """
+
+        print("there is still a bug in the map that causes the uppermost lithology to be displayed in the basement"
+              " color. Unfortunately we do not have a quick fix for this currently... Sorry! Please fix the map "
+              "yourself, for example using illustrator")
+
+        lith_block, fault_blocks = self.compute_model(kinect_array)
+
+        # This line is for GemPy 1.2: lith_block = sol.lith_block.reshape((scale.output_res[1], scale.output_res[0]))
+
+        self.geol_map.create_empty_frame()
+
+        lith_levels = self.geo_model.potential_at_interfaces[-1].sort()
+        self.geol_map.add_lith_contours(lith_block, levels=lith_levels)
+
+        elevation = self.kinect_grid.depth_grid.reshape((self.kinect_grid.scale.output_res[1],
+                                                         self.kinect_grid.scale.output_res[0], 3))[:, :, 2]
+        # This line is for GemPy 1.2: fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1],
+        # scale.output_res[0]))
+
+        if self.plot_faults is True:
+            for fault in fault_blocks:
+                fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+                self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+
+        if self.plot_topography is True:
+            self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+            self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+
+        self.geol_map.save(outfile=output)
 
 
 class ArucoMarkers(object):
