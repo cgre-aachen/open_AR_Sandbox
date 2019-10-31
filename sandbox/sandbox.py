@@ -1314,7 +1314,7 @@ class Module(object):
         self.thread_status = 'stopped' # status: 'stopped', 'running', 'paused'
         self.crop = None
         self.automatic_calibration = False
-        self.marker = ArucoMarkers(sensor)
+        self.auto = AutomaticModule(calibrationdata, sensor, projector)
         self.test = False #Testing, eliminate later
         #self.setup()
 
@@ -1462,13 +1462,6 @@ class CalibModule(Module):
         self.calib_frame = self.sensor.get_filtered_frame()
         self.calib_plot.render_frame(self.calib_frame)
         self.calib_panel_frame.object = self.calib_plot.figure
-
-    def setup_auto(self):
-        if self.automatic_calibration:
-            frame = self.marker.create_aruco_marker()
-
-        self.plot.render_frame(frame, vmin =0, vmax =300)
-        self.projector.frame.object = self.plot.figure
 
     def update(self):
         frame = self.sensor.get_filtered_frame()
@@ -1652,6 +1645,11 @@ class CalibModule(Module):
         self.calib.p_frame_width = event.new
         target.width = event.new
         target.param.trigger('object')
+        if self.automatic_calibration == True:
+            self.plot.contours = False
+            self.auto.plot_auto()
+            self.plot.contours = True
+
         self.resume()
 
     def _callback_p_frame_height(self, target, event):
@@ -1659,6 +1657,11 @@ class CalibModule(Module):
         self.calib.p_frame_height = event.new
         target.height = event.new
         target.param.trigger('object')
+        if self.automatic_calibration ==True:
+            self.plot.contours = False
+            self.auto.plot_auto()
+            self.plot.contours = True
+
         self.resume()
 
     ### sensor callbacks
@@ -1719,7 +1722,7 @@ class CalibModule(Module):
     def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
         self.plot.contours = False
-        self.setup_auto()
+        self.auto.plot_auto()
         self.plot.contours = True
         #self.update_calib_plot()
 
@@ -1727,70 +1730,43 @@ class CalibModule(Module):
         if self.automatic_calibration == True:
             self.test = True
 
-class AutomaticModule(Module):
+class AutomaticModule(object):
     """
-        Module for performing an automatic calibration of the proyector and the size of the image to perform the visualization
+        Module for performing an automatic calibration of the projector and the size of the image to perform the visualization
     """
 
-    def __init__(self, *args, **kwargs):
-        # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        super().__init__(*args, **kwargs)
+    def __init__(self, calibrationdata, sensor, projector):
+        self.calib = calibrationdata
+        self.sensor = sensor
+        self.projector = projector
+        self.plot = Plot(self.calib)
+        self.marker = ArucoMarkers(sensor)
+        self.p_aruco = self.p_arucoMarker()
 
-    def setup_auto(self):
-        if self.automatic_calibration:
-            frame = ArucoMarkers.create_aruco_marker()
-
-        self.plot.render_frame(frame)
-        self.projector.frame.object = self.plot.figure
-
-
-        #fig, ax = plt.subplots()
-        #ax.set_xlim(0, self.calib.p_frame_width)
-        #ax.set_ylim(0, self.calib.p_frame_height)
-        #arr_aruco = plt.imread('ArucoMarker.PNG')
-        #imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
-        #ab = matplotlib.offsetbox.AnnotationBbox(imagebox,
-                                #                 (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2))
-       # ax.add_artist(ab)
-        #ax.set_axis_off()
-        #plt.close()
-       # frame = arr_aruco
-
-        #self.plot.render_frame(frame)
-        #self.projector.frame.object = self.plot.figure
-
-        # sensor calibration visualization
-        #self.calib_frame = self.sensor.get_filtered_frame()
-        #self.calib_plot.render_frame(self.calib_frame)
-        #self.calib_panel_frame.object = self.calib_plot.figure
-
-   # def update(self):
-      #  frame = self.sensor.get_filtered_frame()
-       # if self.crop:
-       #     frame = self.crop_frame(frame)
-       # self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max )
-        #self.projector.trigger()
-
-   # def update_calib_plot(self):
-     #   self.calib_plot.render_frame(self.calib_frame)
-    #    self.calib_panel_frame.param.trigger('object')
-
-    def create_aruco_plot(self):
-        fig, ax = plt.subplots()
+    def p_arucoMarker(self):
+        imagen, ax = plt.subplots()
         ax.set_xlim(0, self.calib.p_frame_width)
         ax.set_ylim(0, self.calib.p_frame_height)
-        arr_aruco = plt.imread('ArucoMarker.PNG')
-        imagebox = matplotlib.offsetbox.OffsetImage(arr_aruco, zoom=0.1)
-        ab = matplotlib.offsetbox.AnnotationBbox(imagebox,
-                                                 (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2))
+        img = self.marker.create_aruco_marker()
+        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=2)
+        ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2), frameon=False)
         ax.add_artist(ab)
         ax.set_axis_off()
+        ax.axes.set_aspect('equal')
+
+        imagen.canvas.draw()
+
+        data = numpy.fromstring(imagen.canvas.tostring_rgb(), dtype=numpy.uint8, sep='')
+        data = data.reshape(imagen.canvas.get_width_height()[::-1] + (3,))
+
+        self.p_aruco = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
         plt.close()
-        frame = fig
+        return self.p_aruco
 
-    def automatic_crop(self):
+    def plot_auto(self):
+        #self.plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=300)
+        self.projector.frame = self.p_arucoMarker() #self.plot.figure
 
-        return True
 
 class RMS_Grid():
 
@@ -2900,19 +2876,7 @@ class ArucoMarkers(object):
 
         if save is True:
             plt.savefig("markers.jpg")
-
-        def add_margin(pil_img, top, right, bottom, left, color):
-            width, height = pil_img.shape
-            new_width = width + right + left
-            new_height = height + top + bottom
-            result = Image.new(pil_img.mode, (new_width, new_height), color)
-            result.paste(pil_img, (left, top))
-            return result
-
-        im_new = add_margin(img, 200, 200, 200, 200, (255, 255, 255))
-
-        self.ArucoImage = im_new
-
+        self.ArucoImage = img
         return self.ArucoImage
 
     def plot_ir_aruco_location(self, kinect : KinectV2):
