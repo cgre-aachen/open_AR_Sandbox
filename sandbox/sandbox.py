@@ -20,6 +20,7 @@ import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
 from PIL import Image
+
 # optional imports
 try:
     import freenect  # wrapper for KinectV1
@@ -42,11 +43,11 @@ except ImportError:
 # logging and exception handling
 verbose = False
 if verbose:
-    logging.basicConfig( filename="main.log",
-                         filemode='w',
-                         level=logging.WARNING,
-                         format= '%(asctime)s - %(levelname)s - %(message)s',
-                       )
+    logging.basicConfig(filename="main.log",
+                        filemode='w',
+                        level=logging.WARNING,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        )
 
 
 class Sandbox:
@@ -68,7 +69,7 @@ class Sandbox:
 
         self.projector = Projector(self.calib)
         self.module = TopoModule(self.calib, self.sensor, self.projector, **kwargs)
-        #self.module = Calibration(self.calib, self.sensor, self.projector, **kwargs)
+        # self.module = Calibration(self.calib, self.sensor, self.projector, **kwargs)
 
 
 class CalibrationData(object):
@@ -111,27 +112,27 @@ class CalibrationData(object):
         self.p_frame_width = p_frame_width
         self.p_frame_height = p_frame_height
 
-        #self.p_legend_top =
-        #self.p_legend_left =
-        #self.p_legend_width =
-        #self.p_legend_height =
+        # self.p_legend_top =
+        # self.p_legend_left =
+        # self.p_legend_width =
+        # self.p_legend_height =
 
         # hot area
-        #self.p_hot_top =
-        #self.p_hot_left =
-        #self.p_hot_width =
-        #self.p_hot_height =
+        # self.p_hot_top =
+        # self.p_hot_left =
+        # self.p_hot_width =
+        # self.p_hot_height =
 
         # profile area
-        #self.p_profile_top =
-        #self.p_profile_left =
-        #self.p_profile_width =
-        #self.p_profile_height =
+        # self.p_profile_top =
+        # self.p_profile_left =
+        # self.p_profile_width =
+        # self.p_profile_height =
 
         # sensor (e.g. Kinect)
-        self.s_name = 'generic' # name to identify the associated sensor device
-        self.s_width = 500 # will be updated by sensor init
-        self.s_height = 400 # will be updated by sensor init
+        self.s_name = 'generic'  # name to identify the associated sensor device
+        self.s_width = 500  # will be updated by sensor init
+        self.s_height = 400  # will be updated by sensor init
 
         self.s_top = s_top
         self.s_right = s_right
@@ -181,7 +182,6 @@ class Sensor(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, calibrationdata, filter='gaussian', n_frames=3, sigma_gauss=3):
-
         self.calib = calibrationdata
         self.calib.s_name = self.name
         self.calib.s_width = self.depth_width
@@ -196,9 +196,8 @@ class Sensor(object):
         self.ir_frame_raw = None
         self.ir_frame = None
 
-
         # TODO: include filter self.-filter parameters as function defaults
-        self.filter = filter # TODO: deprecate get_filtered_frame, make it switchable in runtime
+        self.filter = filter  # TODO: deprecate get_filtered_frame, make it switchable in runtime
         self.n_frames = n_frames  # filter parameters
         self.sigma_gauss = sigma_gauss
 
@@ -215,13 +214,12 @@ class Sensor(object):
         pass
 
     def get_filtered_frame(self):
-
         # collect last n frames in a stack
         depth_array = self.get_frame()
         for i in range(self.n_frames - 1):
             depth_array = numpy.dstack([depth_array, self.get_frame()])
         # calculate mean values ignoring zeros by masking them
-        depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array) # needed for V2?
+        depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)  # needed for V2?
         self.depth = numpy.ma.mean(depth_array_masked, axis=2)
         # apply gaussian filter
         self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
@@ -230,7 +228,6 @@ class Sensor(object):
 
 
 class DummySensor(Sensor):
-
     name = 'dummy'
 
     def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
@@ -244,7 +241,7 @@ class DummySensor(Sensor):
         self.corners = corners
         self.n = points_n
         # distance in percent of grid diagonal
-        self.distance = numpy.sqrt(self.depth_width**2 + self.depth_height**2) * points_distance
+        self.distance = numpy.sqrt(self.depth_width ** 2 + self.depth_height ** 2) * points_distance
         # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
         self.strength = alteration_strength
         self.seed = random_seed
@@ -256,7 +253,6 @@ class DummySensor(Sensor):
 
         # call parents' class init
         super().__init__(*args, **kwargs)
-
 
     def setup(self):
         # create grid, init values, and init interpolation
@@ -305,7 +301,7 @@ class DummySensor(Sensor):
             points[2, 1] = self.grid[:, 1].max()
             points[3, 0] = self.grid[:, 0].max()
             points[3, 1] = self.grid[:, 1].max()
-            i = 4 # counter
+            i = 4  # counter
         else:
             points = numpy.zeros((n, gw))
             # randomly pick initial point
@@ -353,13 +349,13 @@ class DummySensor(Sensor):
 
 
 class KinectV1(Sensor):
-
     # hard coded class attributes for KinectV1's native resolution
     name = 'kinect_v1'
     depth_width = 320
     depth_height = 240
     color_width = 640
     color_height = 480
+
     # TODO: Check!
 
     def setup(self):
@@ -386,9 +382,9 @@ class KinectV1(Sensor):
         freenect.set_tilt_degs(self.device, self.angle)
 
     def get_frame(self):
-            self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
-            self.depth = numpy.fliplr(self.depth)
-            return self.depth
+        self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
+        self.depth = numpy.fliplr(self.depth)
+        return self.depth
 
     def get_rgb_frame(self):  # TODO: check if this can be thrown out
         """
@@ -439,8 +435,8 @@ class KinectV2(Sensor):
             PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
         self.depth = self.get_frame()
         self.color = self.get_color()
-        #self.ir_frame_raw = self.get_ir_frame_raw()
-        #self.ir_frame = self.get_ir_frame()
+        # self.ir_frame_raw = self.get_ir_frame_raw()
+        # self.ir_frame = self.get_ir_frame()
         print("KinectV2 initialized.")
 
     def get_frame(self):
@@ -468,7 +464,8 @@ class KinectV2(Sensor):
         """
         ir_flattened = self.device.get_last_infrared_frame()
         self.ir_frame_raw = numpy.flipud(
-            ir_flattened.reshape((self.depth_height, self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
+            ir_flattened.reshape((self.depth_height,
+                                  self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
         return self.ir_frame_raw
 
     def get_ir_frame(self, min=0, max=6000):
@@ -773,8 +770,7 @@ class KinectV2(Sensor):
 
 
 class Projector(object):
-
-    dpi = 100 # make sure that figures can be displayed pixel-precise
+    dpi = 100  # make sure that figures can be displayed pixel-precise
 
     css = '''
     body {
@@ -816,7 +812,6 @@ class Projector(object):
         self.hot = None
         self.profile = None
 
-
         self.create_panel()
         self.start_server()
 
@@ -834,14 +829,14 @@ class Projector(object):
                                         tight=False,
                                         dpi=self.dpi,
                                         css_classes=['frame']
-                                       )
+                                        )
         plt.close()  # close figure to prevent inline display
 
         if self.enable_legend:
             self.legend = pn.Column("### Legend",
                                     # add parameters from calibration for positioning
-                                    width = 100,
-                                    height = 100,
+                                    width=100,
+                                    height=100,
                                     margin=[0, 0, 0, 0],
                                     css_classes=['legend'])
 
@@ -851,7 +846,7 @@ class Projector(object):
                                  height=100,
                                  margin=[0, 0, 0, 0],
                                  css_classes=['hot']
-                                )
+                                 )
 
         if self.enable_profile:
             self.profile = pn.Column("### Profile",
@@ -859,19 +854,19 @@ class Projector(object):
                                      height=100,
                                      margin=[0, 0, 0, 0],
                                      css_classes=['profile']
-                                    )
+                                     )
 
         # Combine panel and deploy bokeh server
         self.sidebar = pn.Column(self.legend, self.hot, self.profile,
                                  margin=[self.calib.p_frame_top, 0, 0, 0],
-                                )
+                                 )
 
         self.panel = pn.Row(self.frame, self.sidebar,
                             width=self.calib.p_width,
                             height=self.calib.p_height,
                             sizing_mode='fixed',
                             css_classes=['panel']
-                           )
+                            )
         return True
 
     def start_server(self):
@@ -890,11 +885,12 @@ class Projector(object):
         self.frame.param.trigger('object')
         return True
 
+
 class Plot(object):
     """Standard class that handles the creation and update of a plot for sandbox Modules
     """
 
-    dpi = 100 # make sure that figures can be displayed pixel-precise
+    dpi = 100  # make sure that figures can be displayed pixel-precise
 
     def __init__(self, calibrationdata, contours=True, margins=False, vmin=None, vmax=None,
                  cmap=None, over=None, under=None, bad=None,
@@ -980,7 +976,7 @@ class Plot(object):
         self.margin_alpha = margin_alpha
 
         # TODO: save the figure's Matplotlib number to recall?
-        #self.number = None
+        # self.number = None
         self.figure = None
         self.ax = None
         self.create_empty_frame()
@@ -988,7 +984,6 @@ class Plot(object):
     @property
     def contours_levels(self):
         """Returns the current contour levels, being aware of changes in calibration."""
-
 
         return numpy.arange(self.vmin, self.vmax, self.contours_step)
 
@@ -1007,7 +1002,7 @@ class Plot(object):
 
         return True
 
-    def render_frame(self, data, contourdata=None, vmin=None, vmax=None): #ToDo: use keyword arguments
+    def render_frame(self, data, contourdata=None, vmin=None, vmax=None):  # ToDo: use keyword arguments
         """Renders a new frame according to class parameters.
 
         Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
@@ -1022,10 +1017,9 @@ class Plot(object):
 
         self.ax.cla()  # clear axes to draw new ones on figure
         if vmin is None:
-            vmin=self.vmin
+            vmin = self.vmin
         if vmax is None:
-            vmax=self.vmax
-
+            vmax = self.vmax
 
         self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
 
@@ -1208,7 +1202,6 @@ class Grid(object):
 
         """
 
-
         self.calibration = calibration
         """
         if isinstance(calibration, Calibration):
@@ -1304,19 +1297,19 @@ class Module(object):
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
+        self.auto = AutomaticModule(calibrationdata, sensor, projector)
+        self.test = False  # Testing, eliminate later
 
-        #flags
+        # flags
         self.crop = crop
 
         # threading
         self.lock = threading.Lock()
         self.thread = None
-        self.thread_status = 'stopped' # status: 'stopped', 'running', 'paused'
+        self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
         self.crop = None
         self.automatic_calibration = False
-        self.auto = AutomaticModule(calibrationdata, sensor, projector)
-        self.test = False #Testing, eliminate later
-        #self.setup()
+        # self.setup()
 
     @abstractmethod
     def setup(self):
@@ -1391,7 +1384,7 @@ class Module(object):
             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:]
         else:
             crop = frame[self.calib.s_bottom:-self.calib.s_top, self.calib.s_left:-self.calib.s_right]
-        
+
         return crop
 
     def clip_frame(self, frame):
@@ -1417,7 +1410,7 @@ class TopoModule(Module):
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        #with self.lock:
+        # with self.lock:
         frame = self.sensor.get_filtered_frame()
         self.plot.render_frame(frame)
         self.projector.trigger()
@@ -1428,7 +1421,7 @@ class CalibModule(Module):
     Module for calibration and responsive visualization
     """
 
-    def __init__(self, *args, automatic = False, **kwargs):
+    def __init__(self, *args, automatic=False, **kwargs):
 
         # customization
         self.c_under = '#DBD053'
@@ -1442,7 +1435,7 @@ class CalibModule(Module):
 
         # sensor calibration visualization
         pn.extension()
-        self.calib_frame = None # snapshot of sensor frame, only updated with refresh button
+        self.calib_frame = None  # snapshot of sensor frame, only updated with refresh button
         self.calib_plot = Plot(self.calib, margins=True, contours=True,
                                margin_color=self.c_margin,
                                cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
@@ -1467,7 +1460,7 @@ class CalibModule(Module):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
             frame = self.crop_frame(frame)
-        self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max )
+        self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max)
         self.projector.trigger()
 
     def update_calib_plot(self):
@@ -1492,14 +1485,14 @@ class CalibModule(Module):
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
-                               #self._widget_s_enable_auto_calibration,
-                               #self._widget_s_automatic_calibration,
+                               # self._widget_s_enable_auto_calibration,
+                               # self._widget_s_automatic_calibration,
                                pn.layout.VSpacer(height=5),
                                '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
                                self._widget_s_max,
                                self._widget_refresh_frame
-                              )
+                               )
         rows = pn.Row(widgets, self.calib_panel_frame)
         panel = pn.Column('### Sensor calibration', rows)
         return panel
@@ -1509,7 +1502,7 @@ class CalibModule(Module):
                        ('Sensor', self.calibrate_sensor()),
                        ('Save', pn.WidgetBox(self._widget_json_filename,
                                              self._widget_json_save))
-                      )
+                       )
         return tabs
 
     def _create_widgets(self):
@@ -1522,20 +1515,17 @@ class CalibModule(Module):
                                                         end=self.calib.p_height - 20)
         self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
 
-
         self._widget_p_frame_left = pn.widgets.IntSlider(name='Main frame left margin',
                                                          value=self.calib.p_frame_left,
                                                          start=0,
                                                          end=self.calib.p_width - 20)
         self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
 
-
         self._widget_p_frame_width = pn.widgets.IntSlider(name='Main frame width',
                                                           value=self.calib.p_frame_width,
                                                           start=10,
                                                           end=self.calib.p_width)
         self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
-
 
         self._widget_p_frame_height = pn.widgets.IntSlider(name='Main frame height',
                                                            value=self.calib.p_frame_height,
@@ -1545,11 +1535,13 @@ class CalibModule(Module):
 
         ## Auto- Calibration widgets
 
-        self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name = 'Enable Automatic Calibration', value = False)
-        self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value', onlychanged=False)
+        self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name='Enable Automatic Calibration', value=False)
+        self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value',
+                                                           onlychanged=False)
 
         self._widget_p_automatic_calibration = pn.widgets.Button(name="Run", button_type="success")
-        self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks', onlychanged=False)
+        self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks',
+                                                         onlychanged=False)
 
         ### sensor widgets and links
 
@@ -1597,10 +1589,10 @@ class CalibModule(Module):
 
         ## Auto- Calibration widgets
 
-        #self._widget_s_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
-         #                                                                  active=[1])
+        # self._widget_s_enable_auto_calibration = CheckboxGroup(labels=["Enable Automatic Sensor Calibration"],
+        #                                                                  active=[1])
 
-        #self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
+        # self._widget_s_automatic_calibration = pn.widgets.Toggle(name="Run", button_type="success")
 
         # refresh button
 
@@ -1610,7 +1602,7 @@ class CalibModule(Module):
         # save selection
 
         # Only for reading files --> Is there no location picker in panel widgets???
-        #self._widget_json_location = pn.widgets.FileInput(name='JSON location')
+        # self._widget_json_location = pn.widgets.FileInput(name='JSON location')
         self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
         self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
         self._widget_json_filename.value = 'calibration.json'
@@ -1657,7 +1649,7 @@ class CalibModule(Module):
         self.calib.p_frame_height = event.new
         target.height = event.new
         target.param.trigger('object')
-        if self.automatic_calibration ==True:
+        if self.automatic_calibration == True:
             self.plot.contours = False
             self.auto.plot_auto()
             self.plot.contours = True
@@ -1721,14 +1713,19 @@ class CalibModule(Module):
 
     def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
-        self.plot.contours = False
-        self.auto.plot_auto()
-        self.plot.contours = True
-        #self.update_calib_plot()
+        if self.automatic_calibration == True:
+            self.plot.contours = False
+            self.auto.plot_auto()
+            self.plot.contours = True
+            # self.update_calib_plot()
+        else:
+            self.plot.create_empty_frame()
+            self.update_calib_plot()
 
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
-            self.test = True
+            return True  # self.auto
+
 
 class AutomaticModule(object):
     """
@@ -1739,33 +1736,50 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-        self.plot = Plot(self.calib)
+        self.auto_plot = Plot(self.calib, contours=True, cmap='gray')
         self.marker = ArucoMarkers(sensor)
         self.p_aruco = self.p_arucoMarker()
+        # self.axes=None
 
     def p_arucoMarker(self):
         imagen, ax = plt.subplots()
-        ax.set_xlim(0, self.calib.p_frame_width)
-        ax.set_ylim(0, self.calib.p_frame_height)
+        width = self.calib.p_frame_width
+        height = self.calib.p_frame_height
+        ax.set_xlim(0, width)
+        ax.set_ylim(0, height)
         img = self.marker.create_aruco_marker()
-        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=2)
-        ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (self.calib.p_frame_width / 2, self.calib.p_frame_height / 2), frameon=False)
+        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=1, cmap='gray')
+        ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (width / 2, height / 2), frameon=False)
         ax.add_artist(ab)
         ax.set_axis_off()
         ax.axes.set_aspect('equal')
 
-        imagen.canvas.draw()
+        # imagen.canvas.draw()
 
-        data = numpy.fromstring(imagen.canvas.tostring_rgb(), dtype=numpy.uint8, sep='')
-        data = data.reshape(imagen.canvas.get_width_height()[::-1] + (3,))
+        # data = numpy.fromstring(imagen.canvas.tostring_rgb(), dtype=numpy.uint8, sep='')
+        # data = data.reshape(imagen.canvas.get_width_height()[::-1] + (3,))
 
-        self.p_aruco = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
+        # self.p_aruco = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
         plt.close()
+        # self.axes=ax
+        self.p_aruco = imagen
         return self.p_aruco
 
     def plot_auto(self):
-        #self.plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=300)
-        self.projector.frame = self.p_arucoMarker() #self.plot.figure
+        # self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=255)
+        # self.projector.frame.object = self.auto_plot.figure
+        # self.auto_plot.ax = self.axes
+        self.projector.frame.object = self.p_arucoMarker()
+
+    def crop_image_aruco(self, frame):
+        crop = frame[self.marker.dict_markers_current["Corners_IR_y"].min():
+                     self.marker.dict_markers_current["Corners_IR_y"].max(),
+               self.marker.dict_markers_current["Corners_IR_x"].min():
+               self.marker.dict_markers_current["Corners_IR_x"].max()]
+        return crop
+
+    def move_image(self, trigger):
+        self.marker.middle_point(trigger)
 
 
 class RMS_Grid():
@@ -1779,11 +1793,12 @@ class RMS_Grid():
         self.nz = None
         self.block_dict = {}
         self.regular_grid_dict = {}
-        self.regridding_resolution = [424,512,100] #default resolution for the regridding. default is kinect v2 resolution and 100 depth levels
+        self.regridding_resolution = [424, 512,
+                                      100]  # default resolution for the regridding. default is kinect v2 resolution and 100 depth levels
         self.coords_x = None  # arrays to store coordinates of cells
         self.coords_y = None
         self.coords_z = None
-        self.data_mask = None #stores the Livecell information from the VIP  File
+        self.data_mask = None  # stores the Livecell information from the VIP  File
         self.reservoir_topography = None
         self.method = 'nearest'
         self.mask_method = 'nearest'
@@ -1952,7 +1967,7 @@ class RMS_Grid():
                             print('failed to parse value ', x, y, z)
                             print(l)
                             x = x + 1
-           # print(x, y + 1, z + 1)  # to check if all cells are loaded
+        # print(x, y + 1, z + 1)  # to check if all cells are loaded
 
         print(key + ' loaded')
         value_dict[key] = data_np
@@ -1960,13 +1975,13 @@ class RMS_Grid():
         return True
 
     def convert_to_regular_grid(self, method=None, mask_method=None):
-        #prepare the cell coordinates of the original grid
+        # prepare the cell coordinates of the original grid
         x = self.coords_x.ravel()
         y = self.coords_y.ravel()
         z = self.coords_z.ravel()
 
-        #prepare the coordinates of the regular grid cells:
-        #define extent:
+        # prepare the coordinates of the regular grid cells:
+        # define extent:
         xmin = x.min()
         xmax = x.max()
         ymin = y.min()
@@ -1974,7 +1989,7 @@ class RMS_Grid():
         zmin = z.min()
         zmax = z.max()
 
-        #prepare the regular grid:
+        # prepare the regular grid:
         gx = numpy.linspace(xmin, xmax, num=self.regridding_resolution[0])
         gy = numpy.linspace(ymin, ymax, num=self.regridding_resolution[1])
         gz = numpy.linspace(zmin, zmax, num=self.regridding_resolution[2])
@@ -1983,12 +1998,13 @@ class RMS_Grid():
 
         grid = numpy.stack((a.ravel(), b.ravel(), c.ravel()), axis=1)
 
-        #iterate over all loaded datasets:
+        # iterate over all loaded datasets:
         for key in self.block_dict.keys():
             print("processing grid: ", key)
             if key == 'mask':
                 self.block_dict[key][:, :, 0] = 0.0
-                self.block_dict[key][0, :, :] = 0.0  # exchange outer limits of the box so that nearest neighbour returns zeros outside the box
+                self.block_dict[key][0, :,
+                :] = 0.0  # exchange outer limits of the box so that nearest neighbour returns zeros outside the box
                 self.block_dict[key][-1, :, :] = 0.0
                 self.block_dict[key][:, -1, :] = 0.0
                 self.block_dict[key][:, 0, :] = 0.0
@@ -1997,57 +2013,53 @@ class RMS_Grid():
 
             data = self.block_dict[key].ravel()
 
-            if key == 'mask': #for the mask, fill NaN values with 0.0
-                if mask_method==None:
-                    mask_method = self.mask_method #'linear' or 'nearest'
-                data = numpy.nan_to_num(data) #this does not work with nearest neighbour!
+            if key == 'mask':  # for the mask, fill NaN values with 0.0
+                if mask_method == None:
+                    mask_method = self.mask_method  # 'linear' or 'nearest'
+                data = numpy.nan_to_num(data)  # this does not work with nearest neighbour!
 
                 interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method=mask_method)
 
             else:
-                if method==None:
-                    method=self.method
+                if method == None:
+                    method = self.method
                 interp_grid = scipy.interpolate.griddata((x, y, z), data, grid, method=method)
 
-
-
-            #save to dictionary:
-            #reshape to originasl dimension BUT WITH X AND Y EXCHANGEND
-            self.regular_grid_dict[key]=interp_grid.reshape([self.regridding_resolution[1],
-                                                             self.regridding_resolution[0],
-                                                             self.regridding_resolution[2]]
-                                                            )
+            # save to dictionary:
+            # reshape to originasl dimension BUT WITH X AND Y EXCHANGEND
+            self.regular_grid_dict[key] = interp_grid.reshape([self.regridding_resolution[1],
+                                                               self.regridding_resolution[0],
+                                                               self.regridding_resolution[2]]
+                                                              )
             print("done!")
 
     def create_reservoir_topo(self):
         """
         creates a 2d array with the z values of the reservoir top (the z coordinate of the top layer in the array
         """
-        #create 2d grid for lookup:
+        # create 2d grid for lookup:
         x = self.coords_x.ravel()
         y = self.coords_y.ravel()
 
-
-        #prepare the coordinates of the regular grid cells:
-        #define extent:
+        # prepare the coordinates of the regular grid cells:
+        # define extent:
         xmin = x.min()
         xmax = x.max()
         ymin = y.min()
         ymax = y.max()
 
-        #prepare the regular grid:
+        # prepare the regular grid:
         gx = numpy.linspace(xmin, xmax, num=self.regridding_resolution[0])
         gy = numpy.linspace(ymin, ymax, num=self.regridding_resolution[1])
         a, b = numpy.meshgrid(gx, gy)
 
-        grid2d = numpy.stack((a.ravel(), b.ravel()),  axis=1)
+        grid2d = numpy.stack((a.ravel(), b.ravel()), axis=1)
 
+        top_x = self.coords_x[:, :, 0].ravel()
+        top_y = self.coords_y[:, :, 0].ravel()
+        top_z = self.coords_z[:, :, 0].ravel()
 
-        top_x = self.coords_x[:,:,0].ravel()
-        top_y = self.coords_y[:,:,0].ravel()
-        top_z = self.coords_z[:,:,0].ravel()
-
-        topo = scipy.interpolate.griddata((top_x, top_y), top_z, grid2d) #this has to be done with the linear method!
+        topo = scipy.interpolate.griddata((top_x, top_y), top_z, grid2d)  # this has to be done with the linear method!
         self.reservoir_topography = topo.reshape([self.regridding_resolution[1], self.regridding_resolution[0]])
 
     def save(self, filename):
@@ -2061,15 +2073,11 @@ class RMS_Grid():
         pickle.dump([self.regular_grid_dict, self.reservoir_topography], open(filename, "wb"))
 
 
-
-
-
-
 class BlockModule(Module):
     # child class of Model
 
     def __init__(self, calibrationdata, sensor, projector, crop=True, **kwarg):
-        super().__init__(calibrationdata, sensor, projector, crop, **kwarg) #call parent init
+        super().__init__(calibrationdata, sensor, projector, crop, **kwarg)  # call parent init
         self.block_dict = {}
         self.cmap_dict = {}
         self.displayed_dataset_key = "mask"  # variable to choose displayed dataset in runtime
@@ -2077,22 +2085,21 @@ class BlockModule(Module):
         self.reservoir_topography = None
         self.rescaled_reservoir_topography = None
         self.show_reservoir_topo = False
-        self.num_contours_reservoir_topo = 10 #number of contours in
-        self.reservoir_topography_topo_levels = None #set in setup and in widget.
-        self.result = None #stores the output array of the current frame
+        self.num_contours_reservoir_topo = 10  # number of contours in
+        self.reservoir_topography_topo_levels = None  # set in setup and in widget.
+        self.result = None  # stores the output array of the current frame
 
-      #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
-        self.index = None #index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
-        self.widget = None #widget to change models in runtime
+        #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
+        self.index = None  # index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
+        self.widget = None  # widget to change models in runtime
         self.min_sensor_offset = 0
         self.max_sensor_offset = 0
         self.minmax_sensor_offset = 0
         self.original_sensor_min = 0
         self.original_sensor_max = 0
-        self.mask_threshold = 0.5 #set the threshold for the mask array, interpolated between 0.0 and 1.0 #obsolete!
+        self.mask_threshold = 0.5  # set the threshold for the mask array, interpolated between 0.0 and 1.0 #obsolete!
 
         self.num_contour_steps = 20
-
 
     def setup(self):
         if self.block_dict is None:
@@ -2101,18 +2108,18 @@ class BlockModule(Module):
         elif self.cmap_dict is None:
             self.set_colormaps()
         self.rescale_blocks()
-        #self.rescale_mask() #nearest neighbour? obsolete! mask is now part of the block_dict
+        # self.rescale_mask() #nearest neighbour? obsolete! mask is now part of the block_dict
 
         self.displayed_dataset_key = list(self.block_dict)[1]
 
         self.plot.contours_color = 'w'  # Adjust default contour color
 
-        self.projector.frame.object = self.plot.figure #Link figure to projector
+        self.projector.frame.object = self.plot.figure  # Link figure to projector
 
         self.calculate_reservoir_contours()
 
     def update(self):
-        #with self.lock:
+        # with self.lock:
         frame = self.sensor.get_filtered_frame()
 
         if self.crop is True:
@@ -2120,31 +2127,30 @@ class BlockModule(Module):
         depth_mask = self.depth_mask(frame)
 
         ###workaround:resize depth mask
-        #depth_mask = skimage.transform.resize(
+        # depth_mask = skimage.transform.resize(
         #    depth_mask,
         #    (
         #    self.block_dict[self.displayed_dataset_key].shape[0], self.block_dict[self.displayed_dataset_key].shape[1]),
         #    order=0
-        #)
+        # )
 
         frame = self.clip_frame(frame)
 
         ##workaround: reshape frame to array size, not the other way around!
-      #  frame = skimage.transform.resize(
-      #          frame,
-      #          (self.block_dict[self.displayed_dataset_key].shape[0], self.block_dict[self.displayed_dataset_key].shape[1]),
-      #          order=1
-      #  )
+        #  frame = skimage.transform.resize(
+        #          frame,
+        #          (self.block_dict[self.displayed_dataset_key].shape[0], self.block_dict[self.displayed_dataset_key].shape[1]),
+        #          order=1
+        #  )
 
-        if self.displayed_dataset_key is 'mask': #check if there is a data_mask, TODO: try except key error
+        if self.displayed_dataset_key is 'mask':  # check if there is a data_mask, TODO: try except key error
             data = self.rescaled_block_dict[self.displayed_dataset_key]
-          #  data = self.block_dict[self.displayed_dataset_key]
-        else:    #apply data mask
+        #  data = self.block_dict[self.displayed_dataset_key]
+        else:  # apply data mask
 
             data = numpy.ma.masked_where(self.rescaled_block_dict['mask'] < self.mask_threshold,
-                self.rescaled_block_dict[self.displayed_dataset_key]
-            )
-
+                                         self.rescaled_block_dict[self.displayed_dataset_key]
+                                         )
 
         zmin = self.calib.s_min
         zmax = self.calib.s_max
@@ -2153,13 +2159,11 @@ class BlockModule(Module):
         index = index.round()  # round to next integer
         self.index = index.astype('int')
 
-
-
         # querry the array:
         i, j = numpy.indices(data[..., 0].shape)  # create arrays with the indices in x and y
         self.result = data[i, j, self.index]
 
-        self.result = numpy.ma.masked_array(self.result, mask=depth_mask) #apply the depth mask
+        self.result = numpy.ma.masked_array(self.result, mask=depth_mask)  # apply the depth mask
 
         self.plot.ax.cla()
 
@@ -2175,35 +2179,34 @@ class BlockModule(Module):
         max = self.cmap_dict[self.displayed_dataset_key][3]
         self.plot.cmap = cmap
         self.plot.norm = norm
-        self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max) # plot the current frame
+        self.plot.render_frame(self.result, contourdata=frame, vmin=min, vmax=max)  # plot the current frame
 
         if self.show_reservoir_topo is True:
-            self.plot.ax.contour(self.rescaled_reservoir_topography,levels=self.reservoir_topography_topo_levels)
-        #render and display
-        #self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
-        #self.plot.ax.set_axis_off()
+            self.plot.ax.contour(self.rescaled_reservoir_topography, levels=self.reservoir_topography_topo_levels)
+        # render and display
+        # self.plot.ax.axis([0, self.calib.s_frame_width, 0, self.calib.s_frame_height])
+        # self.plot.ax.set_axis_off()
 
         self.projector.trigger()
-        #return True
+        # return True
 
     def load_model(self, model_filename):
         """
         loads a regular grid dataset parsed and prepared with the RMS Grid class.
         the pickled list contains 2 entries:
         1.  The regridded Block dictionary
-        2.  a 2d array of the lateral size of the blocks with the z values of the uppermost layer 
+        2.  a 2d array of the lateral size of the blocks with the z values of the uppermost layer
             (= the shape of the reservoir top surface)
         Args:
             model_filename: string with the path to the file to load
 
-        Returns: nothing, changes in place the 
+        Returns: nothing, changes in place the
 
         """
-        data_list = pickle.load( open( model_filename, "rb" ) )
+        data_list = pickle.load(open(model_filename, "rb"))
         self.block_dict = data_list[0]
         self.reservoir_topography = data_list[1]
         print('Datasets loaded: ', self.block_dict.keys())
-
 
     def create_cmap(self, clist):
         """
@@ -2212,7 +2215,7 @@ class BlockModule(Module):
         :return: colormap
         """
 
-        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('default',clist, N=256)
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('default', clist, N=256)
         return cmap
 
     def create_norm(self, vmin, vmax):
@@ -2220,7 +2223,7 @@ class BlockModule(Module):
         return norm
 
     def set_colormap(self, key=None, cmap='jet', norm=None):
-        min = numpy.nanmin(self.block_dict[key].ravel()) #find min ignoring NaNs
+        min = numpy.nanmin(self.block_dict[key].ravel())  # find min ignoring NaNs
         max = numpy.nanmax(self.block_dict[key].ravel())
 
         if isinstance(cmap, str):  # get colormap by name
@@ -2240,12 +2243,10 @@ class BlockModule(Module):
         :return:
         """
         for key in self.block_dict.keys():
-            if key not in self.cmap_dict.keys(): #add entry if not already in cmap_dict
+            if key not in self.cmap_dict.keys():  # add entry if not already in cmap_dict
                 self.set_colormap(key)
 
-
-
-    def rescale_blocks(self): #scale the blocks xy Size to the cropped size of the sensor
+    def rescale_blocks(self):  # scale the blocks xy Size to the cropped size of the sensor
         for key in self.block_dict.keys():
             rescaled_block = skimage.transform.resize(
                 self.block_dict[key],
@@ -2255,20 +2256,20 @@ class BlockModule(Module):
 
             self.rescaled_block_dict[key] = rescaled_block
 
-        if self.reservoir_topography is not None: #rescale the topography map
-           self.rescaled_reservoir_topography = skimage.transform.resize(
+        if self.reservoir_topography is not None:  # rescale the topography map
+            self.rescaled_reservoir_topography = skimage.transform.resize(
                 self.reservoir_topography,
                 (self.calib.s_frame_height, self.calib.s_frame_width),
-                order=0 #nearest neighbour
-           )
-
-    def rescale_mask(self): #scale the blocks xy Size to the cropped size of the sensor
-            rescaled_mask = skimage.transform.resize(
-                self.data_mask,
-                (self.calib.s_frame_height, self.calib.s_frame_width),
-                order=0
+                order=0  # nearest neighbour
             )
-            self.rescaled_data_mask = rescaled_mask
+
+    def rescale_mask(self):  # scale the blocks xy Size to the cropped size of the sensor
+        rescaled_mask = skimage.transform.resize(
+            self.data_mask,
+            (self.calib.s_frame_height, self.calib.s_frame_width),
+            order=0
+        )
+        self.rescaled_data_mask = rescaled_mask
 
     def clear_models(self):
         self.block_dict = {}
@@ -2279,14 +2280,12 @@ class BlockModule(Module):
     def clear_cmaps(self):
         self.cmap_dict = {}
 
-
     def calculate_reservoir_contours(self):
-        min=numpy.nanmin(self.rescaled_reservoir_topography.ravel())
-        max=numpy.nanmax(self.rescaled_reservoir_topography.ravel())
-        step = (max-min)/float(self.num_contours_reservoir_topo)
-        print(min, max,step)
+        min = numpy.nanmin(self.rescaled_reservoir_topography.ravel())
+        max = numpy.nanmax(self.rescaled_reservoir_topography.ravel())
+        step = (max - min) / float(self.num_contours_reservoir_topo)
+        print(min, max, step)
         self.reservoir_topography_topo_levels = numpy.arange(min, max, step=step)
-
 
     def widget_mask_threshold(self):
         """
@@ -2294,7 +2293,8 @@ class BlockModule(Module):
 
         """
         pn.extension()
-        widget = pn.widgets.FloatSlider(name='mask threshold (values smaller than the set threshold will be masked)', start=0.0, end=1.0, step=0.01, value=self.mask_threshold)
+        widget = pn.widgets.FloatSlider(name='mask threshold (values smaller than the set threshold will be masked)',
+                                        start=0.0, end=1.0, step=0.01, value=self.mask_threshold)
 
         widget.param.watch(self._callback_mask_threshold, 'value', onlychanged=False)
 
@@ -2311,7 +2311,7 @@ class BlockModule(Module):
         self.resume()
 
     def show_widgets(self):
-        self.original_sensor_min = self.calib.s_min #store original sensor values on start
+        self.original_sensor_min = self.calib.s_min  # store original sensor values on start
         self.original_sensor_max = self.calib.s_max
 
         widgets = pn.WidgetBox(self._widget_model_selector(),
@@ -2335,11 +2335,11 @@ class BlockModule(Module):
         """
         pn.extension()
         widget = pn.widgets.RadioButtonGroup(name='Model selector',
-                                                  options=list(self.block_dict.keys()),
-                                                  value=self.displayed_dataset_key,
-                                                  button_type='success')
+                                             options=list(self.block_dict.keys()),
+                                             value=self.displayed_dataset_key,
+                                             button_type='success')
 
-        widget.param.watch(self. _callback_selection, 'value', onlychanged=False)
+        widget.param.watch(self._callback_selection, 'value', onlychanged=False)
 
         return widget
 
@@ -2408,7 +2408,8 @@ class BlockModule(Module):
 
         """
         pn.extension()
-        widget = pn.widgets.IntSlider(name='offset the model in vertical direction ', start=-250, end=250, step=1, value=0)
+        widget = pn.widgets.IntSlider(name='offset the model in vertical direction ', start=-250, end=250, step=1,
+                                      value=0)
 
         widget.param.watch(self._callback_position_slider, 'value', onlychanged=False)
 
@@ -2475,18 +2476,19 @@ class BlockModule(Module):
 
     def _callback_contours_num(self, event):
         self.pause()
-        self.plot.vmin=self.calib.s_min
-        self.plot.vmax=self.calib.s_max
+        self.plot.vmin = self.calib.s_min
+        self.plot.vmax = self.calib.s_max
         self.num_contour_steps = event.new
-        self.plot.contours_step = (self.plot.vmax-self.plot.vmin)/float(self.num_contour_steps)
+        self.plot.contours_step = (self.plot.vmax - self.plot.vmin) / float(self.num_contour_steps)
         self.resume()
+
 
 class GemPyModule(Module):
     # child class of Model
     # TODO: When we move GeoMapModule import gempy just there
-    #try:
+    # try:
     #    import gempy as gp
-    #except ImportError:
+    # except ImportError:
     #    warn('gempy not found, GeoMap Module will not work')
     pass
 
@@ -2718,6 +2720,7 @@ class ArucoMarkers(object):
     An Area of interest can be specified, markers outside this area will be ignored
     TODO: run as loop in a thread, probably implement in API
     """
+
     def __init__(self, sensor, aruco_dict=None, Area=None):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
@@ -2728,13 +2731,12 @@ class ArucoMarkers(object):
         self.ir_markers = self.find_markers_ir(self.kinect)
         self.rgb_markers = self.find_markers_rgb(self.kinect)
         self.dict_markers_current = self.update_dict_markers_current()  # markers that were detected in the last frame
-        #self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
+        # self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
-        #self.trs_dst = self.change_point_RGB_to_DepthIR()
+        # self.trs_dst = self.change_point_RGB_to_DepthIR()
         self.ArucoImage = self.create_aruco_marker()
         self.middle = self.middle_point()
-
 
     def get_location_marker(self, corners):
         pr1 = int(numpy.mean(corners[:, 0]))
@@ -2748,8 +2750,8 @@ class ArucoMarkers(object):
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
 
-    def find_markers_ir(self, kinect: KinectV2, amount = None):
-        labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'} #TODO: add orientation of aruco marker
+    def find_markers_ir(self, kinect: KinectV2, amount=None):
+        labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values = df.set_index('ids')
         if amount is not None:
@@ -2767,7 +2769,8 @@ class ArucoMarkers(object):
                         for j in range(len(ids)):
                             if ids[j] not in list_values.index.values:
                                 x_loc, y_loc = self.get_location_marker(corners[j][0])
-                                df_temp = pd.DataFrame({'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
+                                df_temp = pd.DataFrame(
+                                    {'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
                                 df = pd.concat([df, df_temp], sort=False)
                                 list_values = df.set_index('ids')
 
@@ -2775,8 +2778,8 @@ class ArucoMarkers(object):
 
         return self.ir_markers
 
-    def find_markers_rgb(self, kinect :KinectV2, amount = None):
-        labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  #TODO: add orientation of aruco marker
+    def find_markers_rgb(self, kinect: KinectV2, amount=None):
+        labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values_color = df.set_index("ids")
 
@@ -2789,7 +2792,8 @@ class ArucoMarkers(object):
                     for j in range(len(ids)):
                         if ids[j] not in list_values_color.index.values:
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
-                            df_temp = pd.DataFrame({"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
+                            df_temp = pd.DataFrame(
+                                {"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
                             df = pd.concat([df, df_temp], sort=False)
                             list_values_color = df.set_index("ids")
 
@@ -2797,12 +2801,11 @@ class ArucoMarkers(object):
 
         return self.rgb_markers
 
-
     def update_dict_markers_current(self):
 
         ir_aruco_locations = self.ir_markers
         rgb_aruco_locations = self.rgb_markers
-        self.dict_markers_current = pd.concat([ir_aruco_locations,rgb_aruco_locations], axis=1)
+        self.dict_markers_current = pd.concat([ir_aruco_locations, rgb_aruco_locations], axis=1)
         return self.dict_markers_current
 
     def update_dict_markers_all(self):
@@ -2810,12 +2813,11 @@ class ArucoMarkers(object):
         self.dict_markers_all.update(self.dict_markers_current)
         return self.dict_markers_all
 
-
     def erase_dict_markers_all(self):
         self.dict_markers_all = pd.DataFrame({})
         return self.dict_markers_all
 
-    def middle_point(self, autocalib = False):
+    def middle_point(self, autocalib=False):
         if autocalib is True:
             to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
             to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
@@ -2826,7 +2828,7 @@ class ArucoMarkers(object):
             est_y = int(ColorSpacePoint.y)
 
             self.middle = pd.DataFrame({"Middle_IR_x": [to_x], "Middle_IR_y": [to_y],
-                            "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
+                                        "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
 
             return self.middle
 
@@ -2859,7 +2861,7 @@ class ArucoMarkers(object):
 
         return self.dict_markers_current
 
-    def create_aruco_marker(self, nx=1, ny=1,show=False, save = False):
+    def create_aruco_marker(self, nx=1, ny=1, show=False, save=False):
         self.ArucoImage = 0
 
         aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
@@ -2879,7 +2881,7 @@ class ArucoMarkers(object):
         self.ArucoImage = img
         return self.ArucoImage
 
-    def plot_ir_aruco_location(self, kinect : KinectV2):
+    def plot_ir_aruco_location(self, kinect: KinectV2):
         plt.figure(figsize=(20, 20))
         plt.imshow(kinect.get_ir_frame(), cmap="gray")
         plt.plot(self.dict_markers_current["Corners_IR_x"], self.dict_markers_current["Corners_IR_y"], "or")
