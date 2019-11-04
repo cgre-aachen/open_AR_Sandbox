@@ -1313,8 +1313,8 @@ class Module(object):
         self.lock = threading.Lock()
         self.thread = None
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
-        self.crop = None
         self.automatic_calibration = False
+        self.automatic_cropping = False
         # self.setup()
 
     @abstractmethod
@@ -1490,8 +1490,8 @@ class CalibModule(Module):
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
-                               # self._widget_s_enable_auto_calibration,
-                               # self._widget_s_automatic_calibration,
+                               self._widget_s_enable_auto_cropping,
+                               self._widget_s_automatic_cropping,
                                pn.layout.VSpacer(height=5),
                                '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
@@ -1602,6 +1602,16 @@ class CalibModule(Module):
                                                   start=0,
                                                   end=2000)
         self._widget_s_max.param.watch(self._callback_s_max, 'value', onlychanged=False)
+
+        #Auto cropping widgets:
+
+        self._widget_s_enable_auto_cropping = pn.widgets.Checkbox(name='Enable Automatic Cropping', value=False)
+        self._widget_s_enable_auto_cropping.param.watch(self._callback_enable_auto_cropping, 'value',
+                                                           onlychanged=False)
+
+        self._widget_s_automatic_cropping = pn.widgets.Button(name="Crop", button_type="success")
+        self._widget_s_automatic_cropping.param.watch(self._callback_automatic_cropping, 'clicks',
+                                                         onlychanged=False)
 
         # box widgets:
 
@@ -1757,25 +1767,38 @@ class CalibModule(Module):
 
     def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
+
+    def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
             self.plot.contours = False
             self.auto.plot_auto()
             self.plot.contours = True
-            # self.update_calib_plot()
+            #self.update_calib_plot()
         else:
             self.plot.create_empty_frame()
+            self.projector.frame.object = self.plot.figure
             self.update_calib_plot()
 
-    def _callback_automatic_calibration(self, event):
-        if self.automatic_calibration == True:
-            return True  # self.auto
+    def _callback_enable_auto_cropping(self, event):
+        self.automatic_cropping = event.new
+
+
+    def _callback_automatic_cropping(self, event):
+        if self.automatic_cropping == True:
+            self.pause()
+            self.auto.crop_image_aruco()
+            self._widget_s_top.value=self.calib.s_top
+            self._widget_s_bottom.value = self.calib.s_bottom
+            self._widget_s_left.value = self.calib.s_left
+            self._widget_s_right.value = self.calib.s_right
+            self.update_calib_plot()
+            self.resume()
+
 
 class AutomaticModule(object):
     """
         Module for performing an automatic calibration of the projector and the size of the image to perform the visualization
     """
-
-
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
         self.sensor = sensor
@@ -1815,12 +1838,15 @@ class AutomaticModule(object):
         # self.auto_plot.ax = self.axes
         self.projector.frame.object = self.p_arucoMarker()
 
-    def crop_image_aruco(self, frame):
-        crop = frame[self.marker.dict_markers_current["Corners_IR_y"].min():
-                     self.marker.dict_markers_current["Corners_IR_y"].max(),
-               self.marker.dict_markers_current["Corners_IR_x"].min():
-               self.marker.dict_markers_current["Corners_IR_x"].max()]
-        return crop
+    def crop_image_aruco(self):
+        #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
+        #self.calib.s_bottom = self.calib.s_height - self.marker.dict_markers_current["Corners_IR_y"].max()
+        #self.calib.s_left = self.marker.dict_markers_current["Corners_IR_x"].min()
+        #self.calib.s_right = self.calib.s_width - self.marker.dict_markers_current["Corners_IR_x"].max()
+        self.calib.s_top = 50
+        self.calib.s_bottom = self.calib.s_height - 300
+        self.calib.s_left = 50
+        self.calib.s_right = self.calib.s_width - 300
 
     def move_image(self, trigger):
         self.marker.middle_point(trigger)
