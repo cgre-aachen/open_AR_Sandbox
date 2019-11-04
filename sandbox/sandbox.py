@@ -1115,6 +1115,8 @@ class Scale(object):
     """
     class that handles the scaling of whatever the sandbox shows and the real world sandbox
     self.extent: 3d extent of the model in the sandbox in model units.
+    if no model extent is specified, the physical dimensions of the sandbox (x,y) and the set sensor range (z)
+    are used.
 
     """
 
@@ -1144,12 +1146,16 @@ class Scale(object):
                 self.calibration.box_width,
                 0.0,
                 self.calibration.box_height,
-                self.calibration.z_range[0],
-                self.calibration.z_range[1],
+                self.calibration.s_min,
+                self.calibration.s_max,
             ])
 
         else:
             self.extent = numpy.asarray(extent)  # check: array with 6 entries!
+
+    @property
+    def output_res(self):
+        return (self.calibration.p_frame_width, self.calibration.p_frame_height)
 
     def calculate_scales(self):
         """
@@ -1164,14 +1170,11 @@ class Scale(object):
 
         """
 
-        self.output_res = (self.calibration.calibration_data.x_lim[1] -
-                           self.calibration.calibration_data.x_lim[0],
-                           self.calibration.calibration_data.y_lim[1] -
-                           self.calibration.calibration_data.y_lim[0])
+
         self.pixel_scale[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
         self.pixel_scale[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
-        self.pixel_size[0] = float(self.calibration.calibration_data.box_width) / float(self.output_res[0])
-        self.pixel_size[1] = float(self.calibration.calibration_data.box_height) / float(self.output_res[1])
+        self.pixel_size[0] = float(self.calibration.box_width) / float(self.output_res[0])
+        self.pixel_size[1] = float(self.calibration.box_height) / float(self.output_res[1])
 
         # TODO: change the extrent in place!! or create a new extent object that stores the extent after that modification.
         if self.xy_isometric == True:  # model is extended in one horizontal direction to fit  into box while the scale
@@ -1187,8 +1190,8 @@ class Scale(object):
         self.scale[0] = self.pixel_scale[0] / self.pixel_size[0]
         self.scale[1] = self.pixel_scale[1] / self.pixel_size[1]
         self.scale[2] = float(self.extent[5] - self.extent[4]) / (
-                self.calibration.calibration_data.z_range[1] -
-                self.calibration.calibration_data.z_range[0])
+                self.calibration.s_max -
+                self.calibration.s_min)
         print("scale in Model units/ mm (X,Y,Z): " + str(self.scale))
 
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
@@ -1226,6 +1229,7 @@ class Grid(object):
         else:
             self.scale = Scale(calibration=self.calibration)
             print("no scale provided or scale invalid. A default scale instance is used")
+        self.depth_grid = None
         self.empty_depth_grid = None
         self.create_empty_depth_grid()
 
@@ -1238,24 +1242,20 @@ class Grid(object):
         """
 
         grid_list = []
-        self.output_res = (self.calibration.calibration_data.x_lim[1] -
-                           self.calibration.calibration_data.x_lim[0],
-                           self.calibration.calibration_data.y_lim[1] -
-                           self.calibration.calibration_data.y_lim[0])
         """compare:
         for x in range(self.output_res[1]):
             for y in range(self.output_res[0]):
                 grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + self.scale.extent[0]])
         """
 
-        for y in range(self.output_res[1]):
+        for y in range(self.scale.output_res[1]):
             for x in range(self.output_res[0]):
                 grid_list.append([x * self.scale.pixel_scale[0] + self.scale.extent[0],
                                   y * self.scale.pixel_scale[1] + self.scale.extent[2]])
 
         empty_depth_grid = numpy.array(grid_list)
         self.empty_depth_grid = empty_depth_grid
-        self.depth_grid = None  # I know, this should have thew right type.. anyway.
+
         print("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
               str(self.empty_depth_grid[-1, 0]) + ", " +
               str(self.empty_depth_grid[0, 1]) + ", " +
@@ -1264,7 +1264,7 @@ class Grid(object):
 
         # return self.empty_depth_grid
 
-    def update_grid(self, depth):
+    def update_grid(self, depth): #TODO: Can all this be shortened using the cropped depth image?
         """
         Appends the z (depth) coordinate to the empty depth grid.
         this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed.
@@ -1279,15 +1279,16 @@ class Grid(object):
 
         # TODO: is this flip still necessary?
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
-        filtered_depth = numpy.ma.masked_outside(depth, self.calibration.calibration_data.z_range[0],
-                                                 self.calibration.calibration_data.z_range[1])
+        filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
+                                                 self.calibration.s_max)
         scaled_depth = self.scale.extent[5] - (
-                (filtered_depth - self.calibration.calibration_data.z_range[0]) / (
-                self.calibration.calibration_data.z_range[1] -
-                self.calibration.calibration_data.z_range[0]) * (self.scale.extent[5] - self.scale.extent[4]))
-        rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
-                                             reshape=False)
-        cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
+                (filtered_depth - self.calibration.s_min) / (
+                self.calibration.s_max -
+                self.calibration.s_min) * (self.scale.extent[5] - self.scale.extent[4]))
+     #  rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
+     #                                      reshape=False)
+        #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
+        cropped_depth = scaled_depth[self.calibration.calibration_data.y_lim[0]:
                                       self.calibration.calibration_data.y_lim[1],
                         self.calibration.calibration_data.x_lim[0]:
                         self.calibration.calibration_data.x_lim[1]]
