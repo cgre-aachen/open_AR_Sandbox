@@ -78,7 +78,7 @@ class CalibrationData(object):
     """
 
     def __init__(self,
-                 p_width=800, p_height=600, p_frame_top=0, p_frame_left=0,
+                 p_width=1280, p_height=800, p_frame_top=0, p_frame_left=0,
                  p_frame_width=600, p_frame_height=450,
                  s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  box_width=1000.0, box_height=800.0,
@@ -1478,7 +1478,9 @@ class CalibModule(Module):
         widgets = pn.WidgetBox(self._widget_p_frame_top,
                                self._widget_p_frame_left,
                                self._widget_p_frame_width,
-                               self._widget_p_frame_height)
+                               self._widget_p_frame_height,
+                               self._widget_p_enable_auto_calibration,
+                               self._widget_p_automatic_calibration)
         panel = pn.Column("### Projector dashboard arrangement", widgets)
         return panel
 
@@ -1737,6 +1739,22 @@ class CalibModule(Module):
         if self.json_filename is not None:
             self.calib.save_json(file=self.json_filename)
 
+    ### box dimensions callbacks:
+
+    def _callback_box_width(self, event):
+        self.pause()
+        self.calib.box_width = float(event.new)
+        # self.update_calib_plot()
+        self.resume()
+
+    def _callback_box_height(self, event):
+        self.pause()
+        self.calib.box_height = float(event.new)
+        # self.update_calib_plot()
+        self.resume()
+
+    ### Automatic Calibration callback
+
     def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
         if self.automatic_calibration == True:
@@ -1747,27 +1765,16 @@ class CalibModule(Module):
         else:
             self.plot.create_empty_frame()
             self.update_calib_plot()
-    ### box dimensions callbacks:
 
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
             return True  # self.auto
-    def _callback_box_width(self, event):
-        self.pause()
-        self.calib.box_width = float(event.new)
-        # self.update_calib_plot()
-        self.resume()
-
 
 class AutomaticModule(object):
     """
         Module for performing an automatic calibration of the projector and the size of the image to perform the visualization
     """
-    def _callback_box_height(self, event):
-        self.pause()
-        self.calib.box_height = float(event.new)
-        # self.update_calib_plot()
-        self.resume()
+
 
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
@@ -1785,7 +1792,7 @@ class AutomaticModule(object):
         ax.set_xlim(0, width)
         ax.set_ylim(0, height)
         img = self.marker.create_aruco_marker()
-        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=1, cmap='gray')
+        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=2, cmap='gray')
         ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (width / 2, height / 2), frameon=False)
         ax.add_artist(ab)
         ax.set_axis_off()
@@ -2900,16 +2907,18 @@ class ArucoMarkers(object):
 
     def create_aruco_marker(self, nx=1, ny=1, show=False, save=False):
         self.ArucoImage = 0
-        if show is True:
-            aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
 
-            fig = plt.figure()
-            for i in range(1, nx * ny + 1):
-                ax = fig.add_subplot(ny, nx, i)
-                img = aruco.drawMarker(aruco_dictionary, i, 2000)
+        aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
 
+        fig = plt.figure()
+        for i in range(1, nx * ny + 1):
+            ax = fig.add_subplot(ny, nx, i)
+            img = aruco.drawMarker(aruco_dictionary, i, 50)
+            if show is True:
                 plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
                 ax.axis("off")
+            else:
+                plt.close()
 
         if save is True:
             plt.savefig("markers.jpg")
