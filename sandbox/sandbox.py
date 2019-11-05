@@ -40,6 +40,13 @@ except ImportError:
     # warn('opencv is not installed. Object detection will not work')
     pass
 
+try:
+    import gempy
+    from gempy.core.grid_modules.grid_types import Topography
+except ImportError:
+    warn('gempy not found, GeoMap Module will not work')
+
+
 # logging and exception handling
 verbose = False
 if verbose:
@@ -1044,6 +1051,10 @@ class Plot(object):
 
         return True
 
+    def show_depth(self, data):
+        self.ax.imshow(data)
+
+
     def add_contours(self, data):
         """Renders contours to the current plot object.
         Uses the different attributes to style contour lines and contour labels.
@@ -1132,7 +1143,6 @@ class Scale(object):
         self.scale = [None, None, None]
         self.pixel_size = [None, None]
         self.pixel_scale = [None, None]
-        self.output_res = None
 
         if extent is None:  # extent should be array with shape (6,) or convert to list?
             self.extent = numpy.asarray([
@@ -1149,7 +1159,7 @@ class Scale(object):
 
     @property
     def output_res(self):
-        return (self.calibration.p_frame_width, self.calibration.p_frame_height)
+        return (self.calibration.s_frame_width, self.calibration.s_frame_height) #this is the dimension of the cropped kinect frame
 
     def calculate_scales(self):
         """
@@ -1198,7 +1208,7 @@ class Grid(object):
     TODO:  The cropping should be done in the kinect class, with calibration_data passed explicitly to the method! Do this for all the cases where calibration data is needed!
     """
 
-    def __init__(self, calibration=None, scale=None, ):
+    def __init__(self, calibration=None, scale=None, crop_to_resolution=True):
         """
 
         Args:
@@ -1225,6 +1235,7 @@ class Grid(object):
         self.depth_grid = None
         self.empty_depth_grid = None
         self.create_empty_depth_grid()
+        self.crop = crop_to_resolution
 
     def create_empty_depth_grid(self):
         """
@@ -1240,14 +1251,18 @@ class Grid(object):
             for y in range(self.output_res[0]):
                 grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + self.scale.extent[0]])
         """
+        #for y in range(self.scale.output_res[1]):
+         #   for x in range(self.scale.output_res[0]):
+          #      grid_list.append([x * self.scale.pixel_scale[0] + self.scale.extent[0],
+           #                       y * self.scale.pixel_scale[1] + self.scale.extent[2]])
+        #empty_depth_grid = numpy.array(grid_list)
 
-        for y in range(self.scale.output_res[1]):
-            for x in range(self.output_res[0]):
-                grid_list.append([x * self.scale.pixel_scale[0] + self.scale.extent[0],
-                                  y * self.scale.pixel_scale[1] + self.scale.extent[2]])
+        x = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
+        y = numpy.linspace(self.scale.extent[2], self.scale.extent[3], self.scale.output_res[1])
+        xx, yy = numpy.meshgrid(x, y, indexing='ij')
 
-        empty_depth_grid = numpy.array(grid_list)
-        self.empty_depth_grid = empty_depth_grid
+        self.empty_depth_grid = numpy.vstack([xx.ravel(), yy.ravel()]).T
+        #print(self.empty_depth_grid.shape)
 
         print("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
               str(self.empty_depth_grid[-1, 0]) + ", " +
@@ -1272,6 +1287,7 @@ class Grid(object):
 
         # TODO: is this flip still necessary?
         depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
+        self.depth_just_looking = depth
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
                                                  self.calibration.s_max)
         scaled_depth = self.scale.extent[5] - (
@@ -1281,13 +1297,18 @@ class Grid(object):
      #  rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
      #                                      reshape=False)
         #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
-        cropped_depth = scaled_depth[self.calibration.calibration_data.y_lim[0]:
-                                      self.calibration.calibration_data.y_lim[1],
-                        self.calibration.calibration_data.x_lim[0]:
-                        self.calibration.calibration_data.x_lim[1]]
+        if self.crop == True:
+            cropped_depth = scaled_depth[self.calibration.s_top:(self.calibration.s_top+self.calibration.s_frame_height),
+                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)]
+        else:
+            cropped_depth = scaled_depth
+        self.cropped_depth_just_looking = cropped_depth
 
-        flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
-        depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
+        #flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
+        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res, order='F').ravel()
+        #flattened_depth.reshape(self.scale.output_res, order='F')
+        #print(flattened_depth.shape, self.empty_depth_grid.shape)
+        depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
 
         self.depth_grid = depth_grid
 
@@ -1303,7 +1324,7 @@ class Module(object):
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-        self.auto = AutomaticModule(calibrationdata, sensor, projector)
+        self.auto = AutomaticModule(calibrationdata, sensor, projector) #TODO Daniel: this should not be here! put this into the inheriting class in which you use the calibration
         self.test = False  # Testing, eliminate later
 
         # flags
@@ -1313,7 +1334,7 @@ class Module(object):
         self.lock = threading.Lock()
         self.thread = None
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
-        self.crop = None
+
         self.automatic_calibration = False
         # self.setup()
 
@@ -2528,25 +2549,94 @@ class BlockModule(Module):
 
 
 class GemPyModule(Module):
-    # child class of Model
-    # TODO: When we move GeoMapModule import gempy just there
-    # try:
-    #    import gempy as gp
-    # except ImportError:
-    #    warn('gempy not found, GeoMap Module will not work')
-    pass
+
+    def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
+        super().__init__(calibrationdata, sensor, projector, crop, **kwarg)  # call parent init
+
+
+        """
+
+        Args:
+            geo_model:
+            grid:
+            geol_map:
+            work_directory:
+
+        Returns:
+            None
+
+        """
+        # TODO: When we move GeoMapModule import gempy just there
+
+
+        self.geo_model = geo_model
+        self.grid = None
+        self.scale = None
+        self.plot = None
+
+       # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
+       # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
+       #                                                self.kinect_grid.scale.extent[5])
+       # self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
+       #                                              self.kinect_grid.scale.extent[5])
+
+       #self.x_grid = range(self.kinect_grid.scale.output_res[0])
+       # self.y_grid = range(self.kinect_grid.scale.output_res[1])
+
+        self.plot_topography = True
+        self.plot_faults = True
+
+    def setup(self):
+
+        self.scale = Scale(self.calib,extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
+        self.scale.calculate_scales()
+
+        self.grid = Grid(calibration=self.calib, scale= self.scale)
+        self.grid.create_empty_depth_grid() # prepare the grid object
+
+        self.init_topography()
+       # self.grid.update_grid() #update the grid object for the first time
+
+        self.plot = Plot(self.calib, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
+
+        self.projector.frame.object = self.plot.figure  # Link figure to projector
+
+    def init_topography(self):
+        self.grid.update_grid(self.sensor.get_filtered_frame())
+        self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
+        self.geo_model.grid.topography.extent = self.geo_model.grid.regular_grid.extent[:4]
+        self.geo_model.grid.topography.resolution = self.scale.output_res
+        self.geo_model.grid.topography.values = self.grid.depth_grid
+        self.geo_model.grid.topography.values_3D = numpy.dstack([self.grid.depth_grid[:, 0].reshape(self.scale.output_res),
+                                                         self.grid.depth_grid[:, 1].reshape(self.scale.output_res),
+                                                         self.grid.depth_grid[:, 2].reshape(self.scale.output_res)])
+        self.geo_model.grid.set_active('topography')
+        self.geo_model.update_from_grid()
+        #gp.compute_model(geo_model, compute_mesh=False)
+
+
+    def update(self):
+
+        self.grid.update_grid(self.sensor.get_filtered_frame())
+        self.geo_model.grid.topography.values = self.grid.depth_grid
+        self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
+                                                self.geo_model.grid.topography.resolution)
+        self.geo_model.grid.update_grid_values()
+
+        #calculate the model here self.geo_model, using self.grid.depth_grid
+        gempy.compute_model(self.geo_model)
+        # update the self.plot.figure with new axes
+        #prepare the plot object
+        self.plot.ax.cla()
+
+        self.plot.show_depth(self.grid.depth_grid.reshape(self.scale.output_res))
+        #2d resolution of the grid: self.scale.output_res
 
 
 class GeoMapModule:
     """
 
     """
-
-    # TODO: When we move GeoMapModule import gempy just there
-    try:
-        import gempy as gp
-    except ImportError:
-        warn('gempy not found, GeoMap Module will not work')
 
     def __init__(self, geo_model, grid: Grid, geol_map: Plot):
         """
@@ -2561,16 +2651,18 @@ class GeoMapModule:
             None
 
         """
+        # TODO: When we move GeoMapModule import gempy just there
+
 
         self.geo_model = geo_model
         self.kinect_grid = grid
         self.geol_map = geol_map
 
-        self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
-        self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
-                                                       self.kinect_grid.scale.extent[5])
-        self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
-                                                     self.kinect_grid.scale.extent[5])
+       # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
+       # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
+       #                                                self.kinect_grid.scale.extent[5])
+       # self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
+       #                                              self.kinect_grid.scale.extent[5])
 
         self.x_grid = range(self.kinect_grid.scale.output_res[0])
         self.y_grid = range(self.kinect_grid.scale.output_res[1])
@@ -2588,7 +2680,7 @@ class GeoMapModule:
 
         """
         self.kinect_grid.update_grid(kinect_array)
-        sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
+        sol = gempy.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
         lith_block = sol[0][0]
         fault_blocks = sol[1][0::2]
         block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
@@ -2617,13 +2709,13 @@ class GeoMapModule:
         # This line is for GemPy 1.2: fault_data = sol.fault_blocks.reshape((scalgeol_map.outfilee.output_res[1],
         # scale.output_res[0]))
 
-        if self.plot_faults is True:
-            for fault in fault_blocks:
-                fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
-                self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
-        if self.plot_topography is True:
-            self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
-            self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
+     #   if self.plot_faults is True:
+     #       for fault in fault_blocks:
+     #           fault = fault.reshape((self.kinect_grid.scale.output_res[1], self.kinect_grid.scale.output_res[0]))
+     #           self.geol_map.add_contours(self.fault_line, [self.x_grid, self.y_grid, fault])
+     #   if self.plot_topography is True:
+     #       self.geol_map.add_contours(self.main_contours, [self.x_grid, self.y_grid, elevation])
+     #       self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
         return self.geol_map.figure
 
