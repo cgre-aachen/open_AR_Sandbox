@@ -19,6 +19,7 @@ from scipy.interpolate import griddata  # for DummySensor
 import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
+import matplotlib.colors as mcolors
 from PIL import Image
 
 # optional imports
@@ -902,14 +903,14 @@ class Plot:
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, model, show_contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
+    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
 
 
         self.calib = calibrationdata
         self.model = model
 
         # flags
-        self.show_contours = show_contours
+        self.show_contours = contours
         self.show_lith = show_lith
         self.show_faults = show_faults
 
@@ -922,6 +923,9 @@ class Plot:
             self.vmax = vmax
         else:
             self.vmax = self.calib.s_max
+
+        if self.model is not None:
+            self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
         self.figure = None
         self.ax = None
@@ -947,6 +951,7 @@ class Plot:
 
     def update_model(self, model):
         self.model = model
+        self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
     def add_contours(self):
         self.ax.contour(self.model.grid.topography.values_3D[:, :, 2], cmap='Greys', linestyles='solid',
@@ -967,33 +972,33 @@ class Plot:
         counter = a.shape[0]
 
         if e_faults:
-            counters = np.arange(0, len(faults), 1)
+            counters = numpy.arange(0, len(faults), 1)
             c_id = 0  # color id startpoint
         elif e_lith:
-            counters = np.arange(len(faults), counter, 1)
+            counters = numpy.arange(len(faults), counter, 1)
             c_id = len(faults)  # color id startpoint
         else:
             raise AttributeError
 
         for f_id in counters:
             block = a[f_id]
-            level = self.model.solutions.scalar_field_at_surface_points[f_id][np.where(
+            level = self.model.solutions.scalar_field_at_surface_points[f_id][numpy.where(
                 self.model.solutions.scalar_field_at_surface_points[f_id] != 0)]
 
-            levels = np.insert(level, 0, block.max())
+            levels = numpy.insert(level, 0, block.max())
             c_id2 = c_id + len(level)
             if f_id == counters.max():
-                levels = np.insert(levels, level.shape[0], block.min())
+                levels = numpy.insert(levels, level.shape[0], block.min())
                 c_id2 = c_id + len(levels)  # color id endpoint
             block = block.reshape(shape)
             zorder = zorder - (f_id + len(level))
 
             if f_id >= len(faults):
-                self.ax.contourf(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
+                self.ax.contourf(block, 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
                                  linestyles='solid', origin='lower',
                                  extent=extent, zorder=zorder)
             else:
-                self.ax.contour(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
+                self.ax.contour(block, 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
                                 linestyles='solid', origin='lower',
                                 extent=extent, zorder=zorder)
             c_id += len(level)
@@ -1900,7 +1905,7 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-        self.auto_plot = Plot(self.calib, contours=True, cmap='gray')
+        self.auto_plot = Plot(self.calib, contours=True)#, cmap='gray')
         self.marker = ArucoMarkers(sensor)
         self.p_aruco = self.p_arucoMarker()
         # self.axes=None
@@ -2715,13 +2720,14 @@ class GemPyModule(Module):
 
 
     def update(self):
-
+        print(self.geo_model.grid.topography.values.shape)
         self.grid.update_grid(self.sensor.get_filtered_frame())
+        print(self.grid.depth_grid.shape)
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
                                                 self.geo_model.grid.topography.resolution)
         self.geo_model.grid.update_grid_values()
-
+        self.geo_model.update_to_interpolator()
         #calculate the model here self.geo_model, using self.grid.depth_grid
         gempy.compute_model(self.geo_model)
         self.plot.update_model(self.geo_model)
