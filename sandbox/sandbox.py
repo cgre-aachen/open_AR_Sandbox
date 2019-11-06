@@ -2629,7 +2629,7 @@ class GemPyModule(Module):
         #prepare the plot object
         self.plot.ax.cla()
 
-        self.plot.show_depth(self.grid.depth_grid.reshape(self.scale.output_res))
+        self.plot.add_contours(self.grid.depth_grid[:,2].reshape(self.scale.output_res))
         #2d resolution of the grid: self.scale.output_res
 
 
