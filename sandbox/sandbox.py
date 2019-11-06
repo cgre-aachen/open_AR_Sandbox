@@ -898,8 +898,108 @@ class Projector(object):
         self.frame.param.trigger('object')
         return True
 
+class Plot:
 
-class Plot(object):
+    dpi = 100  # make sure that figures can be displayed pixel-precise
+
+    def __init__(self, calibrationdata, model, show_contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
+
+
+        self.calib = calibrationdata
+        self.model = model
+
+        # flags
+        self.show_contours = show_contours
+        self.show_lith = show_lith
+        self.show_faults = show_faults
+
+        # z-range handling
+        if vmin is not None:
+            self.vmin = vmin
+        else:
+            self.vmin = self.calib.s_min
+        if vmax is not None:
+            self.vmax = vmax
+        else:
+            self.vmax = self.calib.s_max
+
+        self.figure = None
+        self.ax = None
+        self.create_empty_frame()
+
+    def create_empty_frame(self):
+        """ Initializes the matplotlib figure and empty axes according to projector calibration.
+
+        The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
+        """
+
+        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+                                 dpi=self.dpi)
+        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
+        self.figure.add_axes(self.ax)
+        plt.close(self.figure)  # close figure to prevent inline display
+        self.ax.set_axis_off()
+
+    #def update(self):
+        #self.ax.cla()
+        #if self.show_faults:
+            #self.add_faults()
+
+    def update_model(self, model):
+        self.model = model
+
+    def add_contours(self):
+        self.ax.contour(self.model.grid.topography.values_3D[:, :, 2], cmap='Greys', linestyles='solid',
+                extent=self.model.grid.topography.extent)
+
+    def add_faults(self):
+        self.extract_boundaries(e_faults=True, e_lith=False)
+
+    def add_lith(self):
+        self.extract_boundaries(e_faults=False, e_lith=True)
+
+    def extract_boundaries(self, e_faults=False, e_lith=False):
+        faults = list(self.model.faults.df[self.model.faults.df['isFault'] == True].index)
+        shape = self.model.grid.topography.resolution
+        a = self.model.solutions.geological_map[1]
+        extent = self.model.grid.topography.extent
+        zorder = 2
+        counter = a.shape[0]
+
+        if e_faults:
+            counters = np.arange(0, len(faults), 1)
+            c_id = 0  # color id startpoint
+        elif e_lith:
+            counters = np.arange(len(faults), counter, 1)
+            c_id = len(faults)  # color id startpoint
+        else:
+            raise AttributeError
+
+        for f_id in counters:
+            block = a[f_id]
+            level = self.model.solutions.scalar_field_at_surface_points[f_id][np.where(
+                self.model.solutions.scalar_field_at_surface_points[f_id] != 0)]
+
+            levels = np.insert(level, 0, block.max())
+            c_id2 = c_id + len(level)
+            if f_id == counters.max():
+                levels = np.insert(levels, level.shape[0], block.min())
+                c_id2 = c_id + len(levels)  # color id endpoint
+            block = block.reshape(shape)
+            zorder = zorder - (f_id + len(level))
+
+            if f_id >= len(faults):
+                self.ax.contourf(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
+                                 linestyles='solid', origin='lower',
+                                 extent=extent, zorder=zorder)
+            else:
+                self.ax.contour(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
+                                linestyles='solid', origin='lower',
+                                extent=extent, zorder=zorder)
+            c_id += len(level)
+
+
+class PlotDEP(object):
     """Standard class that handles the creation and update of a plot for sandbox Modules
     """
 
@@ -911,6 +1011,8 @@ class Plot(object):
                  contours_step=100, contours_width=1.0, contours_color='k',
                  contours_label=False, contours_label_inline=True,
                  contours_label_fontsize=15, contours_label_format='%3.0f'):
+
+
         """Creates a new plot instance.
 
         Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
@@ -1050,9 +1152,6 @@ class Plot(object):
         self.ax.set_axis_off()
 
         return True
-
-    def show_depth(self, data):
-        self.ax.imshow(data)
 
 
     def add_contours(self, data):
@@ -2597,7 +2696,7 @@ class GemPyModule(Module):
         self.init_topography()
        # self.grid.update_grid() #update the grid object for the first time
 
-        self.plot = Plot(self.calib, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
+        self.plot = Plot(self.calib, self.geo_model, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
 
         self.projector.frame.object = self.plot.figure  # Link figure to projector
 
@@ -2625,11 +2724,15 @@ class GemPyModule(Module):
 
         #calculate the model here self.geo_model, using self.grid.depth_grid
         gempy.compute_model(self.geo_model)
+        self.plot.update_model(self.geo_model)
         # update the self.plot.figure with new axes
         #prepare the plot object
+
         self.plot.ax.cla()
 
-        self.plot.add_contours(self.grid.depth_grid[:,2].reshape(self.scale.output_res))
+        self.plot.add_contours()
+        self.plot.add_faults()
+        self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
 
 
