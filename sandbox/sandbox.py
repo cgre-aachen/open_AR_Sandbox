@@ -1675,11 +1675,6 @@ class CalibModule(Module):
         self.calib.p_frame_width = event.new
         target.width = event.new
         target.param.trigger('object')
-        if self.automatic_calibration == True:
-            self.plot.contours = False
-            self.auto.plot_auto()
-            self.plot.contours = True
-
         self.resume()
 
     def _callback_p_frame_height(self, target, event):
@@ -1687,11 +1682,6 @@ class CalibModule(Module):
         self.calib.p_frame_height = event.new
         target.height = event.new
         target.param.trigger('object')
-        if self.automatic_calibration == True:
-            self.plot.contours = False
-            self.auto.plot_auto()
-            self.plot.contours = True
-
         self.resume()
 
     ### sensor callbacks
@@ -1803,40 +1793,35 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-        self.auto_plot = Plot(self.calib, contours=True, cmap='gray')
+        self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
         self.marker = ArucoMarkers(sensor)
-        self.p_aruco = self.p_arucoMarker()
-        # self.axes=None
+        self.frame_aruco = self.p_arucoMarker()
 
     def p_arucoMarker(self):
-        imagen, ax = plt.subplots()
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
-        ax.set_xlim(0, width)
-        ax.set_ylim(0, height)
+        offset = 20
         img = self.marker.create_aruco_marker()
-        imagebox = matplotlib.offsetbox.OffsetImage(img, zoom=2, cmap='gray')
-        ab = matplotlib.offsetbox.AnnotationBbox(imagebox, (width / 2, height / 2), frameon=False)
-        ax.add_artist(ab)
-        ax.set_axis_off()
-        ax.axes.set_aspect('equal')
 
-        # imagen.canvas.draw()
+        god = numpy.zeros((height, width))
+        god.fill(255)
+        god[offset:img.shape[0] + offset, offset:img.shape[1] + offset] = img
+        god[height - img.shape[0] - offset:height - offset, width - img.shape[1] - offset:width - offset] = img
+        god[height - img.shape[0] - offset:height - offset, offset:img.shape[1] + offset] = img
+        god[offset:img.shape[0] + offset, width - img.shape[1] - offset:width - offset] = img
+        god[height - img.shape[0] - offset:height - offset, offset:img.shape[1] + offset] = img
 
-        # data = numpy.fromstring(imagen.canvas.tostring_rgb(), dtype=numpy.uint8, sep='')
-        # data = data.reshape(imagen.canvas.get_width_height()[::-1] + (3,))
+        god[int(height / 2) - int(img.shape[0] / 2):int(height / 2) + int(img.shape[0] / 2),
+        int(width / 2) - int(img.shape[0] / 2):int(width / 2) + int(img.shape[0] / 2)] = img
 
-        # self.p_aruco = cv2.cvtColor(data, cv2.COLOR_RGB2GRAY)
-        plt.close()
-        # self.axes=ax
-        self.p_aruco = imagen
-        return self.p_aruco
+        self.frame_aruco = god
+        return self.frame_aruco
 
     def plot_auto(self):
-        # self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=255)
-        # self.projector.frame.object = self.auto_plot.figure
-        # self.auto_plot.ax = self.axes
-        self.projector.frame.object = self.p_arucoMarker()
+        self.auto_plot.render_frame(self.p_arucoMarker(), vmin = 0, vmax= 256)
+        self.projector.frame.object = self.auto_plot.figure
+
+
 
     def crop_image_aruco(self):
         #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
@@ -2954,11 +2939,11 @@ class ArucoMarkers(object):
     def plot_ir_aruco_location(self, kinect: KinectV2):
         plt.figure(figsize=(20, 20))
         plt.imshow(kinect.get_ir_frame(), cmap="gray")
-        plt.plot(self.dict_markers_current["Corners_IR_x"], self.dict_markers_current["Corners_IR_y"], "or")
+        plt.plot(self.ir_markers["Corners_IR_x"], self.ir_markers["Corners_IR_y"], "or")
         plt.show()
 
     def plot_rgb_aruco_location(self, kinect: KinectV2):
         plt.figure(figsize=(20, 20))
         plt.imshow(kinect.get_color())
-        plt.plot(self.dict_markers_current["Corners_RGB_x"], self.dict_markers_current["Corners_RGB_y"], "or")
+        plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
         plt.show()
