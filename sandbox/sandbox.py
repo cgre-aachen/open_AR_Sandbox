@@ -19,6 +19,7 @@ from scipy.interpolate import griddata  # for DummySensor
 import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
+import matplotlib.colors as mcolors
 from PIL import Image
 
 # optional imports
@@ -902,14 +903,14 @@ class Plot:
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, model, show_contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
+    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
 
 
         self.calib = calibrationdata
         self.model = model
 
         # flags
-        self.show_contours = show_contours
+        self.show_contours = contours
         self.show_lith = show_lith
         self.show_faults = show_faults
 
@@ -922,6 +923,9 @@ class Plot:
             self.vmax = vmax
         else:
             self.vmax = self.calib.s_max
+
+        if self.model is not None:
+            self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
         self.figure = None
         self.ax = None
@@ -947,9 +951,10 @@ class Plot:
 
     def update_model(self, model):
         self.model = model
+        self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
     def add_contours(self):
-        self.ax.contour(self.model.grid.topography.values_3D[:, :, 2], cmap='Greys', linestyles='solid',
+        self.ax.contour(numpy.fliplr(self.model.grid.topography.values_3D[:, :, 2].T), cmap='Greys', linestyles='solid',
                 extent=self.model.grid.topography.extent)
 
     def add_faults(self):
@@ -967,33 +972,33 @@ class Plot:
         counter = a.shape[0]
 
         if e_faults:
-            counters = np.arange(0, len(faults), 1)
+            counters = numpy.arange(0, len(faults), 1)
             c_id = 0  # color id startpoint
         elif e_lith:
-            counters = np.arange(len(faults), counter, 1)
+            counters = numpy.arange(len(faults), counter, 1)
             c_id = len(faults)  # color id startpoint
         else:
             raise AttributeError
 
         for f_id in counters:
             block = a[f_id]
-            level = self.model.solutions.scalar_field_at_surface_points[f_id][np.where(
+            level = self.model.solutions.scalar_field_at_surface_points[f_id][numpy.where(
                 self.model.solutions.scalar_field_at_surface_points[f_id] != 0)]
 
-            levels = np.insert(level, 0, block.max())
+            levels = numpy.insert(level, 0, block.max())
             c_id2 = c_id + len(level)
             if f_id == counters.max():
-                levels = np.insert(levels, level.shape[0], block.min())
+                levels = numpy.insert(levels, level.shape[0], block.min())
                 c_id2 = c_id + len(levels)  # color id endpoint
             block = block.reshape(shape)
             zorder = zorder - (f_id + len(level))
 
             if f_id >= len(faults):
-                self.ax.contourf(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
+                self.ax.contourf(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
                                  linestyles='solid', origin='lower',
                                  extent=extent, zorder=zorder)
             else:
-                self.ax.contour(block, 0, levels=np.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
+                self.ax.contour(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
                                 linestyles='solid', origin='lower',
                                 extent=extent, zorder=zorder)
             c_id += len(level)
@@ -1385,8 +1390,7 @@ class Grid(object):
         """
 
         # TODO: is this flip still necessary?
-        depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
-        self.depth_just_looking = depth
+        #depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
                                                  self.calibration.s_max)
         scaled_depth = self.scale.extent[5] - (
@@ -1397,14 +1401,15 @@ class Grid(object):
      #                                      reshape=False)
         #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
         if self.crop == True:
-            cropped_depth = scaled_depth[self.calibration.s_top:(self.calibration.s_top+self.calibration.s_frame_height),
-                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)]
+            cropped_depth = numpy.rot90(scaled_depth[self.calibration.s_bottom:(self.calibration.s_bottom+self.calibration.s_frame_height),
+                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)])
+            #cropped_depth=numpy.rot90(numpy.rot90(cropped_depth))
         else:
-            cropped_depth = scaled_depth
-        self.cropped_depth_just_looking = cropped_depth
+            cropped_depth = numpy.rot90(scaled_depth)
+        #self.cropped_depth_just_looking = cropped_depth
 
         #flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
-        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res, order='F').ravel()
+        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res).ravel()
         #flattened_depth.reshape(self.scale.output_res, order='F')
         #print(flattened_depth.shape, self.empty_depth_grid.shape)
         depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
@@ -1463,9 +1468,12 @@ class Module(object):
             print('Thread already running.')
 
     def stop(self):
-        self.thread_status = 'stopped'  # set flag to end thread loop
-        self.thread.join()  # wait for the thread to finish
-        print('Thread stopped.')
+        if self.thread_status is not'stopped:'
+            self.thread_status = 'stopped'  # set flag to end thread loop
+            self.thread.join()  # wait for the thread to finish
+            print('Thread stopped.')
+        else:
+            print('thread was not running.')
 
     def pause(self):
         if self.thread_status == 'running':
@@ -1562,7 +1570,7 @@ class CalibModule(Module):
         # sensor calibration visualization
         pn.extension()
         self.calib_frame = None  # snapshot of sensor frame, only updated with refresh button
-        self.calib_plot = Plot(self.calib, margins=True, contours=True,
+        self.calib_plot = PlotDEP(self.calib, margins=True, contours=True,
                                margin_color=self.c_margin,
                                cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
         self.calib_panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
@@ -1900,7 +1908,7 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-        self.auto_plot = Plot(self.calib, contours=True, cmap='gray')
+        self.auto_plot = Plot(self.calib, contours=True)#, cmap='gray')
         self.marker = ArucoMarkers(sensor)
         self.p_aruco = self.p_arucoMarker()
         # self.axes=None
@@ -2672,6 +2680,7 @@ class GemPyModule(Module):
         self.grid = None
         self.scale = None
         self.plot = None
+        self.widget = None
 
        # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
        # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
@@ -2687,10 +2696,10 @@ class GemPyModule(Module):
 
     def setup(self):
 
-        self.scale = Scale(self.calib,extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
+        self.scale = Scale(self.calib, extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
         self.scale.calculate_scales()
 
-        self.grid = Grid(calibration=self.calib, scale= self.scale)
+        self.grid = Grid(calibration=self.calib, scale=self.scale)
         self.grid.create_empty_depth_grid() # prepare the grid object
 
         self.init_topography()
@@ -2703,7 +2712,7 @@ class GemPyModule(Module):
     def init_topography(self):
         self.grid.update_grid(self.sensor.get_filtered_frame())
         self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
-        self.geo_model.grid.topography.extent = self.geo_model.grid.regular_grid.extent[:4]
+        self.geo_model.grid.topography.extent = self.scale.extent[:4]
         self.geo_model.grid.topography.resolution = self.scale.output_res
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D = numpy.dstack([self.grid.depth_grid[:, 0].reshape(self.scale.output_res),
@@ -2715,15 +2724,18 @@ class GemPyModule(Module):
 
 
     def update(self):
+        #print(self.geo_model.grid.topography.values.shape)
 
         self.grid.update_grid(self.sensor.get_filtered_frame())
+       # print(self.grid.depth_grid.shape)
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
                                                 self.geo_model.grid.topography.resolution)
         self.geo_model.grid.update_grid_values()
-
+        self.geo_model.update_from_grid()
+        #self.geo_model.update_to_interpolator()
         #calculate the model here self.geo_model, using self.grid.depth_grid
-        gempy.compute_model(self.geo_model)
+        gempy.compute_model(self.geo_model, compute_mesh=False, set_solutions=True)
         self.plot.update_model(self.geo_model)
         # update the self.plot.figure with new axes
         #prepare the plot object
@@ -2734,6 +2746,51 @@ class GemPyModule(Module):
         self.plot.add_faults()
         self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
+        self.projector.trigger()
+
+    def show_widgets(self, Model_dict):
+        self.original_sensor_min = self.calib.s_min  # store original sensor values on start
+        self.original_sensor_max = self.calib.s_max
+
+        widgets = pn.WidgetBox(self._widget_model_selector(Model_dict)
+                              # self._widget_sensor_top_slider(),
+                              # self._widget_sensor_bottom_slider(),
+                              # self._widget_sensor_position_slider(),
+                              # self._widget_show_reservoir_topography(),
+                              # self._widget_reservoir_contours_num(),
+                              # self._widget_contours_num()
+                               )
+
+        panel = pn.Column("### Interaction widgets", widgets)
+        self.widget = panel
+        return panel
+
+    def _widget_model_selector(self, Model_dict):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
+
+        """
+        pn.extension()
+        widget = pn.widgets.RadioButtonGroup(name='Model selector',
+                                             options=list(Model_dict.keys()),
+                                             value=Model_dict.keys()[0],
+                                             button_type='success')
+
+        widget.param.watch(self._callback_selection, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_selection(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.stop()
+        self.geo_module = event.new
+        self.setup()
+        self.run()
 
 
 class GeoMapModule:
@@ -2951,6 +3008,8 @@ class GeoMapModule:
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
         self.geol_map.save(outfile=output)
+
+
 
 
 class ArucoMarkers(object):
