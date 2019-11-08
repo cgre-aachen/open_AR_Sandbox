@@ -1391,8 +1391,9 @@ class Grid(object):
 
         # TODO: is this flip still necessary?
         #depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
-        filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
-                                                 self.calibration.s_max)
+       # filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
+       #                                          self.calibration.s_max)
+        filtered_depth = depth
         scaled_depth = self.scale.extent[5] - (
                 (filtered_depth - self.calibration.s_min) / (
                 self.calibration.s_max -
@@ -1428,7 +1429,7 @@ class Module(object):
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-        self.auto = AutomaticModule(calibrationdata, sensor, projector) #TODO Daniel: this should not be here! put this into the inheriting class in which you use the calibration
+       # self.auto = AutomaticModule(calibrationdata, sensor, projector) #TODO Daniel: this should not be here! put this into the inheriting class in which you use the calibration
         self.test = False  # Testing, eliminate later
 
         # flags
@@ -1468,7 +1469,7 @@ class Module(object):
             print('Thread already running.')
 
     def stop(self):
-        if self.thread_status is not'stopped:'
+        if self.thread_status is not 'stopped':
             self.thread_status = 'stopped'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
             print('Thread stopped.')
@@ -1909,7 +1910,7 @@ class AutomaticModule(object):
         self.sensor = sensor
         self.projector = projector
         self.auto_plot = Plot(self.calib, contours=True)#, cmap='gray')
-        self.marker = ArucoMarkers(sensor)
+       # self.marker = ArucoMarkers(sensor)
         self.p_aruco = self.p_arucoMarker()
         # self.axes=None
 
@@ -2747,6 +2748,8 @@ class GemPyModule(Module):
         self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
         self.projector.trigger()
+
+        return True
 
     def show_widgets(self, Model_dict):
         self.original_sensor_min = self.calib.s_min  # store original sensor values on start
