@@ -1468,9 +1468,12 @@ class Module(object):
             print('Thread already running.')
 
     def stop(self):
-        self.thread_status = 'stopped'  # set flag to end thread loop
-        self.thread.join()  # wait for the thread to finish
-        print('Thread stopped.')
+        if self.thread_status is not'stopped:'
+            self.thread_status = 'stopped'  # set flag to end thread loop
+            self.thread.join()  # wait for the thread to finish
+            print('Thread stopped.')
+        else:
+            print('thread was not running.')
 
     def pause(self):
         if self.thread_status == 'running':
@@ -2677,6 +2680,7 @@ class GemPyModule(Module):
         self.grid = None
         self.scale = None
         self.plot = None
+        self.widget = None
 
        # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
        # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
@@ -2743,6 +2747,50 @@ class GemPyModule(Module):
         self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
         self.projector.trigger()
+
+    def show_widgets(self, Model_dict):
+        self.original_sensor_min = self.calib.s_min  # store original sensor values on start
+        self.original_sensor_max = self.calib.s_max
+
+        widgets = pn.WidgetBox(self._widget_model_selector(Model_dict)
+                              # self._widget_sensor_top_slider(),
+                              # self._widget_sensor_bottom_slider(),
+                              # self._widget_sensor_position_slider(),
+                              # self._widget_show_reservoir_topography(),
+                              # self._widget_reservoir_contours_num(),
+                              # self._widget_contours_num()
+                               )
+
+        panel = pn.Column("### Interaction widgets", widgets)
+        self.widget = panel
+        return panel
+
+    def _widget_model_selector(self, Model_dict):
+        """
+        displays a widget to toggle between the currently active dataset while the sandbox is running
+        Returns:
+
+        """
+        pn.extension()
+        widget = pn.widgets.RadioButtonGroup(name='Model selector',
+                                             options=list(Model_dict.keys()),
+                                             value=Model_dict.keys()[0],
+                                             button_type='success')
+
+        widget.param.watch(self._callback_selection, 'value', onlychanged=False)
+
+        return widget
+
+    def _callback_selection(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        # used to be with self.lock:
+        self.stop()
+        self.geo_module = event.new
+        self.setup()
+        self.run()
 
 
 class GeoMapModule:
@@ -2960,6 +3008,8 @@ class GeoMapModule:
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
         self.geol_map.save(outfile=output)
+
+
 
 
 class ArucoMarkers(object):
