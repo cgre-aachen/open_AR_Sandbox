@@ -903,7 +903,11 @@ class Plot:
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None):
+    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None,
+                 contours_step=100, contours_width=1.0, contours_color='k',
+                 contours_label=False, contours_label_inline=True,
+                 contours_label_fontsize=15, contours_label_format='%3.0f'
+                 ):
 
 
         self.calib = calibrationdata
@@ -913,6 +917,16 @@ class Plot:
         self.show_contours = contours
         self.show_lith = show_lith
         self.show_faults = show_faults
+
+
+        # contours setup
+        self.contours_step = contours_step  # levels will be supplied via property function
+        self.contours_width = contours_width
+        self.contours_color = contours_color
+        self.contours_label = contours_label
+        self.contours_label_inline = contours_label_inline
+        self.contours_label_fontsize = contours_label_fontsize
+        self.contours_label_format = contours_label_format
 
         # z-range handling
         if vmin is not None:
@@ -953,9 +967,30 @@ class Plot:
         self.model = model
         self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
-    def add_contours(self):
+    def add_contours_old(self):
         self.ax.contour(numpy.fliplr(self.model.grid.topography.values_3D[:, :, 2].T), cmap='Greys', linestyles='solid',
                 extent=self.model.grid.topography.extent)
+
+    @property
+    def contours_levels(self):
+        """Returns the current contour levels, being aware of changes in calibration."""
+
+        return numpy.arange(self.vmin, self.vmax, self.contours_step)
+
+    def add_contours(self):
+        """Renders contours to the current plot object.
+        Uses the different attributes to style contour lines and contour labels.
+        """
+
+        contours = self.ax.contour(numpy.fliplr(self.model.grid.topography.values_3D[:, :, 2].T),
+                                   levels=self.contours_levels,
+                                   linewidths=self.contours_width,
+                                   colors=self.contours_color)
+        if self.contours_label is True:
+            self.ax.clabel(contours,
+                           inline=self.contours_label_inline,
+                           fontsize=self.contours_label_fontsize,
+                           fmt=self.contours_label_format)
 
     def add_faults(self):
         self.extract_boundaries(e_faults=True, e_lith=False)
