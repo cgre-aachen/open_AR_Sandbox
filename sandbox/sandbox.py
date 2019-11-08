@@ -954,7 +954,7 @@ class Plot:
         self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
 
     def add_contours(self):
-        self.ax.contour(self.model.grid.topography.values_3D[:, :, 2], cmap='Greys', linestyles='solid',
+        self.ax.contour(numpy.fliplr(self.model.grid.topography.values_3D[:, :, 2].T), cmap='Greys', linestyles='solid',
                 extent=self.model.grid.topography.extent)
 
     def add_faults(self):
@@ -994,11 +994,11 @@ class Plot:
             zorder = zorder - (f_id + len(level))
 
             if f_id >= len(faults):
-                self.ax.contourf(block, 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
+                self.ax.contourf(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][::-1],
                                  linestyles='solid', origin='lower',
                                  extent=extent, zorder=zorder)
             else:
-                self.ax.contour(block, 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
+                self.ax.contour(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self._cmap.colors[c_id:c_id2][0],
                                 linestyles='solid', origin='lower',
                                 extent=extent, zorder=zorder)
             c_id += len(level)
@@ -1390,8 +1390,7 @@ class Grid(object):
         """
 
         # TODO: is this flip still necessary?
-        depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
-        self.depth_just_looking = depth
+        #depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
                                                  self.calibration.s_max)
         scaled_depth = self.scale.extent[5] - (
@@ -1402,14 +1401,15 @@ class Grid(object):
      #                                      reshape=False)
         #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
         if self.crop == True:
-            cropped_depth = scaled_depth[self.calibration.s_top:(self.calibration.s_top+self.calibration.s_frame_height),
-                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)]
+            cropped_depth = numpy.rot90(scaled_depth[self.calibration.s_bottom:(self.calibration.s_bottom+self.calibration.s_frame_height),
+                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)])
+            #cropped_depth=numpy.rot90(numpy.rot90(cropped_depth))
         else:
-            cropped_depth = scaled_depth
-        self.cropped_depth_just_looking = cropped_depth
+            cropped_depth = numpy.rot90(scaled_depth)
+        #self.cropped_depth_just_looking = cropped_depth
 
         #flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
-        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res, order='F').ravel()
+        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res).ravel()
         #flattened_depth.reshape(self.scale.output_res, order='F')
         #print(flattened_depth.shape, self.empty_depth_grid.shape)
         depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
@@ -1567,7 +1567,7 @@ class CalibModule(Module):
         # sensor calibration visualization
         pn.extension()
         self.calib_frame = None  # snapshot of sensor frame, only updated with refresh button
-        self.calib_plot = Plot(self.calib, margins=True, contours=True,
+        self.calib_plot = PlotDEP(self.calib, margins=True, contours=True,
                                margin_color=self.c_margin,
                                cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
         self.calib_panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
@@ -2692,10 +2692,10 @@ class GemPyModule(Module):
 
     def setup(self):
 
-        self.scale = Scale(self.calib,extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
+        self.scale = Scale(self.calib, extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
         self.scale.calculate_scales()
 
-        self.grid = Grid(calibration=self.calib, scale= self.scale)
+        self.grid = Grid(calibration=self.calib, scale=self.scale)
         self.grid.create_empty_depth_grid() # prepare the grid object
 
         self.init_topography()
@@ -2708,7 +2708,7 @@ class GemPyModule(Module):
     def init_topography(self):
         self.grid.update_grid(self.sensor.get_filtered_frame())
         self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
-        self.geo_model.grid.topography.extent = self.geo_model.grid.regular_grid.extent[:4]
+        self.geo_model.grid.topography.extent = self.scale.extent[:4]
         self.geo_model.grid.topography.resolution = self.scale.output_res
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D = numpy.dstack([self.grid.depth_grid[:, 0].reshape(self.scale.output_res),
@@ -2720,16 +2720,18 @@ class GemPyModule(Module):
 
 
     def update(self):
-        print(self.geo_model.grid.topography.values.shape)
+        #print(self.geo_model.grid.topography.values.shape)
+
         self.grid.update_grid(self.sensor.get_filtered_frame())
-        print(self.grid.depth_grid.shape)
+       # print(self.grid.depth_grid.shape)
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
                                                 self.geo_model.grid.topography.resolution)
         self.geo_model.grid.update_grid_values()
-        self.geo_model.update_to_interpolator()
+        self.geo_model.update_from_grid()
+        #self.geo_model.update_to_interpolator()
         #calculate the model here self.geo_model, using self.grid.depth_grid
-        gempy.compute_model(self.geo_model)
+        gempy.compute_model(self.geo_model, compute_mesh=False, set_solutions=True)
         self.plot.update_model(self.geo_model)
         # update the self.plot.figure with new axes
         #prepare the plot object
@@ -2740,6 +2742,7 @@ class GemPyModule(Module):
         self.plot.add_faults()
         self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
+        self.projector.trigger()
 
 
 class GeoMapModule:
