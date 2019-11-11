@@ -903,14 +903,40 @@ class Plot:
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
-    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True, vmin=None, vmax=None,
+    def __init__(self, calibrationdata, model=None, contours=True, show_faults=True, show_lith=True,
                  contours_step=100, contours_width=1.0, contours_color='k',
                  contours_label=False, contours_label_inline=True,
-                 contours_label_fontsize=15, contours_label_format='%3.0f'
+                 contours_label_fontsize=15, contours_label_format='%3.0f',
+                 margins=False, vmin=None, vmax=None,
+                 cmap=None, over=None, under=None, bad=None,
+                 norm=None, lot=None, margin_color='r', margin_alpha=0.5,
                  ):
 
 
         self.calib = calibrationdata
+
+        # flags
+        self.contours = contours
+        self.margins = margins
+
+        # z-range handling
+        if vmin is not None:
+            self.vmin = vmin
+        else:
+            self.vmin = self.calib.s_min
+
+        if vmax is not None:
+            self.vmax = vmax
+        else:
+            self.vmax = self.calib.s_max
+
+        # pcolormesh setup
+        self.cmap = plt.cm.get_cmap(cmap)
+        if over is not None: self.cmap.set_over(over, 1.0)
+        if under is not None: self.cmap.set_under(under, 1.0)
+        if bad is not None: self.cmap.set_bad(bad, 1.0)
+        self.norm = norm  # TODO: Future feature
+        self.lot = lot  # TODO: Future feature
         self.model = model
 
         # flags
@@ -940,6 +966,10 @@ class Plot:
 
         if self.model is not None:
             self._cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
+
+        # margin patches setup
+        self.margin_color = margin_color
+        self.margin_alpha = margin_alpha
 
         self.figure = None
         self.ax = None
@@ -977,7 +1007,7 @@ class Plot:
 
         return numpy.arange(self.vmin, self.vmax, self.contours_step)
 
-    def add_contours(self):
+    def add_contoursDEP(self):
         """Renders contours to the current plot object.
         Uses the different attributes to style contour lines and contour labels.
         """
@@ -991,6 +1021,23 @@ class Plot:
                            inline=self.contours_label_inline,
                            fontsize=self.contours_label_fontsize,
                            fmt=self.contours_label_format)
+
+    def add_contours(self, data, extent=None):
+        """Renders contours to the current plot object.
+        Uses the different attributes to style contour lines and contour labels.
+        """
+
+        contours = self.ax.contour(data,
+                                   levels=self.contours_levels,
+                                   linewidths=self.contours_width,
+                                   colors=self.contours_color,
+                                   extent=extent)
+        if self.contours_label is True:
+            self.ax.clabel(contours,
+                           inline=self.contours_label_inline,
+                           fontsize=self.contours_label_fontsize,
+                           fmt=self.contours_label_format,
+                           extent=extent)
 
     def add_faults(self):
         self.extract_boundaries(e_faults=True, e_lith=False)
@@ -1038,6 +1085,54 @@ class Plot:
                                 extent=extent, zorder=zorder)
             c_id += len(level)
 
+    def render_frame(self, data, contourdata=None, vmin=None, vmax=None):  # ToDo: use keyword arguments
+        """Renders a new frame according to class parameters.
+
+        Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
+        If the data frame represents geological information (i.e. not topographical height), an optional data frame
+        'contourdata' can be passed.
+
+        Args:
+            data (numpy.array): Current data frame representing surface height or geology
+            contourdata (numpy.array): Current data frame representing surface height, if data is not height
+                (default is None)
+        """
+
+        self.ax.cla()  # clear axes to draw new ones on figure
+        if vmin is None:
+            vmin = self.vmin
+        if vmax is None:
+            vmax = self.vmax
+
+        self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+
+        if self.contours:
+            if contourdata is None:
+                self.add_contours(data)
+            else:
+                self.add_contours(contourdata)
+
+        if self.margins:
+            self.add_margins()
+
+    def add_margins(self):
+        """ Adds margin patches to the current plot object.
+        This is only useful when an uncropped dataframe is passed.
+        """
+
+        rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width, self.calib.s_top,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right, self.calib.s_height,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+        rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height,
+                              fc=self.margin_color, alpha=self.margin_alpha)
+
+        self.ax.add_patch(rec_t)
+        self.ax.add_patch(rec_r)
+        self.ax.add_patch(rec_b)
+        self.ax.add_patch(rec_l)
 
 class PlotDEP(object):
     """Standard class that handles the creation and update of a plot for sandbox Modules
@@ -1599,7 +1694,7 @@ class CalibModule(Module):
         self.c_margin = '#084C61'
 
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        super().__init__(*args, contours=True, cmap='Greys_r', over=self.c_over, under=self.c_under, **kwargs)
+        super().__init__(*args, contours=True, over=self.c_over, cmap='Greys_r', under=self.c_under, **kwargs) #,
 
         self.json_filename = None
 
@@ -2717,6 +2812,7 @@ class GemPyModule(Module):
         self.scale = None
         self.plot = None
         self.widget = None
+        self.model_dict = None
 
        # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
        # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
@@ -2778,7 +2874,8 @@ class GemPyModule(Module):
 
         self.plot.ax.cla()
 
-        self.plot.add_contours()
+        self.plot.add_contours(data = numpy.fliplr(self.geo_model.grid.topography.values_3D[:, :, 2].T),
+                               extent=self.geo_model.grid.topography.extent)
         self.plot.add_faults()
         self.plot.add_lith()
         #2d resolution of the grid: self.scale.output_res
@@ -2809,10 +2906,11 @@ class GemPyModule(Module):
         Returns:
 
         """
+        self.model_dict = Model_dict
         pn.extension()
         widget = pn.widgets.RadioButtonGroup(name='Model selector',
                                              options=list(Model_dict.keys()),
-                                             value=Model_dict.keys()[0],
+                                             value=list(Model_dict.keys())[0],
                                              button_type='success')
 
         widget.param.watch(self._callback_selection, 'value', onlychanged=False)
@@ -2826,7 +2924,7 @@ class GemPyModule(Module):
         """
         # used to be with self.lock:
         self.stop()
-        self.geo_module = event.new
+        self.geo_model = self.model_dict[event.new]
         self.setup()
         self.run()
 
