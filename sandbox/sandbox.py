@@ -968,18 +968,18 @@ class Plot:
         else:
             self.vmax = self.calib.s_max
 
-
+        self.model = model
         if self.model is not None:
             self.cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
         else:
         # pcolormesh setup
-            self.cmap = plt.cm.get_cmap(cmap, 'viridis')
+            self.cmap = plt.cm.get_cmap(cmap)
         if over is not None: self.cmap.set_over(over, 1.0)
         if under is not None: self.cmap.set_under(under, 1.0)
         if bad is not None: self.cmap.set_bad(bad, 1.0)
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
-        self.model = model
+
 
         # contours setup
         self.contours_step = contours_step  # levels will be supplied via property function
