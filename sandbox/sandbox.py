@@ -1801,18 +1801,23 @@ class AutomaticModule(object):
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
         offset = 20
-        img = self.marker.create_aruco_marker()
+        img2 = self.marker.create_aruco_marker(id=2, resolution= 50)
+        img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
+        img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
+        img1 = self.marker.create_aruco_marker(id=1, resolution= 50)
+
+        img_c = self.marker.create_aruco_marker(id=20, resolution= 100)
 
         god = numpy.zeros((height, width))
         god.fill(255)
-        god[offset:img.shape[0] + offset, offset:img.shape[1] + offset] = img
-        god[height - img.shape[0] - offset:height - offset, width - img.shape[1] - offset:width - offset] = img
-        god[height - img.shape[0] - offset:height - offset, offset:img.shape[1] + offset] = img
-        god[offset:img.shape[0] + offset, width - img.shape[1] - offset:width - offset] = img
-        god[height - img.shape[0] - offset:height - offset, offset:img.shape[1] + offset] = img
+        god[offset:img15.shape[0] + offset, offset:img15.shape[1] + offset] = img15
+        god[height - img5.shape[0] - offset:height - offset, width - img5.shape[1] - offset:width - offset] = img5
+        god[height - img2.shape[0] - offset:height - offset, offset:img2.shape[1] + offset] = img2
+        god[offset:img1.shape[0] + offset, width - img1.shape[1] - offset:width - offset] = img1
 
-        god[int(height / 2) - int(img.shape[0] / 2):int(height / 2) + int(img.shape[0] / 2),
-        int(width / 2) - int(img.shape[0] / 2):int(width / 2) + int(img.shape[0] / 2)] = img
+
+        god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
+        int(width / 2) - int(img_c.shape[0] / 2):int(width / 2) + int(img_c.shape[0] / 2)] = img_c
 
         self.frame_aruco = god
         return self.frame_aruco
@@ -1835,6 +1840,8 @@ class AutomaticModule(object):
 
     def move_image(self, trigger):
         self.marker.middle_point(trigger)
+
+    #def run_calibration(self):
 
 
 class RMS_Grid():
@@ -2783,9 +2790,10 @@ class ArucoMarkers(object):
             self.aruco_dict = aruco_dict
         self.Area = Area  # set a square Area of interest here (Hot-Area)
         self.kinect = sensor
-        self.ir_markers = self.find_markers_ir(self.kinect)
-        self.rgb_markers = self.find_markers_rgb(self.kinect)
-        self.dict_markers_current = self.update_dict_markers_current()  # markers that were detected in the last frame
+        self.ir_markers = None
+        self.rgb_markers = None
+        self.projector_markers = None
+        self.dict_markers_current = None  # markers that were detected in the last frame
         # self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
@@ -2805,7 +2813,7 @@ class ArucoMarkers(object):
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
 
-    def find_markers_ir(self, kinect: KinectV2, amount=None):
+    def find_markers_ir(self, amount=None):
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values = df.set_index('ids')
@@ -2814,7 +2822,7 @@ class ArucoMarkers(object):
 
                 minim = 0
                 maxim = numpy.arange(1000, 30000, 500)
-                IR = kinect.get_ir_frame_raw()
+                IR = self.kinect.get_ir_frame_raw()
                 for i in maxim:
                     ir_use = numpy.interp(IR, (minim, i), (0, 255)).astype('uint8')
                     ir3 = numpy.stack((ir_use, ir_use, ir_use), axis=2)
@@ -2833,14 +2841,14 @@ class ArucoMarkers(object):
 
         return self.ir_markers
 
-    def find_markers_rgb(self, kinect: KinectV2, amount=None):
+    def find_markers_rgb(self, amount=None):
         labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
         list_values_color = df.set_index("ids")
 
         if amount is not None:
             while len(list_values_color) < amount:
-                color = kinect.get_color()
+                color = self.kinect.get_color()
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if not ids is None:
@@ -2855,6 +2863,29 @@ class ArucoMarkers(object):
         self.rgb_markers = list_values_color
 
         return self.rgb_markers
+
+    def find_markers_projector(self, amount=None):
+        labels = {"ids", "Corners_projector_x", "Corners_projector_y"}  # TODO: add orientation of aruco marker
+        df = pd.DataFrame(columns=labels)
+        list_values_projector = df.set_index("ids")
+
+        if amount is not None:
+            while len(list_values_projector) < amount:
+                color = self.kinect.get_color()
+                corners, ids, rejectedImgPoints = self.aruco_detect(color)
+
+                if not ids is None:
+                    for j in range(len(ids)):
+                        if ids[j] not in list_values_projector.index.values:
+                            x_loc, y_loc = self.get_location_marker(corners[j][0])
+                            df_temp = pd.DataFrame(
+                                {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc]})
+                            df = pd.concat([df, df_temp], sort=False)
+                            list_values_projector = df.set_index("ids")
+
+        self.projector_markers = list_values_projector
+
+        return self.projector_markers
 
     def update_dict_markers_current(self):
 
@@ -2916,34 +2947,31 @@ class ArucoMarkers(object):
 
         return self.dict_markers_current
 
-    def create_aruco_marker(self, nx=1, ny=1, show=False, save=False):
+    def create_aruco_marker(self, id = 1, resolution = 50, show=False, save=False):
         self.ArucoImage = 0
 
         aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
-
-        fig = plt.figure()
-        for i in range(1, nx * ny + 1):
-            ax = fig.add_subplot(ny, nx, i)
-            img = aruco.drawMarker(aruco_dictionary, i, 50)
-            if show is True:
-                plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
-                ax.axis("off")
-            else:
-                plt.close()
+        img = aruco.drawMarker(aruco_dictionary, id, resolution)
+        if show is True:
+            plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
+            plt.axis("off")
+        else:
+            plt.close()
 
         if save is True:
             plt.savefig("markers.jpg")
+
         self.ArucoImage = img
         return self.ArucoImage
 
-    def plot_ir_aruco_location(self, kinect: KinectV2):
+    def plot_ir_aruco_location(self):
         plt.figure(figsize=(20, 20))
-        plt.imshow(kinect.get_ir_frame(), cmap="gray")
+        plt.imshow(self.kinect.get_ir_frame(), cmap="gray")
         plt.plot(self.ir_markers["Corners_IR_x"], self.ir_markers["Corners_IR_y"], "or")
         plt.show()
 
-    def plot_rgb_aruco_location(self, kinect: KinectV2):
+    def plot_rgb_aruco_location(self):
         plt.figure(figsize=(20, 20))
-        plt.imshow(kinect.get_color())
+        plt.imshow(self.kinect.get_color())
         plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
         plt.show()
