@@ -1810,14 +1810,14 @@ class AutomaticModule(object):
 
         god = numpy.zeros((height, width))
         god.fill(255)
-        god[offset:img15.shape[0] + offset, offset:img15.shape[1] + offset] = img15
-        god[height - img5.shape[0] - offset:height - offset, width - img5.shape[1] - offset:width - offset] = img5
-        god[height - img2.shape[0] - offset:height - offset, offset:img2.shape[1] + offset] = img2
-        god[offset:img1.shape[0] + offset, width - img1.shape[1] - offset:width - offset] = img1
+        god[offset:img15.shape[0] + offset, offset:img15.shape[1] + offset] = numpy.flipud(img15)
+        god[height - img5.shape[0] - offset:height - offset, width - img5.shape[1] - offset:width - offset] = numpy.flipud(img5)
+        god[height - img2.shape[0] - offset:height - offset, offset:img2.shape[1] + offset] = numpy.flipud(img2)
+        god[offset:img1.shape[0] + offset, width - img1.shape[1] - offset:width - offset] = numpy.flipud(img1)
 
 
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
-        int(width / 2) - int(img_c.shape[0] / 2):int(width / 2) + int(img_c.shape[0] / 2)] = img_c
+        int(width / 2) - int(img_c.shape[0] / 2):int(width / 2) + int(img_c.shape[0] / 2)] = numpy.flipud(img_c)
 
         self.frame_aruco = god
         return self.frame_aruco
@@ -2800,6 +2800,7 @@ class ArucoMarkers(object):
         # self.trs_dst = self.change_point_RGB_to_DepthIR()
         self.ArucoImage = self.create_aruco_marker()
         self.middle = self.middle_point()
+        self.CoordinateMap = None
 
     def get_location_marker(self, corners):
         pr1 = int(numpy.mean(corners[:, 0]))
@@ -2902,6 +2903,39 @@ class ArucoMarkers(object):
     def erase_dict_markers_all(self):
         self.dict_markers_all = pd.DataFrame({})
         return self.dict_markers_all
+
+    def create_CoordinateMap(self):
+        x = numpy.arange(0, self.kinect.get_frame().shape[1])
+        y = numpy.arange(0, self.kinect.get_frame().shape[0])
+        xx, yy = numpy.meshgrid(x, y)
+        xy_points = numpy.vstack([xx.ravel(), yy.ravel()]).T
+        depth = self.kinect.get_frame()
+        depth_x = []
+        depth_y = []
+        depth_z = []
+        color_x = []
+        color_y = []
+        for i in range(len(xy_points)):
+            x_point = xy_points[i, 0]
+            y_point = xy_points[i, 1]
+            z_point = depth[y_point][x_point]
+            if z_point != 0:
+                point = PyKinectV2._DepthSpacePoint(x_point, y_point)
+                res = self.kinect.device._mapper.MapDepthPointToColorSpace(point, z_point)
+                if res.y > 0:
+                    depth_x.append(x_point)
+                    depth_y.append(y_point)
+                    depth_z.append(z_point)
+                    color_x.append(int(res.x))
+                    color_y.append(int(res.y))
+
+        self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
+                           'Depth_y': depth_y,
+                           'Depth_Z': depth_z,
+                           'Color_x': color_x,
+                           'Color_y': color_y})
+
+        return self.CoordinateMap
 
     def middle_point(self, autocalib=False):
         if autocalib is True:
