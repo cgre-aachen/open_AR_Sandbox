@@ -2913,6 +2913,9 @@ class ArucoMarkers(object):
         depth_x = []
         depth_y = []
         depth_z = []
+        camera_x = []
+        camera_y = []
+        camera_z = []
         color_x = []
         color_y = []
         for i in range(len(xy_points)):
@@ -2921,19 +2924,26 @@ class ArucoMarkers(object):
             z_point = depth[y_point][x_point]
             if z_point != 0:
                 point = PyKinectV2._DepthSpacePoint(x_point, y_point)
-                res = self.kinect.device._mapper.MapDepthPointToColorSpace(point, z_point)
-                if res.y > 0:
+                col = self.kinect.device._mapper.MapDepthPointToColorSpace(point, z_point)
+                cam = self.kinect.device._mapper.MapDepthPointToCameraSpace(point, z_point)
+                if col.y > 0:
                     depth_x.append(x_point)
                     depth_y.append(y_point)
                     depth_z.append(z_point)
-                    color_x.append(int(res.x))
-                    color_y.append(int(res.y))
+                    camera_x.append(cam.x)
+                    camera_y.append(cam.y)
+                    camera_z.append(cam.z)
+                    color_x.append(int(col.x))
+                    color_y.append(int(col.y))
 
         self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
-                           'Depth_y': depth_y,
-                           'Depth_Z': depth_z,
-                           'Color_x': color_x,
-                           'Color_y': color_y})
+                                           'Depth_y': depth_y,
+                                           'Depth_Z(mm)': depth_z,
+                                           'Color_x': color_x,
+                                           'Color_y': color_y,
+                                           'Camera_x(m)': camera_x,
+                                           'Camera_y(m)': camera_y,
+                                           'Camera_z(m)': camera_z})
 
         return self.CoordinateMap
 
@@ -2998,14 +3008,41 @@ class ArucoMarkers(object):
         self.ArucoImage = img
         return self.ArucoImage
 
-    def plot_ir_aruco_location(self):
+    def plot_aruco_location(self, string_kind):
         plt.figure(figsize=(20, 20))
-        plt.imshow(self.kinect.get_ir_frame(), cmap="gray")
-        plt.plot(self.ir_markers["Corners_IR_x"], self.ir_markers["Corners_IR_y"], "or")
-        plt.show()
+        if string_kind == 'IR':
+            plt.imshow(self.kinect.get_ir_frame(), cmap="gray")
+            plt.plot(self.ir_markers["Corners_IR_x"], self.ir_markers["Corners_IR_y"], "or")
+            plt.show()
+        elif string_kind == 'Projector':
+            plt.imshow(self.kinect.get_color(), cmap="gray")
+            plt.plot(self.projector_markers["Corners_projector_x"],
+                     self.projector_markers["Corners_projector_y"], "or")
+            plt.show()
+        elif string_kind == 'RGB':
+            plt.imshow(self.kinect.get_color())
+            plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
+            plt.show()
+        else:
+            print('Select Type of projection -> IR, or RGB or Projector')
 
-    def plot_rgb_aruco_location(self):
-        plt.figure(figsize=(20, 20))
-        plt.imshow(self.kinect.get_color())
-        plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
-        plt.show()
+    def convert_color_to_depth(self, strg, ids):
+        if strg = 'Proj':
+            rgb = self.projector_markers.reset_index()
+            rgb2=rgb.loc[rgb['ids'] == ids]
+            x_rgb = int(rgb2.Corners_projector_x.values)
+            y_rgb = int(rgb2.Corners_projector_y.values)
+        elif strg = 'Real':
+            rgb = self.rgb_markers.reset_index()
+            rgb2 = rgb.loc[rgb['ids'] == ids]
+            x_rgb = int(rgb2.Corners_RGB_x.values)
+            y_rgb = int(rgb2.Corners_RGB_y.values)
+
+
+        color_data = self.CoordinateMap[['Color_x','Color_y']]
+
+        distance = cdist([[x_rgb,y_rgb]],color_data)
+        sorted_val = numpy.argsort(distance)[:][0]
+        value = self.CoordinateMap.loc[sorted_val[0]]
+
+        return value
