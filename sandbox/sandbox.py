@@ -1757,13 +1757,14 @@ class CalibModule(Module):
 
     def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
+        self.auto.plot_auto()
 
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
-            self.plot.contours = False
-            self.auto.plot_auto()
-            self.plot.contours = True
-            #self.update_calib_plot()
+            self.auto.move_leftupper_corner()
+            self._widget_p_frame_left.value = self.calib.p_frame_left
+            self._widget_p_frame_top.value = self.calib.p_frame_top
+            self.update_calib_plot()
         else:
             self.plot.create_empty_frame()
             self.projector.frame.object = self.plot.figure
@@ -1793,14 +1794,16 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
-        self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
         self.marker = ArucoMarkers(sensor)
+        self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
+
+        self.offset = 20
         self.frame_aruco = self.p_arucoMarker()
+
 
     def p_arucoMarker(self):
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
-        offset = 20
         img2 = self.marker.create_aruco_marker(id=2, resolution= 50)
         img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
         img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
@@ -1810,10 +1813,10 @@ class AutomaticModule(object):
 
         god = numpy.zeros((height, width))
         god.fill(255)
-        god[offset:img15.shape[0] + offset, offset:img15.shape[1] + offset] = numpy.flipud(img15)
-        god[height - img5.shape[0] - offset:height - offset, width - img5.shape[1] - offset:width - offset] = numpy.flipud(img5)
-        god[height - img2.shape[0] - offset:height - offset, offset:img2.shape[1] + offset] = numpy.flipud(img2)
-        god[offset:img1.shape[0] + offset, width - img1.shape[1] - offset:width - offset] = numpy.flipud(img1)
+        god[self.offset:img15.shape[0] + self.offset, self.offset:img15.shape[1] + self.offset] = numpy.flipud(img15)
+        god[height - img5.shape[0] - self.offset:height - self.offset, width - img5.shape[1] - self.offset:width - self.offset] = numpy.flipud(img5)
+        god[height - img2.shape[0] - self.offset:height - self.offset, self.offset:img2.shape[1] + self.offset] = numpy.flipud(img2)
+        god[self.offset:img1.shape[0] + self.offset, width - img1.shape[1] - self.offset:width - self.offset] = numpy.flipud(img1)
 
 
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
@@ -1826,7 +1829,22 @@ class AutomaticModule(object):
         self.auto_plot.render_frame(self.p_arucoMarker(), vmin = 0, vmax= 256)
         self.projector.frame.object = self.auto_plot.figure
 
+    def move_leftupper_corner(self):
+        #self.marker.find_markers_projector(amount=5)
+        x_p = self.marker.projector_markers.Corners_projector_x.loc[2]
+        y_p = self.marker.projector_markers.Corners_projector_y.loc[2]
 
+        x_r = self.marker.rgb_markers.Corners_RGB_x.loc[2]
+        y_r = self.marker.rgb_markers.Corners_RGB_y.loc[2]
+        cor = numpy.asarray(self.marker.corner_middle)
+        scale_factor_x = cor[:,0].max() - cor[:,0].min()
+        scale_factor_y =  cor[:,1].max() - cor[:,1].min()
+
+        x_scale =self.calib.p_frame_left - (numpy.abs(x_p - x_r) * scale_factor_x) + self.offset + 10
+        y_scale = self.calib.p_frame_top - (numpy.abs(y_p - y_r) * scale_factor_y) + self.offset + 10
+
+        self.calib.p_frame_left = x_scale
+        self.calib.p_frame_top = y_scale
 
     def crop_image_aruco(self):
         #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
@@ -2801,6 +2819,7 @@ class ArucoMarkers(object):
         self.ArucoImage = self.create_aruco_marker()
         self.middle = self.middle_point()
         self.CoordinateMap = None
+        self.corner_middle = None
 
     def get_location_marker(self, corners):
         pr1 = int(numpy.mean(corners[:, 0]))
@@ -2878,6 +2897,8 @@ class ArucoMarkers(object):
                 if not ids is None:
                     for j in range(len(ids)):
                         if ids[j] not in list_values_projector.index.values:
+                            if ids[j] == 20:
+                                self.corner_middle = corners[j][0]
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
                                 {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc]})
@@ -2887,6 +2908,9 @@ class ArucoMarkers(object):
         self.projector_markers = list_values_projector
 
         return self.projector_markers
+
+    def scale_projector_box(self):
+        return True
 
     def update_dict_markers_current(self):
 
@@ -3027,12 +3051,12 @@ class ArucoMarkers(object):
             print('Select Type of projection -> IR, or RGB or Projector')
 
     def convert_color_to_depth(self, strg, ids):
-        if strg = 'Proj':
+        if strg == 'Proj':
             rgb = self.projector_markers.reset_index()
             rgb2=rgb.loc[rgb['ids'] == ids]
             x_rgb = int(rgb2.Corners_projector_x.values)
             y_rgb = int(rgb2.Corners_projector_y.values)
-        elif strg = 'Real':
+        elif strg == 'Real':
             rgb = self.rgb_markers.reset_index()
             rgb2 = rgb.loc[rgb['ids'] == ids]
             x_rgb = int(rgb2.Corners_RGB_x.values)
