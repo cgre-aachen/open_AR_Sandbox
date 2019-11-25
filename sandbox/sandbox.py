@@ -82,7 +82,7 @@ class CalibrationData(object):
                  p_frame_width=600, p_frame_height=450,
                  s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  box_width=1000.0, box_height=800.0,
-                 file=None):
+                 file=None, aruco_corners = None):
         """
 
         Args:
@@ -100,11 +100,12 @@ class CalibrationData(object):
             s_max:
             box_width: physical dimensions of the sandbox along x-axis in millimeters
             box_height: physical dimensions of the sandbox along y-axis in millimeters
-            file:
+            aruco_corners = information of the corners if an aruco marker is used
+            file1:
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
-        self.version = "0.9alpha"
+        self.version = "1.0beta"
 
         # projector
         self.p_width = p_width
@@ -146,6 +147,9 @@ class CalibrationData(object):
 
         self.box_width = box_width
         self.box_height = box_height
+
+        #Aruco Corners
+        self.aruco_corners = aruco_corners
 
         if file is not None:
             self.load_json(file)
@@ -1762,6 +1766,7 @@ class CalibModule(Module):
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
             self.auto.move_leftupper_corner()
+            self.calib.p_frame_left = self.calib.p_frame_left
             self._widget_p_frame_left.value = self.calib.p_frame_left
             self._widget_p_frame_top.value = self.calib.p_frame_top
             self.update_calib_plot()
@@ -1792,6 +1797,8 @@ class AutomaticModule(object):
     """
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
+
+
         self.sensor = sensor
         self.projector = projector
         self.marker = ArucoMarkers(sensor)
@@ -1830,13 +1837,18 @@ class AutomaticModule(object):
         self.projector.frame.object = self.auto_plot.figure
 
     def move_leftupper_corner(self):
-        #self.marker.find_markers_projector(amount=5)
-        x_p = self.marker.projector_markers.Corners_projector_x.loc[2]
-        y_p = self.marker.projector_markers.Corners_projector_y.loc[2]
+        df_p, corner = self.marker.find_markers_projector(amount=5)
+        x_p = int(df_p.loc[df_p.ids == 2].Corners_projector_x.values)
+        y_p = int(df_p.loc[df_p.ids == 2].Corners_projector_y.values)
 
-        x_r = self.marker.rgb_markers.Corners_RGB_x.loc[2]
-        y_r = self.marker.rgb_markers.Corners_RGB_y.loc[2]
-        cor = numpy.asarray(self.marker.corner_middle)
+        df_r = pd.read_json(self.calib.aruco_corners)
+
+
+
+        x_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_x.values)
+        y_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_y.values)
+
+        cor = numpy.asarray(corner)
         scale_factor_x = cor[:,0].max() - cor[:,0].min()
         scale_factor_y =  cor[:,1].max() - cor[:,1].min()
 
@@ -2836,9 +2848,9 @@ class ArucoMarkers(object):
     def find_markers_ir(self, amount=None):
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
-        list_values = df.set_index('ids')
+
         if amount is not None:
-            while len(list_values) < amount:
+            while len(df) < amount:
 
                 minim = 0
                 maxim = numpy.arange(1000, 30000, 500)
@@ -2850,64 +2862,60 @@ class ArucoMarkers(object):
 
                     if not ids is None:
                         for j in range(len(ids)):
-                            if ids[j] not in list_values.index.values:
+                            if ids[j] not in df.ids.values:
                                 x_loc, y_loc = self.get_location_marker(corners[j][0])
                                 df_temp = pd.DataFrame(
                                     {'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
                                 df = pd.concat([df, df_temp], sort=False)
-                                list_values = df.set_index('ids')
 
-        self.ir_markers = list_values
+        self.ir_markers = df.reset_index(drop=True)
 
         return self.ir_markers
 
     def find_markers_rgb(self, amount=None):
         labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
-        list_values_color = df.set_index("ids")
 
         if amount is not None:
-            while len(list_values_color) < amount:
+            while len(df) < amount:
                 color = self.kinect.get_color()
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if not ids is None:
                     for j in range(len(ids)):
-                        if ids[j] not in list_values_color.index.values:
+                        if ids[j] not in df.ids.values:
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
                                 {"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
                             df = pd.concat([df, df_temp], sort=False)
-                            list_values_color = df.set_index("ids")
 
-        self.rgb_markers = list_values_color
+        self.rgb_markers = df.reset_index(drop=True)
+        #self.kinect.calib.aruco_corners = self.rgb_markers
 
         return self.rgb_markers
 
     def find_markers_projector(self, amount=None):
         labels = {"ids", "Corners_projector_x", "Corners_projector_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
-        list_values_projector = df.set_index("ids")
 
         if amount is not None:
-            while len(list_values_projector) < amount:
+            while len(df) < amount:
                 color = self.kinect.get_color()
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if not ids is None:
                     for j in range(len(ids)):
-                        if ids[j] not in list_values_projector.index.values:
+                        if ids[j] not in df.ids.values:
                             if ids[j] == 20:
                                 self.corner_middle = corners[j][0]
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
                                 {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc]})
                             df = pd.concat([df, df_temp], sort=False)
-                            list_values_projector = df.set_index("ids")
 
-        self.projector_markers = list_values_projector
+        self.projector_markers = df.reset_index(drop=True)
 
-        return self.projector_markers
+        return self.projector_markers, self.corner_middle
 
     def scale_projector_box(self):
         return True
@@ -3052,12 +3060,12 @@ class ArucoMarkers(object):
 
     def convert_color_to_depth(self, strg, ids):
         if strg == 'Proj':
-            rgb = self.projector_markers.reset_index()
+            rgb = self.projector_markers
             rgb2=rgb.loc[rgb['ids'] == ids]
             x_rgb = int(rgb2.Corners_projector_x.values)
             y_rgb = int(rgb2.Corners_projector_y.values)
         elif strg == 'Real':
-            rgb = self.rgb_markers.reset_index()
+            rgb = self.rgb_markers
             rgb2 = rgb.loc[rgb['ids'] == ids]
             x_rgb = int(rgb2.Corners_RGB_x.values)
             y_rgb = int(rgb2.Corners_RGB_y.values)
