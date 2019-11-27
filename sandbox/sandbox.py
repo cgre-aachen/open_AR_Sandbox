@@ -1800,7 +1800,7 @@ class AutomaticModule(object):
     """
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
-        if self.calib.aruco_corners != None
+        if self.calib.aruco_corners != None:
             self.rgb_corners = pd.read_json(self.calib.aruco_corners)
 
         self.sensor = sensor
