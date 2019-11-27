@@ -182,6 +182,9 @@ class CalibrationData(object):
             json.dump(self.__dict__, calibration_json)
         print('JSON configuration file saved:', str(file))
 
+    def corners_as_json(self, data):
+        x = data.to_json()
+        self.aruco_corners = x
 
 class Sensor(object):
     """
@@ -1797,7 +1800,8 @@ class AutomaticModule(object):
     """
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
-
+        if self.calib.aruco_corners != None
+            self.rgb_corners = pd.read_json(self.calib.aruco_corners)
 
         self.sensor = sensor
         self.projector = projector
@@ -1833,7 +1837,7 @@ class AutomaticModule(object):
         return self.frame_aruco
 
     def plot_auto(self):
-        self.auto_plot.render_frame(self.p_arucoMarker(), vmin = 0, vmax= 256)
+        self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=256)
         self.projector.frame.object = self.auto_plot.figure
 
     def move_leftupper_corner(self):
@@ -2890,7 +2894,8 @@ class ArucoMarkers(object):
                             df = pd.concat([df, df_temp], sort=False)
 
         self.rgb_markers = df.reset_index(drop=True)
-        #self.kinect.calib.aruco_corners = self.rgb_markers
+        #json_file = self.rgb_markers.to_json()
+        #self.calib.aruco_corners =json_file
 
         return self.rgb_markers
 
