@@ -1768,16 +1768,19 @@ class CalibModule(Module):
 
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
-            p_frame_left, p_frame_top, p_frame_width, p_frame_height = self.auto.move_leftupper_corner()
+            p_frame_left, p_frame_top, p_frame_width, p_frame_height = self.auto.move_image()
             self.calib.p_frame_left = p_frame_left
             self.calib.p_frame_top = p_frame_top
-            self.calib.p_frame_width = p_frame_width
-            self.calib.p_frame_height = p_frame_height
             self._widget_p_frame_left.value = self.calib.p_frame_left
             self._widget_p_frame_top.value = self.calib.p_frame_top
+            self.calib.p_frame_width = p_frame_width
+            self.calib.p_frame_height = p_frame_height
             self._widget_p_frame_width.value = self.calib.p_frame_width
             self._widget_p_frame_height.value = self.calib.p_frame_height
+            self.auto.plot_auto()
+            #self.auto.plot_auto()
             self.update_calib_plot()
+
         else:
             self.plot.create_empty_frame()
             self.projector.frame.object = self.plot.figure
@@ -1790,7 +1793,11 @@ class CalibModule(Module):
     def _callback_automatic_cropping(self, event):
         if self.automatic_cropping == True:
             self.pause()
-            self.auto.crop_image_aruco()
+            s_top, s_left, s_bottom, s_right = self.auto.crop_image_aruco()
+            self.calib.s_top = s_top
+            self.calib.s_bottom = s_bottom
+            self.calib.s_left = s_left
+            self.calib.s_right = s_right
             self._widget_s_top.value=self.calib.s_top
             self._widget_s_bottom.value = self.calib.s_bottom
             self._widget_s_left.value = self.calib.s_left
@@ -1811,11 +1818,15 @@ class AutomaticModule(object):
         self.sensor = sensor
         self.projector = projector
         self.marker = ArucoMarkers(sensor)
+        self.CoordinateMap = self.load_coordinate_map()
+
         self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
 
-        self.offset = 20
+        self.offset = 100
         self.frame_aruco = self.p_arucoMarker()
 
+    def load_coordinate_map(self):
+        return self.marker.create_CoordinateMap()
 
     def p_arucoMarker(self):
         width = self.calib.p_frame_width
@@ -1845,12 +1856,12 @@ class AutomaticModule(object):
         self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=256)
         self.projector.frame.object = self.auto_plot.figure
 
-    def move_leftupper_corner(self):
+    def move_image(self):
         df_p, corner = self.marker.find_markers_projector(amount=2)
+        df_r = self.rgb_corners
+
         x_p = int(df_p.loc[df_p.ids == 2].Corners_projector_x.values)
         y_p = int(df_p.loc[df_p.ids == 2].Corners_projector_y.values)
-
-        df_r = self.rgb_corners
 
         x_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_x.values)
         y_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_y.values)
@@ -1859,9 +1870,8 @@ class AutomaticModule(object):
         scale_factor_x = 100 / (cor[:,0].max() - cor[:,0].min())
         scale_factor_y = 100 / (cor[:,1].max() - cor[:,1].min())
 
-
-        x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 25
-        y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 25
+        x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 10
+        y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 10
 
         p_frame_left = self.calib.p_frame_left - x_move
         p_frame_top = self.calib.p_frame_top - y_move
@@ -1872,55 +1882,38 @@ class AutomaticModule(object):
         x_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_x.values)
         y_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_y.values)
 
-        width_move = int((x_c - x_pc) * scale_factor_x + x_move)
-        height_move = int((y_c - y_pc) * scale_factor_y + y_move)
+        width_move = int((x_c - x_pc) * scale_factor_x) + x_move - 10
+        height_move = int((y_c - y_pc) * scale_factor_y) + y_move - 10
 
         p_frame_width = self.calib.p_frame_width + width_move
         p_frame_height = self.calib.p_frame_height + height_move
 
-        #error = (numpy.abs(p_frame_left - x_r) and (p_frame_height-y_r)) <= 5
+        return p_frame_left, p_frame_top, p_frame_width, p_frame_height
 
-        return p_frame_left, p_frame_top, p_frame_width, p_frame_height# error
-
-    def move_middle(self):
-        df_p, corner = self.marker.find_markers_projector(amount=2)
-
-        cor = numpy.asarray(corner)
-        scale_factor_x = 100 / (cor[:, 0].max() - cor[:, 0].min())
-        scale_factor_y = 100 / (cor[:, 1].max() - cor[:, 1].min())
-
-        df_r = self.rgb_corners
-
-        x_c = df_r.Corners_RGB_x.mean()
-        y_c = df_r.Corners_RGB_y.mean()
-
-        x_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_x.values)
-        y_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_y.values)
-
-        width_move = int((x_c - x_pc) * scale_factor_x + x_move)
-        height_move = int((y_c - y_pc) * scale_factor_y + y_move)
-
-        p_frame_width = self.calib.p_frame_width + width_move
-        p_frame_height = self.calib.p_frame_height + height_move
-
-        error = numpy.abs(x_p - x_r)
-
-        return p_frame_left, p_frame_top, p_frame_width, p_frame_height, error
 
     def crop_image_aruco(self):
         #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
         #self.calib.s_bottom = self.calib.s_height - self.marker.dict_markers_current["Corners_IR_y"].max()
         #self.calib.s_left = self.marker.dict_markers_current["Corners_IR_x"].min()
         #self.calib.s_right = self.calib.s_width - self.marker.dict_markers_current["Corners_IR_x"].max()
-        self.calib.s_top = 50
-        self.calib.s_bottom = self.calib.s_height - 300
-        self.calib.s_left = 50
-        self.calib.s_right = self.calib.s_width - 300
 
-    def move_image(self, trigger):
-        self.marker.middle_point(trigger)
+        # self.calib.s_top = 50
+        # self.calib.s_bottom = self.calib.s_height - 300
+        # self.calib.s_left = 50
+        # self.calib.s_right = self.calib.s_width - 300
 
-    #def run_calibration(self):
+        id2 = self.marker.convert_color_to_depth('Real', 2, self.CoordinateMap)
+        id15 = self.marker.convert_color_to_depth('Real', 15, self.CoordinateMap)
+        id5 = self.marker.convert_color_to_depth('Real', 5, self.CoordinateMap)
+        id1 = self.marker.convert_color_to_depth('Real', 1, self.CoordinateMap)
+
+        s_top = id2.Depth_y
+        s_left = id2.Depth_x
+        s_bottom = self.calib.s_height - id1.Depth_y
+        s_right = self.calib.s_width - id1.Depth_x
+
+        return s_top, s_left, s_bottom, s_right
+
 
 
 class RMS_Grid():
@@ -2870,7 +2863,10 @@ class ArucoMarkers(object):
         self.Area = Area  # set a square Area of interest here (Hot-Area)
         self.kinect = sensor
         self.ir_markers = None
-        self.rgb_markers = None
+        if self.kinect.calib.aruco_corners != None:
+            self.rgb_markers = pd.read_json(self.kinect.calib.aruco_corners)
+        else:
+            self.rgb_markers = None
         self.projector_markers = None
         self.dict_markers_current = None  # markers that were detected in the last frame
         # self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
@@ -2966,9 +2962,6 @@ class ArucoMarkers(object):
         self.projector_markers = df.reset_index(drop=True)
 
         return self.projector_markers, self.corner_middle
-
-    def scale_projector_box(self):
-        return True
 
     def update_dict_markers_current(self):
 
@@ -3108,7 +3101,7 @@ class ArucoMarkers(object):
         else:
             print('Select Type of projection -> IR, or RGB or Projector')
 
-    def convert_color_to_depth(self, strg, ids):
+    def convert_color_to_depth(self, strg, ids, map):
         if strg == 'Proj':
             rgb = self.projector_markers
             rgb2=rgb.loc[rgb['ids'] == ids]
@@ -3121,10 +3114,10 @@ class ArucoMarkers(object):
             y_rgb = int(rgb2.Corners_RGB_y.values)
 
 
-        color_data = self.CoordinateMap[['Color_x','Color_y']]
+        color_data = map[['Color_x','Color_y']]
 
         distance = cdist([[x_rgb,y_rgb]],color_data)
         sorted_val = numpy.argsort(distance)[:][0]
-        value = self.CoordinateMap.loc[sorted_val[0]]
+        value = map.loc[sorted_val[0]]
 
         return value
