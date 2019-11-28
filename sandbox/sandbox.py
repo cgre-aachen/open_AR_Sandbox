@@ -1310,8 +1310,7 @@ class Module(object):
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-        self.auto = AutomaticModule(calibrationdata, sensor, projector)
-        self.test = False  # Testing, eliminate later
+        self.auto = AutomaticModule(self.calib, sensor, projector)
 
         # flags
         self.crop = crop
@@ -1322,6 +1321,7 @@ class Module(object):
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
         self.automatic_calibration = False
         self.automatic_cropping = False
+
         # self.setup()
 
     @abstractmethod
@@ -1434,7 +1434,7 @@ class CalibModule(Module):
     Module for calibration and responsive visualization
     """
 
-    def __init__(self, *args, automatic=False, **kwargs):
+    def __init__(self, *args, **kwargs):
 
         # customization
         self.c_under = '#DBD053'
@@ -1768,10 +1768,15 @@ class CalibModule(Module):
 
     def _callback_automatic_calibration(self, event):
         if self.automatic_calibration == True:
-            self.auto.move_leftupper_corner()
-            self.calib.p_frame_left = self.calib.p_frame_left
+            p_frame_left, p_frame_top, p_frame_width, p_frame_height = self.auto.move_leftupper_corner()
+            self.calib.p_frame_left = p_frame_left
+            self.calib.p_frame_top = p_frame_top
+            self.calib.p_frame_width = p_frame_width
+            self.calib.p_frame_height = p_frame_height
             self._widget_p_frame_left.value = self.calib.p_frame_left
             self._widget_p_frame_top.value = self.calib.p_frame_top
+            self._widget_p_frame_width.value = self.calib.p_frame_width
+            self._widget_p_frame_height.value = self.calib.p_frame_height
             self.update_calib_plot()
         else:
             self.plot.create_empty_frame()
@@ -1816,18 +1821,18 @@ class AutomaticModule(object):
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
         img2 = self.marker.create_aruco_marker(id=2, resolution= 50)
-        img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
-        img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
-        img1 = self.marker.create_aruco_marker(id=1, resolution= 50)
+        #img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
+        #img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
+        #img1 = self.marker.create_aruco_marker(id=1, resolution= 50)
 
         img_c = self.marker.create_aruco_marker(id=20, resolution= 100)
 
         god = numpy.zeros((height, width))
         god.fill(255)
-        god[self.offset:img15.shape[0] + self.offset, self.offset:img15.shape[1] + self.offset] = numpy.flipud(img15)
-        god[height - img5.shape[0] - self.offset:height - self.offset, width - img5.shape[1] - self.offset:width - self.offset] = numpy.flipud(img5)
+        #god[self.offset:img15.shape[0] + self.offset, self.offset:img15.shape[1] + self.offset] = numpy.flipud(img15)
+        #god[height - img5.shape[0] - self.offset:height - self.offset, width - img5.shape[1] - self.offset:width - self.offset] = numpy.flipud(img5)
         god[height - img2.shape[0] - self.offset:height - self.offset, self.offset:img2.shape[1] + self.offset] = numpy.flipud(img2)
-        god[self.offset:img1.shape[0] + self.offset, width - img1.shape[1] - self.offset:width - self.offset] = numpy.flipud(img1)
+        #god[self.offset:img1.shape[0] + self.offset, width - img1.shape[1] - self.offset:width - self.offset] = numpy.flipud(img1)
 
 
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
@@ -1841,26 +1846,66 @@ class AutomaticModule(object):
         self.projector.frame.object = self.auto_plot.figure
 
     def move_leftupper_corner(self):
-        df_p, corner = self.marker.find_markers_projector(amount=5)
+        df_p, corner = self.marker.find_markers_projector(amount=2)
         x_p = int(df_p.loc[df_p.ids == 2].Corners_projector_x.values)
         y_p = int(df_p.loc[df_p.ids == 2].Corners_projector_y.values)
 
-        df_r = pd.read_json(self.calib.aruco_corners)
-
-
+        df_r = self.rgb_corners
 
         x_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_x.values)
         y_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_y.values)
 
         cor = numpy.asarray(corner)
-        scale_factor_x = cor[:,0].max() - cor[:,0].min()
-        scale_factor_y =  cor[:,1].max() - cor[:,1].min()
+        scale_factor_x = 100 / (cor[:,0].max() - cor[:,0].min())
+        scale_factor_y = 100 / (cor[:,1].max() - cor[:,1].min())
 
-        x_scale =self.calib.p_frame_left - (numpy.abs(x_p - x_r) * scale_factor_x) + self.offset + 10
-        y_scale = self.calib.p_frame_top - (numpy.abs(y_p - y_r) * scale_factor_y) + self.offset + 10
 
-        self.calib.p_frame_left = x_scale
-        self.calib.p_frame_top = y_scale
+        x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 25
+        y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 25
+
+        p_frame_left = self.calib.p_frame_left - x_move
+        p_frame_top = self.calib.p_frame_top - y_move
+
+        x_c = df_r.Corners_RGB_x.mean()
+        y_c = df_r.Corners_RGB_y.mean()
+
+        x_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_x.values)
+        y_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_y.values)
+
+        width_move = int((x_c - x_pc) * scale_factor_x + x_move)
+        height_move = int((y_c - y_pc) * scale_factor_y + y_move)
+
+        p_frame_width = self.calib.p_frame_width + width_move
+        p_frame_height = self.calib.p_frame_height + height_move
+
+        #error = (numpy.abs(p_frame_left - x_r) and (p_frame_height-y_r)) <= 5
+
+        return p_frame_left, p_frame_top, p_frame_width, p_frame_height# error
+
+    def move_middle(self):
+        df_p, corner = self.marker.find_markers_projector(amount=2)
+
+        cor = numpy.asarray(corner)
+        scale_factor_x = 100 / (cor[:, 0].max() - cor[:, 0].min())
+        scale_factor_y = 100 / (cor[:, 1].max() - cor[:, 1].min())
+
+        df_r = self.rgb_corners
+
+        x_c = df_r.Corners_RGB_x.mean()
+        y_c = df_r.Corners_RGB_y.mean()
+
+        x_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_x.values)
+        y_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_y.values)
+
+        width_move = int((x_c - x_pc) * scale_factor_x + x_move)
+        height_move = int((y_c - y_pc) * scale_factor_y + y_move)
+
+        p_frame_width = self.calib.p_frame_width + width_move
+        p_frame_height = self.calib.p_frame_height + height_move
+
+        error = numpy.abs(x_p - x_r)
+
+        return p_frame_left, p_frame_top, p_frame_width, p_frame_height, error
 
     def crop_image_aruco(self):
         #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
