@@ -1777,7 +1777,7 @@ class CalibModule(Module):
             self.calib.p_frame_height = p_frame_height
             self._widget_p_frame_width.value = self.calib.p_frame_width
             self._widget_p_frame_height.value = self.calib.p_frame_height
-            self.auto.plot_auto()
+            #self.auto.plot_auto()
             #self.auto.plot_auto()
             self.update_calib_plot()
 
@@ -1907,10 +1907,10 @@ class AutomaticModule(object):
         id5 = self.marker.convert_color_to_depth('Real', 5, self.CoordinateMap)
         id1 = self.marker.convert_color_to_depth('Real', 1, self.CoordinateMap)
 
-        s_top = id2.Depth_y
-        s_left = id2.Depth_x
-        s_bottom = self.calib.s_height - id1.Depth_y
-        s_right = self.calib.s_width - id1.Depth_x
+        s_top = int(id2.Depth_y)
+        s_left = int(id2.Depth_x)
+        s_bottom = int(self.calib.s_height - id1.Depth_y)
+        s_right = int(self.calib.s_width - id1.Depth_x)
 
         return s_top, s_left, s_bottom, s_right
 
@@ -3008,8 +3008,8 @@ class ArucoMarkers(object):
                     camera_x.append(cam.x)
                     camera_y.append(cam.y)
                     camera_z.append(cam.z)
-                    color_x.append(int(col.x))
-                    color_y.append(int(col.y))
+                    color_x.append(int(col.x)+8) ####TODO: constants addded since image is not exact - work but need to be changed
+                    color_y.append(int(col.y)-65)
 
         self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
                                            'Depth_y': depth_y,
