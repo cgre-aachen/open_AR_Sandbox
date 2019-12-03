@@ -1814,6 +1814,12 @@ class AutomaticModule(object):
         self.calib = calibrationdata
         if self.calib.aruco_corners != None:
             self.rgb_corners = pd.read_json(self.calib.aruco_corners)
+            temp = self.rgb_corners.loc[numpy.argsort(self.rgb_corners.Corners_RGB_x)[:2]]
+            self.corner_id_LU = int(temp.loc[temp.Corners_RGB_y == temp.Corners_RGB_y.min()].ids.values)
+            temp1 = self.rgb_corners.loc[numpy.argsort(self.rgb_corners.Corners_RGB_x)[-2:]]
+            self.corner_id_DR = int(temp1.loc[temp1.Corners_RGB_y == temp1.Corners_RGB_y.max()].ids.values)
+
+            self.center_id = 20
 
         self.sensor = sensor
         self.projector = projector
@@ -1831,18 +1837,19 @@ class AutomaticModule(object):
     def p_arucoMarker(self):
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
-        img2 = self.marker.create_aruco_marker(id=2, resolution= 50)
+
+        img_LU = self.marker.create_aruco_marker(id=self.corner_id_LU, resolution= 50)
         #img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
         #img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
         #img1 = self.marker.create_aruco_marker(id=1, resolution= 50)
 
-        img_c = self.marker.create_aruco_marker(id=20, resolution= 100)
+        img_c = self.marker.create_aruco_marker(id=self.center_id, resolution= 100)
 
         god = numpy.zeros((height, width))
         god.fill(255)
         #god[self.offset:img15.shape[0] + self.offset, self.offset:img15.shape[1] + self.offset] = numpy.flipud(img15)
         #god[height - img5.shape[0] - self.offset:height - self.offset, width - img5.shape[1] - self.offset:width - self.offset] = numpy.flipud(img5)
-        god[height - img2.shape[0] - self.offset:height - self.offset, self.offset:img2.shape[1] + self.offset] = numpy.flipud(img2)
+        god[height - img_LU.shape[0] - self.offset:height - self.offset, self.offset:img_LU.shape[1] + self.offset] = numpy.flipud(img_LU)
         #god[self.offset:img1.shape[0] + self.offset, width - img1.shape[1] - self.offset:width - self.offset] = numpy.flipud(img1)
 
 
@@ -1860,11 +1867,11 @@ class AutomaticModule(object):
         df_p, corner = self.marker.find_markers_projector(amount=2)
         df_r = self.rgb_corners
 
-        x_p = int(df_p.loc[df_p.ids == 2].Corners_projector_x.values)
-        y_p = int(df_p.loc[df_p.ids == 2].Corners_projector_y.values)
+        x_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_x.values)
+        y_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_y.values)
 
-        x_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_x.values)
-        y_r = int(df_r.loc[df_r.ids == 2].Corners_RGB_y.values)
+        x_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_x.values)
+        y_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_y.values)
 
         cor = numpy.asarray(corner)
         scale_factor_x = 100 / (cor[:,0].max() - cor[:,0].min())
@@ -1879,8 +1886,8 @@ class AutomaticModule(object):
         x_c = df_r.Corners_RGB_x.mean()
         y_c = df_r.Corners_RGB_y.mean()
 
-        x_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_x.values)
-        y_pc = int(df_p.loc[df_p.ids == 20].Corners_projector_y.values)
+        x_pc = int(df_p.loc[df_p.ids == self.center_id].Corners_projector_x.values)
+        y_pc = int(df_p.loc[df_p.ids == self.center_id].Corners_projector_y.values)
 
         width_move = int((x_c - x_pc) * scale_factor_x) + x_move - 10
         height_move = int((y_c - y_pc) * scale_factor_y) + y_move - 10
@@ -1902,15 +1909,15 @@ class AutomaticModule(object):
         # self.calib.s_left = 50
         # self.calib.s_right = self.calib.s_width - 300
 
-        id2 = self.marker.convert_color_to_depth('Real', 2, self.CoordinateMap)
-        id15 = self.marker.convert_color_to_depth('Real', 15, self.CoordinateMap)
-        id5 = self.marker.convert_color_to_depth('Real', 5, self.CoordinateMap)
-        id1 = self.marker.convert_color_to_depth('Real', 1, self.CoordinateMap)
+        id_LU = self.marker.convert_color_to_depth('Real', self.corner_id_LU, self.CoordinateMap)
+        #id15 = self.marker.convert_color_to_depth('Real', 15, self.CoordinateMap)
+        #id5 = self.marker.convert_color_to_depth('Real', 5, self.CoordinateMap)
+        id_DR = self.marker.convert_color_to_depth('Real', self.corner_id_DR, self.CoordinateMap)
 
-        s_top = int(id2.Depth_y)
-        s_left = int(id2.Depth_x)
-        s_bottom = int(self.calib.s_height - id1.Depth_y)
-        s_right = int(self.calib.s_width - id1.Depth_x)
+        s_top = int(id_LU.Depth_y)
+        s_left = int(id_LU.Depth_x)
+        s_bottom = int(self.calib.s_height - id_DR.Depth_y)
+        s_right = int(self.calib.s_width - id_DR.Depth_x)
 
         return s_top, s_left, s_bottom, s_right
 
