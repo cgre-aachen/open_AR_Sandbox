@@ -504,284 +504,6 @@ class KinectV2(Sensor):
         self.color = numpy.flipud(palette[position_palette])
         return self.color
 
-
-# class Calibration:
-#     """
-#     """
-#
-#     def __init__(self, calibrationdata, sensor, projector, module):
-#         self.calib = calibrationdata
-#         self.sensor = sensor
-#         self.projector = projector
-#         self.module = module
-#
-#         self.json_filename = None
-#
-#         # customization
-#         self.c_under = '#DBD053'
-#         self.c_over = '#DB3A34'
-#         self.c_margin = '#084C61'
-#         self.c_margin_alpha = 0.5
-#
-#         # init panel visualization
-#         pn.extension()
-#
-#         ### projector widgets and links
-#
-#         self._widget_p_frame_top = pn.widgets.IntSlider(name='Projector top margin',
-#                                                         value=self.calib.p_frame_top,
-#                                                         start=0,
-#                                                         end=self.calib.p_height - 20)
-#         self._widget_p_frame_top.link(self.projector.frame, callbacks={'value': self._callback_p_frame_top})
-#
-#
-#         self._widget_p_frame_left = pn.widgets.IntSlider(name='Projector left margin',
-#                                                          value=self.calib.p_frame_left,
-#                                                          start=0,
-#                                                          end=self.calib.p_width - 20)
-#         self._widget_p_frame_left.link(self.projector.frame, callbacks={'value': self._callback_p_frame_left})
-#
-#
-#         self._widget_p_frame_width = pn.widgets.IntSlider(name='Projector frame width',
-#                                                           value=self.calib.p_frame_width,
-#                                                           start=10,
-#                                                           end=self.calib.p_width)
-#         self._widget_p_frame_width.link(self.projector.frame, callbacks={'value': self._callback_p_frame_width})
-#
-#
-#         self._widget_p_frame_height = pn.widgets.IntSlider(name='Projector frame height',
-#                                                            value=self.calib.p_frame_height,
-#                                                            start=10,
-#                                                            end=self.calib.p_height)
-#         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
-#
-#         ### sensor widgets and links
-#
-#         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
-#                                                   bar_color=self.c_margin,
-#                                                   value=self.calib.s_top,
-#                                                   start=0,
-#                                                   end=self.calib.s_height)
-#         self._widget_s_top.link(self.plot_sensor, callbacks={'value': self._callback_s_top})
-#
-#         self._widget_s_right = pn.widgets.IntSlider(name='Sensor right margin',
-#                                                     bar_color=self.c_margin,
-#                                                     value=self.calib.s_right,
-#                                                     start=0,
-#                                                     end=self.calib.s_width)
-#         self._widget_s_right.link(self.plot_sensor, callbacks={'value': self._callback_s_right})
-#
-#         self._widget_s_bottom = pn.widgets.IntSlider(name='Sensor bottom margin',
-#                                                      bar_color=self.c_margin,
-#                                                      value=self.calib.s_bottom,
-#                                                      start=0,
-#                                                      end=self.calib.s_height)
-#         self._widget_s_bottom.link(self.plot_sensor, callbacks={'value': self._callback_s_bottom})
-#
-#         self._widget_s_left = pn.widgets.IntSlider(name='Sensor left margin',
-#                                                    bar_color=self.c_margin,
-#                                                    value=self.calib.s_left,
-#                                                    start=0,
-#                                                    end=self.calib.s_width)
-#         self._widget_s_left.link(self.plot_sensor, callbacks={'value': self._callback_s_left})
-#
-#         self._widget_s_min = pn.widgets.IntSlider(name='Vertical minimum',
-#                                                   bar_color=self.c_under,
-#                                                   value=self.calib.s_min,
-#                                                   start=0,
-#                                                   end=2000)
-#         self._widget_s_min.link(self.plot_sensor, callbacks={'value': self._callback_s_min})
-#
-#         self._widget_s_max = pn.widgets.IntSlider(name='Vertical maximum',
-#                                                   bar_color=self.c_over,
-#                                                   value=self.calib.s_max,
-#                                                   start=0,
-#                                                   end=2000)
-#         self._widget_s_max.link(self.plot_sensor, callbacks={'value': self._callback_s_max})
-#
-#         # refresh button
-#
-#         self._widget_refresh_frame = pn.widgets.Button(name='Refresh sensor frame\n(3 sec. delay)!')
-#         self._widget_refresh_frame.param.watch(self._callback_refresh_frame, 'clicks', onlychanged=False)
-#
-#         # save selection
-#
-#         # Only for reading files --> Is there no location picker in panel widgets???
-#         #self._widget_json_location = pn.widgets.FileInput(name='JSON location')
-#         self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
-#         self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
-#         self._widget_json_filename.value = 'calibration.json'
-#
-#         self._widget_json_save = pn.widgets.Button(name='Save calibration')
-#         self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
-#
-#         # sensor calibration visualization
-#
-#         self.frame = self.sensor.get_filtered_frame()
-#
-#         self.fig = plt.figure()
-#         self.ax = plt.Axes(self.fig, [0., 0., 1., 1.])
-#         self.fig.add_axes(self.ax)
-#         # close figure to prevent inline display
-#         plt.close(self.fig)
-#         self.plot_sensor()
-#
-#         self.pn_fig = pn.pane.Matplotlib(self.fig, tight=False)
-#
-#     ### layouts
-#
-#     def calibrate_projector(self):
-#         widgets = pn.WidgetBox(self._widget_p_frame_top,
-#                                self._widget_p_frame_left,
-#                                self._widget_p_frame_width,
-#                                self._widget_p_frame_height)
-#         panel = pn.Column("### Map positioning", widgets)
-#         return panel
-#
-#     def calibrate_sensor(self):
-#         widgets = pn.WidgetBox(self._widget_s_top,
-#                                self._widget_s_right,
-#                                self._widget_s_bottom,
-#                                self._widget_s_left,
-#                                self._widget_s_min,
-#                                self._widget_s_max,
-#                                self._widget_refresh_frame
-#                               )
-#         rows = pn.Row(widgets, self.pn_fig)
-#         panel = pn.Column("### Sensor calibration", rows)
-#         return panel
-#
-#     def calibrate(self):
-#         tabs = pn.Tabs(('Projector', self.calibrate_projector()),
-#                        ('Sensor', self.calibrate_sensor()),
-#                        ('Save', pn.WidgetBox(self._widget_json_filename,
-#                                              self._widget_json_save))
-#                       )
-#         return tabs
-#
-#     ### projector callbacks
-#
-#     def _callback_p_frame_top(self, target, event):
-#         self.module.pause()
-#         # set value in calib
-#         self.calib.p_frame_top = event.new
-#         m = target.margin
-#         n = event.new
-#         # just changing single indices does not trigger updating of pane
-#         target.margin = [n, m[1], m[2], m[3]]
-#         self.module.resume()
-#
-#     def _callback_p_frame_left(self, target, event):
-#         self.module.pause()
-#         self.calib.p_frame_left = event.new
-#         m = target.margin
-#         n = event.new
-#         target.margin = [m[0], m[1], m[2], n]
-#         self.module.resume()
-#
-#     def _callback_p_frame_width(self, target, event):
-#         self.module.pause()
-#         self.calib.p_frame_width = event.new
-#         target.width = event.new
-#         target.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_p_frame_height(self, target, event):
-#         self.module.pause()
-#         self.calib.p_frame_height = event.new
-#         target.height = event.new
-#         target.param.trigger('object')
-#         self.module.resume()
-#
-#     ### sensor callbacks
-#
-#     def _callback_s_top(self, target, event):
-#         self.module.pause()
-#         # set value in calib
-#         self.calib.s_top = event.new
-#         # change plot and trigger panel update
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_s_right(self, target, event):
-#         self.module.pause()
-#         self.calib.s_right = event.new
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_s_bottom(self, target, event):
-#         self.module.pause()
-#         self.calib.s_bottom = event.new
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_s_left(self, target, event):
-#         self.module.pause()
-#         self.calib.s_left = event.new
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_s_min(self, target, event):
-#         self.module.pause()
-#         self.calib.s_min = event.new
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_s_max(self, target, event):
-#         self.module.pause()
-#         self.calib.s_max = event.new
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_refresh_frame(self, event):
-#         self.module.pause()
-#         sleep(3)
-#         self.frame = self.sensor.get_filtered_frame()
-#         self.plot_sensor()
-#         self.pn_fig.param.trigger('object')
-#         self.module.resume()
-#
-#     def _callback_json_filename(self, event):
-#         self.json_filename = event.new
-#
-#     def _callback_json_save(self, event):
-#         if self.json_filename is not None:
-#             self.calib.save_json(file=self.json_filename)
-#
-#     ### other methods
-#
-#     def plot_sensor(self):
-#         # clear old axes
-#         self.ax.cla()
-#
-#         cmap = copy(plt.cm.gray)
-#         cmap.set_under(self.c_under, 1.0)
-#         cmap.set_over(self.c_over, 1.0)
-#
-#         rec_t = plt.Rectangle((0, self.calib.s_height - self.calib.s_top), self.calib.s_width,
-#                               self.calib.s_top, fc=self.c_margin, alpha=self.c_margin_alpha)
-#         rec_r = plt.Rectangle((self.calib.s_width - self.calib.s_right, 0), self.calib.s_right,
-#                               self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
-#         rec_b = plt.Rectangle((0, 0), self.calib.s_width, self.calib.s_bottom, fc=self.c_margin, alpha=self.c_margin_alpha)
-#         rec_l = plt.Rectangle((0, 0), self.calib.s_left, self.calib.s_height, fc=self.c_margin, alpha=self.c_margin_alpha)
-#
-#         self.ax.pcolormesh(self.frame, vmin=self.calib.s_min, vmax=self.calib.s_max, cmap=cmap)
-#         self.ax.add_patch(rec_t)
-#         self.ax.add_patch(rec_r)
-#         self.ax.add_patch(rec_b)
-#         self.ax.add_patch(rec_l)
-#
-#         self.ax.set_axis_off()
-#
-#         return True
-
-
 class Projector(object):
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
@@ -1777,8 +1499,6 @@ class CalibModule(Module):
             self.calib.p_frame_height = p_frame_height
             self._widget_p_frame_width.value = self.calib.p_frame_width
             self._widget_p_frame_height.value = self.calib.p_frame_height
-            #self.auto.plot_auto()
-            #self.auto.plot_auto()
             self.update_calib_plot()
 
         else:
@@ -1808,8 +1528,11 @@ class CalibModule(Module):
 
 class AutomaticModule(object):
     """
-        Module for performing an automatic calibration of the projector and the size of the image to perform the visualization
+        Module for performing an automatic calibration of the projected image by resizing the projection frame
+        and cropping the image
+         Module for performing an automatic calibration of the projected image by resizing the projection and
     """
+
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
         if self.calib.aruco_corners != None:
@@ -1818,7 +1541,6 @@ class AutomaticModule(object):
             self.corner_id_LU = int(temp.loc[temp.Corners_RGB_y == temp.Corners_RGB_y.min()].ids.values)
             temp1 = self.rgb_corners.loc[numpy.argsort(self.rgb_corners.Corners_RGB_x)[-2:]]
             self.corner_id_DR = int(temp1.loc[temp1.Corners_RGB_y == temp1.Corners_RGB_y.max()].ids.values)
-
             self.center_id = 20
 
         self.sensor = sensor
@@ -1832,27 +1554,41 @@ class AutomaticModule(object):
         self.frame_aruco = self.p_arucoMarker()
 
     def load_coordinate_map(self):
+        '''
+        Function that call the marker class function 'create_CoordinateMap()' to generate a point to point mapping
+        between the color space and the depth space.
+        return:
+            The DataFrame with pixel information between spaces including real distances in x,y an z
+            direction from the sensor
+
+        '''
         return self.marker.create_CoordinateMap()
 
     def p_arucoMarker(self):
+        '''
+        Method to create an empty frame including 2 aruco markers. 1 in the upper left corner and
+        the second one in the central part of the image.
+        The id of the left-upper aruco is determined by the aruco position in that corner and resolution of 50
+        The id in the center of the image is set to be 20 and resolution of 100
+
+        return:
+            Frame as numpy array with the information of the aruco markers
+        '''
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
 
+        #Creation of the aruco images as numpy array with size of resolution
         img_LU = self.marker.create_aruco_marker(id=self.corner_id_LU, resolution= 50)
-        #img5 = self.marker.create_aruco_marker(id=5, resolution= 50)
-        #img15 = self.marker.create_aruco_marker(id=15, resolution= 50)
-        #img1 = self.marker.create_aruco_marker(id=1, resolution= 50)
-
         img_c = self.marker.create_aruco_marker(id=self.center_id, resolution= 100)
 
+        #creation of empty numpy array with the size of the frame projected
         god = numpy.zeros((height, width))
         god.fill(255)
-        #god[self.offset:img15.shape[0] + self.offset, self.offset:img15.shape[1] + self.offset] = numpy.flipud(img15)
-        #god[height - img5.shape[0] - self.offset:height - self.offset, width - img5.shape[1] - self.offset:width - self.offset] = numpy.flipud(img5)
+
+        #Placement of aruco markers in the image.
+        #The Left uopper aruco will be placed with a constant offset distance in x and y
         god[height - img_LU.shape[0] - self.offset:height - self.offset, self.offset:img_LU.shape[1] + self.offset] = numpy.flipud(img_LU)
-        #god[self.offset:img1.shape[0] + self.offset, width - img1.shape[1] - self.offset:width - self.offset] = numpy.flipud(img1)
-
-
+        #The central aruco will be placed exactly in the middle of the immage
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
         int(width / 2) - int(img_c.shape[0] / 2):int(width / 2) + int(img_c.shape[0] / 2)] = numpy.flipud(img_c)
 
@@ -1860,10 +1596,22 @@ class AutomaticModule(object):
         return self.frame_aruco
 
     def plot_auto(self):
+        '''
+        Method to update the created frame in the projection image
+        Needed when the image of the size of the projected image changes #
+
+        :return:
+        '''
         self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=256)
         self.projector.frame.object = self.auto_plot.figure
 
     def move_image(self):
+        '''
+        Method to determine the distances between the aruco position in the corner of the sandbox in realtaion
+        with the projected frame with the aruco marker.
+
+        :return:
+        '''
         df_p, corner = self.marker.find_markers_projector(amount=2)
         df_r = self.rgb_corners
 
@@ -1899,19 +1647,7 @@ class AutomaticModule(object):
 
 
     def crop_image_aruco(self):
-        #self.calib.s_top = self.marker.dict_markers_current["Corners_IR_y"].min()
-        #self.calib.s_bottom = self.calib.s_height - self.marker.dict_markers_current["Corners_IR_y"].max()
-        #self.calib.s_left = self.marker.dict_markers_current["Corners_IR_x"].min()
-        #self.calib.s_right = self.calib.s_width - self.marker.dict_markers_current["Corners_IR_x"].max()
-
-        # self.calib.s_top = 50
-        # self.calib.s_bottom = self.calib.s_height - 300
-        # self.calib.s_left = 50
-        # self.calib.s_right = self.calib.s_width - 300
-
         id_LU = self.marker.convert_color_to_depth('Real', self.corner_id_LU, self.CoordinateMap)
-        #id15 = self.marker.convert_color_to_depth('Real', 15, self.CoordinateMap)
-        #id5 = self.marker.convert_color_to_depth('Real', 5, self.CoordinateMap)
         id_DR = self.marker.convert_color_to_depth('Real', self.corner_id_DR, self.CoordinateMap)
 
         s_top = int(id_LU.Depth_y)
@@ -1920,8 +1656,6 @@ class AutomaticModule(object):
         s_right = int(self.calib.s_width - id_DR.Depth_x)
 
         return s_top, s_left, s_bottom, s_right
-
-
 
 class RMS_Grid():
 
@@ -2881,14 +2615,9 @@ class ArucoMarkers(object):
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         # self.trs_dst = self.change_point_RGB_to_DepthIR()
         self.ArucoImage = self.create_aruco_marker()
-        self.middle = self.middle_point()
+        self.middle = Noe
         self.CoordinateMap = None
         self.corner_middle = None
-
-    def get_location_marker(self, corners):
-        pr1 = int(numpy.mean(corners[:, 0]))
-        pr2 = int(numpy.mean(corners[:, 1]))
-        return pr1, pr2
 
     def aruco_detect(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -2896,6 +2625,11 @@ class ArucoMarkers(object):
         parameters = aruco.DetectorParameters_create()
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
+
+    def get_location_marker(self, corners):
+        pr1 = int(numpy.mean(corners[:, 0]))
+        pr2 = int(numpy.mean(corners[:, 1]))
+        return pr1, pr2
 
     def find_markers_ir(self, amount=None):
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
@@ -2970,22 +2704,6 @@ class ArucoMarkers(object):
 
         return self.projector_markers, self.corner_middle
 
-    def update_dict_markers_current(self):
-
-        ir_aruco_locations = self.ir_markers
-        rgb_aruco_locations = self.rgb_markers
-        self.dict_markers_current = pd.concat([ir_aruco_locations, rgb_aruco_locations], axis=1)
-        return self.dict_markers_current
-
-    def update_dict_markers_all(self):
-
-        self.dict_markers_all.update(self.dict_markers_current)
-        return self.dict_markers_all
-
-    def erase_dict_markers_all(self):
-        self.dict_markers_all = pd.DataFrame({})
-        return self.dict_markers_all
-
     def create_CoordinateMap(self):
         x = numpy.arange(0, self.kinect.get_frame().shape[1])
         y = numpy.arange(0, self.kinect.get_frame().shape[0])
@@ -3029,49 +2747,19 @@ class ArucoMarkers(object):
 
         return self.CoordinateMap
 
-    def middle_point(self, autocalib=False):
-        if autocalib is True:
-            to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
-            to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
-            depthPoint = PyKinectV2._DepthSpacePoint(to_x, to_y)
-            depth = self.kinect.get_frame()[to_x][to_y]
-            ColorSpacePoint = self.kinect.device._mapper.MapDepthPointToColorSpace(depthPoint=depthPoint, depth=depth)
-            est_x = int(ColorSpacePoint.x)
-            est_y = int(ColorSpacePoint.y)
+    def middle_point(self):
+        to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
+        to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
+        depthPoint = PyKinectV2._DepthSpacePoint(to_x, to_y)
+        depth = self.kinect.get_frame()[to_x][to_y]
+        ColorSpacePoint = self.kinect.device._mapper.MapDepthPointToColorSpace(depthPoint=depthPoint, depth=depth)
+        est_x = int(ColorSpacePoint.x)
+        est_y = int(ColorSpacePoint.y)
 
-            self.middle = pd.DataFrame({"Middle_IR_x": [to_x], "Middle_IR_y": [to_y],
-                                        "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
+        self.middle = pd.DataFrame({"Middle_IR_x": [to_x], "Middle_IR_y": [to_y],
+                                    "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
 
-            return self.middle
-
-    def change_point_RGB_to_DepthIR(self):
-        """
-        Get a perspective transform matrix to project points from RGB to Depth/IR space
-
-        Args:
-            src: location in x and y of the points from the source image (requires 4 points)
-            dst: equivalence of position x and y from source image to destination image (requires 4 points)
-
-        Returns:
-            trs_dst: location in x and y of the projected point in Depth/IR space
-        """
-        full = self.dict_markers_current.dropna()
-        mis = self.dict_markers_current[self.dict_markers_current.isna().any(1)]
-
-        src = numpy.array(full[["Corners_RGB_x", "Corners_RGB_y"]]).astype(numpy.float32)
-        dst = numpy.array(full[["Corners_IR_x", "Corners_IR_y"]]).astype(numpy.float32)
-
-        trs_src = numpy.array([mis["Corners_RGB_x"], mis["Corners_RGB_y"], 1]).astype(numpy.float32)
-
-        transform_perspective = cv2.getPerspectiveTransform(src, dst)
-
-        trans_val = numpy.dot(transform_perspective, trs_src.T).astype("int")
-
-        values = {"Corners_IR_x": trans_val[0], "Corners_IR_y": trans_val[1]}
-
-        self.dict_markers_current = self.dict_markers_current.fillna(value=values)
-
-        return self.dict_markers_current
+        return self.middle
 
     def create_aruco_marker(self, id = 1, resolution = 50, show=False, save=False):
         self.ArucoImage = 0
@@ -3085,7 +2773,7 @@ class ArucoMarkers(object):
             plt.close()
 
         if save is True:
-            plt.savefig("markers.jpg")
+            plt.savefig("Aruco_Markers.jpg")
 
         self.ArucoImage = img
         return self.ArucoImage
@@ -3122,7 +2810,6 @@ class ArucoMarkers(object):
 
 
         color_data = map[['Color_x','Color_y']]
-
         distance = cdist([[x_rgb,y_rgb]],color_data)
         sorted_val = numpy.argsort(distance)[:][0]
         value = map.loc[sorted_val[0]]
