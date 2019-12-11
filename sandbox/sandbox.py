@@ -75,6 +75,7 @@ class Sandbox:
 class CalibrationData(object):
     """
         changes from 0.8alpha to 0.9alpha: introduction of box_width and box_height
+        changes from 0.9 alpha to 1.0alpha: Introduction of aruco corners position
     """
 
     def __init__(self,
@@ -1530,7 +1531,6 @@ class AutomaticModule(object):
     """
         Module for performing an automatic calibration of the projected image by resizing the projection frame
         and cropping the image
-         Module for performing an automatic calibration of the projected image by resizing the projection and
     """
 
     def __init__(self, calibrationdata, sensor, projector):
@@ -1550,8 +1550,7 @@ class AutomaticModule(object):
 
         self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
 
-        self.offset = 100
-        self.frame_aruco = self.p_arucoMarker()
+        self.offset = 100 #pixl distance from the frame corner so the aruco is always projected inside the sadbox
 
     def load_coordinate_map(self):
         '''
@@ -1566,9 +1565,10 @@ class AutomaticModule(object):
 
     def p_arucoMarker(self):
         '''
-        Method to create an empty frame including 2 aruco markers. 1 in the upper left corner and
-        the second one in the central part of the image.
-        The id of the left-upper aruco is determined by the aruco position in that corner and resolution of 50
+        Method to create an empty frame including 2 aruco markers.
+        * one in the upper left corner and
+        * second one in the central part of the image.
+        The id of the left-upper aruco is determined by the aruco position in that corner with predefined resolution of 50
         The id in the center of the image is set to be 20 and resolution of 100
 
         return:
@@ -1586,7 +1586,7 @@ class AutomaticModule(object):
         god.fill(255)
 
         #Placement of aruco markers in the image.
-        #The Left uopper aruco will be placed with a constant offset distance in x and y
+        #The Left uopper aruco will be placed with a constant offset distance in x and y from the corner
         god[height - img_LU.shape[0] - self.offset:height - self.offset, self.offset:img_LU.shape[1] + self.offset] = numpy.flipud(img_LU)
         #The central aruco will be placed exactly in the middle of the immage
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
@@ -1598,7 +1598,7 @@ class AutomaticModule(object):
     def plot_auto(self):
         '''
         Method to update the created frame in the projection image
-        Needed when the image of the size of the projected image changes #
+        Needed when the image of the size of the projected image changes
 
         :return:
         '''
@@ -1607,30 +1607,43 @@ class AutomaticModule(object):
 
     def move_image(self):
         '''
-        Method to determine the distances between the aruco position in the corner of the sandbox in realtaion
-        with the projected frame with the aruco marker.
+        Method to determine the distances between the aruco position in the corner of the sandbox in relation
+        with the projected frame and the projected aruco marker.
 
         :return:
+            p_frame_left: new value to update the calib.p_frame_left
+            p_frame_top: new value to update the calib.p_frame_top
+            p_frame_width: new value to update the calib.p_frame_width
+            p_frame_height: new value to update the calib.p_frame_height
         '''
+        #Find the 2 corners of the projection
         df_p, corner = self.marker.find_markers_projector(amount=2)
+        #save the location of the aruco from the calibration file
         df_r = self.rgb_corners
 
+        #extract the position x and y of the projected aruco
         x_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_x.values)
         y_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_y.values)
 
+        # extract the position x and y of the corner sandbox where the projjected aruco should be
         x_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_x.values)
         y_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_y.values)
 
+        #scale factor using the resolution of the central aruco - 100 pixels represented in reality
         cor = numpy.asarray(corner)
         scale_factor_x = 100 / (cor[:,0].max() - cor[:,0].min())
         scale_factor_y = 100 / (cor[:,1].max() - cor[:,1].min())
 
+        #move x and y direction the whole frame to make coincide the projected aruco with the corner
         x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 10
         y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 10
 
+        #provide with the location of the
         p_frame_left = self.calib.p_frame_left - x_move
         p_frame_top = self.calib.p_frame_top - y_move
 
+        # Now same procedure with the center aruco by changing the width and height of the frame to make
+        # coincide the center projected aruco with the center of the sandbox.
         x_c = df_r.Corners_RGB_x.mean()
         y_c = df_r.Corners_RGB_y.mean()
 
@@ -1647,6 +1660,14 @@ class AutomaticModule(object):
 
 
     def crop_image_aruco(self):
+        '''
+        Method that takes the location of the 4 real corners and crop the sensor extensions to this frame
+        :return:
+            s_top: new value to update the calib.s_top
+            s_left: new value to update the calib.s_left
+            s_bottom: new value to update the calib.s_bottom
+            s_right: new value to update the calib.s_right
+        '''
         id_LU = self.marker.convert_color_to_depth('Real', self.corner_id_LU, self.CoordinateMap)
         id_DR = self.marker.convert_color_to_depth('Real', self.corner_id_DR, self.CoordinateMap)
 
@@ -2613,13 +2634,21 @@ class ArucoMarkers(object):
         # self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
-        # self.trs_dst = self.change_point_RGB_to_DepthIR()
         self.ArucoImage = self.create_aruco_marker()
-        self.middle = Noe
+        self.middle = None
         self.CoordinateMap = None
         self.corner_middle = None
 
     def aruco_detect(self, image):
+        '''
+        Function to detect one aruco marker in a color image
+        :param
+            image: numpy array containing a color image (BGR type)
+        :return:
+            corners: x, y location of a detected aruco marker(detect the 4 croners of the aruco)
+            ids: id of the detected aruco
+            rejectedImgPoints: show x, y coordinates of searches for aruco markers but not succesfull
+        '''
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         aruco_dict = aruco.Dictionary_get(self.aruco_dict)
         parameters = aruco.DetectorParameters_create()
@@ -2627,11 +2656,29 @@ class ArucoMarkers(object):
         return corners, ids, rejectedImgPoints
 
     def get_location_marker(self, corners):
+        '''
+        Get the middle position from the detected corners
+        :param
+            corners: List. Contain the position x, y of the aruco marker
+        :return:
+            pr1: x location
+            pr2: y location
+        '''
         pr1 = int(numpy.mean(corners[:, 0]))
         pr2 = int(numpy.mean(corners[:, 1]))
         return pr1, pr2
 
     def find_markers_ir(self, amount=None):
+        '''
+        Function to search for a determined amount of arucos in the image. It will continue searching in
+        different frames of the image until it finds all the markers
+
+        :param
+            amount: specify the number of arucos to search
+        :return:
+            DataFrame with the id, x, y coordinates for the location of the aruco
+        '''
+
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
 
@@ -2659,6 +2706,16 @@ class ArucoMarkers(object):
         return self.ir_markers
 
     def find_markers_rgb(self, amount=None):
+        '''
+        Function to search for a determined amount of arucos in the image. It will continue searching in
+        different frames of the image until it finds all the markers
+
+        :param
+            amount: specify the number of arucos to search
+        :return:
+            DataFrame with the id, x, y coordinates for the location of the aruco
+        '''
+
         labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
 
@@ -2676,12 +2733,20 @@ class ArucoMarkers(object):
                             df = pd.concat([df, df_temp], sort=False)
 
         self.rgb_markers = df.reset_index(drop=True)
-        #json_file = self.rgb_markers.to_json()
-        #self.calib.aruco_corners =json_file
 
         return self.rgb_markers
 
     def find_markers_projector(self, amount=None):
+        '''
+        Function to search for a determined amount of arucos in the image. It will continue searching in
+        different frames of the image until it finds all the markers
+
+        :param
+            amount: specify the number of arucos to search
+        :return:
+            DataFrame with the id, x, y coordinates for the location of the aruco
+        '''
+        
         labels = {"ids", "Corners_projector_x", "Corners_projector_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
 
