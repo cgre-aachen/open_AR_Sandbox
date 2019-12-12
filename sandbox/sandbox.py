@@ -708,7 +708,7 @@ class Plot:
             self.cmap = mcolors.ListedColormap(list(self.model.surfaces.df['color']))
         else:
         # pcolormesh setup
-        self.cmap = plt.cm.get_cmap(cmap)
+            self.cmap = plt.cm.get_cmap(cmap)
         if over is not None:
             self.cmap.set_over(over, 1.0)
         if under is not None:
@@ -1080,7 +1080,6 @@ class Module(object):
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
         self.auto = AutomaticModule(calibrationdata, sensor, projector)
-        self.test = False  # Testing, eliminate later
 
         # flags
         self.crop = crop
@@ -1089,7 +1088,6 @@ class Module(object):
         self.lock = threading.Lock()
         self.thread = None
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
-        self.crop = None
         self.automatic_calibration = False
         self.automatic_cropping = False
 
