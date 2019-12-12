@@ -83,7 +83,7 @@ class CalibrationData(object):
                  p_frame_width=600, p_frame_height=450,
                  s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  box_width=1000.0, box_height=800.0,
-                 file=None, aruco_corners = None):
+                 file=None, aruco_corners=None):
         """
 
         Args:
@@ -101,8 +101,8 @@ class CalibrationData(object):
             s_max:
             box_width: physical dimensions of the sandbox along x-axis in millimeters
             box_height: physical dimensions of the sandbox along y-axis in millimeters
-            aruco_corners = information of the corners if an aruco marker is used
-            file1:
+            aruco_corners: information of the corners if an aruco marker is used
+            file:
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
@@ -149,7 +149,7 @@ class CalibrationData(object):
         self.box_width = box_width
         self.box_height = box_height
 
-        #Aruco Corners
+        # Aruco Corners
         self.aruco_corners = aruco_corners
 
         if file is not None:
@@ -186,6 +186,7 @@ class CalibrationData(object):
     def corners_as_json(self, data):
         x = data.to_json()
         self.aruco_corners = x
+
 
 class Sensor(object):
     """
@@ -298,9 +299,11 @@ class DummySensor(Sensor):
 
     def _pick_positions(self):
         '''
-        grid: Set of possible points to pick from
-        n: desired number of points (without corners counting), not guaranteed to be reached
-        distance: distance or range between points
+        Param:
+            grid: Set of possible points to pick from
+            n: desired number of points (without corners counting), not guaranteed to be reached
+            distance: distance or range between points
+        :return:
         '''
 
         numpy.random.seed(seed=self.seed)
@@ -331,7 +334,8 @@ class DummySensor(Sensor):
             candidates = self.grid[mm > self.distance]
             # count candidates
             cl = candidates.shape[0]
-            if cl < 1: break
+            if cl < 1:
+                break
             # randomly pick candidate and set next point
             pos = numpy.random.randint(0, cl)
             points[i, :2] = candidates[pos, :2]
@@ -445,8 +449,9 @@ class KinectV2(Sensor):
     color_height = 1080
 
     def setup(self):
-        self.device = PyKinectRuntime.PyKinectRuntime(
-            PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Infrared)
+        self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
+                                                      PyKinectV2.FrameSourceTypes_Depth |
+                                                      PyKinectV2.FrameSourceTypes_Infrared)
         self.depth = self.get_frame()
         self.color = self.get_color()
         # self.ir_frame_raw = self.get_ir_frame_raw()
@@ -692,9 +697,12 @@ class Plot(object):
 
         # pcolormesh setup
         self.cmap = plt.cm.get_cmap(cmap)
-        if over is not None: self.cmap.set_over(over, 1.0)
-        if under is not None: self.cmap.set_under(under, 1.0)
-        if bad is not None: self.cmap.set_bad(bad, 1.0)
+        if over is not None:
+            self.cmap.set_over(over, 1.0)
+        if under is not None:
+            self.cmap.set_under(under, 1.0)
+        if bad is not None:
+            self.cmap.set_bad(bad, 1.0)
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
 
@@ -846,13 +854,11 @@ class Scale(object):
 
     def __init__(self, calibrationdata, xy_isometric=True, extent=None):
         """
-
         Args:
-            calibration:
+            calibrationdata:
             xy_isometric:
             extent:
         """
-
         if isinstance(calibrationdata, CalibrationData):
             self.calibration = calibrationdata
         else:
@@ -879,7 +885,7 @@ class Scale(object):
 
     @property
     def output_res(self):
-        return (self.calibration.p_frame_width, self.calibration.p_frame_height)
+        return self.calibration.p_frame_width, self.calibration.p_frame_height
 
     def calculate_scales(self):
         """
@@ -894,14 +900,13 @@ class Scale(object):
 
         """
 
-
         self.pixel_scale[0] = float(self.extent[1] - self.extent[0]) / float(self.output_res[0])
         self.pixel_scale[1] = float(self.extent[3] - self.extent[2]) / float(self.output_res[1])
         self.pixel_size[0] = float(self.calibration.box_width) / float(self.output_res[0])
         self.pixel_size[1] = float(self.calibration.box_height) / float(self.output_res[1])
 
         # TODO: change the extrent in place!! or create a new extent object that stores the extent after that modification.
-        if self.xy_isometric == True:  # model is extended in one horizontal direction to fit  into box while the scale
+        if self.xy_isometric:  # model is extended in one horizontal direction to fit  into box while the scale
             # in both directions is maintained
             print("Aspect ratio of the model is fixed in XY")
             if self.pixel_scale[0] >= self.pixel_scale[1]:
@@ -913,9 +918,7 @@ class Scale(object):
 
         self.scale[0] = self.pixel_scale[0] / self.pixel_size[0]
         self.scale[1] = self.pixel_scale[1] / self.pixel_size[1]
-        self.scale[2] = float(self.extent[5] - self.extent[4]) / (
-                self.calibration.s_max -
-                self.calibration.s_min)
+        self.scale[2] = float(self.extent[5] - self.extent[4]) / (self.calibration.s_max - self.calibration.s_min)
         print("scale in Model units/ mm (X,Y,Z): " + str(self.scale))
 
     # TODO: manually define zscale and either lower or upper limit of Z, adjust rest accordingly.
@@ -968,7 +971,8 @@ class Grid(object):
         """compare:
         for x in range(self.output_res[1]):
             for y in range(self.output_res[0]):
-                grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + self.scale.extent[0]])
+                grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + 
+                self.scale.extent[0]])
         """
 
         for y in range(self.scale.output_res[1]):
@@ -1001,20 +1005,19 @@ class Grid(object):
         """
 
         # TODO: is this flip still necessary?
-        depth = numpy.fliplr(depth)  ##dirty workaround to get the it running with new gempy version.
+        depth = numpy.fliplr(depth)  #dirty workaround to get the it running with new gempy version.
         filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
                                                  self.calibration.s_max)
         scaled_depth = self.scale.extent[5] - (
                 (filtered_depth - self.calibration.s_min) / (
                 self.calibration.s_max -
                 self.calibration.s_min) * (self.scale.extent[5] - self.scale.extent[4]))
-     #  rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
-     #                                      reshape=False)
-        #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
-        cropped_depth = scaled_depth[self.calibration.calibration_data.y_lim[0]:
-                                      self.calibration.calibration_data.y_lim[1],
-                        self.calibration.calibration_data.x_lim[0]:
-                        self.calibration.calibration_data.x_lim[1]]
+        # rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
+        #                                      reshape=False)
+        # cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
+        cropped_depth = scaled_depth[
+                        self.calibration.calibration_data.y_lim[0]: self.calibration.calibration_data.y_lim[1],
+                        self.calibration.calibration_data.x_lim[0]:self.calibration.calibration_data.x_lim[1]]
 
         flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
         depth_grid = numpy.concatenate((self.empty_depth_grid, flattened_depth), axis=1)
@@ -1179,7 +1182,7 @@ class CalibModule(Module):
         plt.close()  # close figure to prevent inline display
         self._create_widgets()
 
-    ### standard methods
+    # standard methods
     def setup(self):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
@@ -1203,7 +1206,7 @@ class CalibModule(Module):
         self.calib_plot.render_frame(self.calib_frame)
         self.calib_panel_frame.param.trigger('object')
 
-    ### layouts
+    # layouts
     def calibrate_projector(self):
         widgets = pn.WidgetBox(self._widget_p_frame_top,
                                self._widget_p_frame_left,
@@ -1241,7 +1244,6 @@ class CalibModule(Module):
         panel = pn.Column('### box calibration', rows)
         return panel
 
-
     def calibrate(self):
         tabs = pn.Tabs(('Projector', self.calibrate_projector()),
                        ('Sensor', self.calibrate_sensor()),
@@ -1253,7 +1255,7 @@ class CalibModule(Module):
 
     def _create_widgets(self):
 
-        ### projector widgets and links
+        # projector widgets and links
 
         self._widget_p_frame_top = pn.widgets.IntSlider(name='Main frame top margin',
                                                         value=self.calib.p_frame_top,
@@ -1279,7 +1281,7 @@ class CalibModule(Module):
                                                            end=self.calib.p_height)
         self._widget_p_frame_height.link(self.projector.frame, callbacks={'value': self._callback_p_frame_height})
 
-        ## Auto- Calibration widgets
+        # Auto- Calibration widgets
 
         self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name='Enable Automatic Calibration', value=False)
         self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value',
@@ -1289,7 +1291,7 @@ class CalibModule(Module):
         self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks',
                                                          onlychanged=False)
 
-        ### sensor widgets and links
+        # sensor widgets and links
 
         self._widget_s_top = pn.widgets.IntSlider(name='Sensor top margin',
                                                   bar_color=self.c_margin,
@@ -1333,15 +1335,15 @@ class CalibModule(Module):
                                                   end=2000)
         self._widget_s_max.param.watch(self._callback_s_max, 'value', onlychanged=False)
 
-        #Auto cropping widgets:
+        # Auto cropping widgets:
 
         self._widget_s_enable_auto_cropping = pn.widgets.Checkbox(name='Enable Automatic Cropping', value=False)
         self._widget_s_enable_auto_cropping.param.watch(self._callback_enable_auto_cropping, 'value',
-                                                           onlychanged=False)
+                                                        onlychanged=False)
 
         self._widget_s_automatic_cropping = pn.widgets.Button(name="Crop", button_type="success")
         self._widget_s_automatic_cropping.param.watch(self._callback_automatic_cropping, 'clicks',
-                                                         onlychanged=False)
+                                                      onlychanged=False)
 
         # box widgets:
 
@@ -1380,7 +1382,7 @@ class CalibModule(Module):
 
         return True
 
-    ### projector callbacks
+    # projector callbacks
 
     def _callback_p_frame_top(self, target, event):
         self.pause()
@@ -1414,7 +1416,7 @@ class CalibModule(Module):
         target.param.trigger('object')
         self.resume()
 
-    ### sensor callbacks
+    # sensor callbacks
 
     def _callback_s_top(self, event):
         self.pause()
@@ -1528,14 +1530,13 @@ class CalibModule(Module):
 
 
 class AutomaticModule(object):
-    """
-        Module for performing an automatic calibration of the projected image by resizing the projection frame
-        and cropping the image
+    """ Module for performing an automatic calibration of the projected image by resizing the projection frame
+    and cropping the image
     """
 
     def __init__(self, calibrationdata, sensor, projector):
         self.calib = calibrationdata
-        if self.calib.aruco_corners != None:
+        if self.calib.aruco_corners is not None:
             self.rgb_corners = pd.read_json(self.calib.aruco_corners)
             temp = self.rgb_corners.loc[numpy.argsort(self.rgb_corners.Corners_RGB_x)[:2]]
             self.corner_id_LU = int(temp.loc[temp.Corners_RGB_y == temp.Corners_RGB_y.min()].ids.values)
@@ -1553,42 +1554,39 @@ class AutomaticModule(object):
         self.offset = 100 #pixl distance from the frame corner so the aruco is always projected inside the sadbox
 
     def load_coordinate_map(self):
-        '''
-        Function that call the marker class function 'create_CoordinateMap()' to generate a point to point mapping
+        """ Function that call the marker class function 'create_CoordinateMap()' to generate a point to point mapping
         between the color space and the depth space.
-        return:
+        :return:
             The DataFrame with pixel information between spaces including real distances in x,y an z
             direction from the sensor
-
-        '''
+        """
         return self.marker.create_CoordinateMap()
 
     def p_arucoMarker(self):
-        '''
-        Method to create an empty frame including 2 aruco markers.
-        * one in the upper left corner and
-        * second one in the central part of the image.
-        The id of the left-upper aruco is determined by the aruco position in that corner with predefined resolution of 50
+        """ Method to create an empty frame including 2 aruco markers.
+        one in the upper left corner
+        second one in the central part of the image.
+        The id of the left-upper aruco is determined by the aruco position in the corner with resolution of 50
         The id in the center of the image is set to be 20 and resolution of 100
-
-        return:
+        :return.
             Frame as numpy array with the information of the aruco markers
-        '''
+        """
         width = self.calib.p_frame_width
         height = self.calib.p_frame_height
 
-        #Creation of the aruco images as numpy array with size of resolution
+        # Creation of the aruco images as numpy array with size of resolution
         img_LU = self.marker.create_aruco_marker(id=self.corner_id_LU, resolution= 50)
         img_c = self.marker.create_aruco_marker(id=self.center_id, resolution= 100)
 
-        #creation of empty numpy array with the size of the frame projected
+        # creation of empty numpy array with the size of the frame projected
         god = numpy.zeros((height, width))
         god.fill(255)
 
-        #Placement of aruco markers in the image.
-        #The Left uopper aruco will be placed with a constant offset distance in x and y from the corner
-        god[height - img_LU.shape[0] - self.offset:height - self.offset, self.offset:img_LU.shape[1] + self.offset] = numpy.flipud(img_LU)
-        #The central aruco will be placed exactly in the middle of the immage
+        # Placement of aruco markers in the image.
+        # The Left uopper aruco will be placed with a constant offset distance in x and y from the corner
+        god[height - img_LU.shape[0] - self.offset:height - self.offset, self.offset:img_LU.shape[1] + self.offset] =\
+            numpy.flipud(img_LU)
+        # The central aruco will be placed exactly in the middle of the image
         god[int(height / 2) - int(img_c.shape[0] / 2):int(height / 2) + int(img_c.shape[0] / 2),
         int(width / 2) - int(img_c.shape[0] / 2):int(width / 2) + int(img_c.shape[0] / 2)] = numpy.flipud(img_c)
 
@@ -1596,32 +1594,29 @@ class AutomaticModule(object):
         return self.frame_aruco
 
     def plot_auto(self):
-        '''
-        Method to update the created frame in the projection image
+        """ Method to update the created frame in the projection image
         Needed when the image of the size of the projected image changes
-
         :return:
-        '''
+        """
         self.auto_plot.render_frame(self.p_arucoMarker(), vmin=0, vmax=256)
         self.projector.frame.object = self.auto_plot.figure
 
     def move_image(self):
-        '''
-        Method to determine the distances between the aruco position in the corner of the sandbox in relation
+        """ Method to determine the distances between the aruco position in the corner of the sandbox in relation
         with the projected frame and the projected aruco marker.
-
         :return:
             p_frame_left: new value to update the calib.p_frame_left
             p_frame_top: new value to update the calib.p_frame_top
             p_frame_width: new value to update the calib.p_frame_width
             p_frame_height: new value to update the calib.p_frame_height
-        '''
-        #Find the 2 corners of the projection
+        """
+
+        # Find the 2 corners of the projection
         df_p, corner = self.marker.find_markers_projector(amount=2)
-        #save the location of the aruco from the calibration file
+        # save the location of the aruco from the calibration file
         df_r = self.rgb_corners
 
-        #extract the position x and y of the projected aruco
+        # extract the position x and y of the projected aruco
         x_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_x.values)
         y_p = int(df_p.loc[df_p.ids == self.corner_id_LU].Corners_projector_y.values)
 
@@ -1629,16 +1624,16 @@ class AutomaticModule(object):
         x_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_x.values)
         y_r = int(df_r.loc[df_r.ids == self.corner_id_LU].Corners_RGB_y.values)
 
-        #scale factor using the resolution of the central aruco - 100 pixels represented in reality
+        # scale factor using the resolution of the central aruco - 100 pixels represented in reality
         cor = numpy.asarray(corner)
         scale_factor_x = 100 / (cor[:,0].max() - cor[:,0].min())
         scale_factor_y = 100 / (cor[:,1].max() - cor[:,1].min())
 
-        #move x and y direction the whole frame to make coincide the projected aruco with the corner
+        # move x and y direction the whole frame to make coincide the projected aruco with the corner
         x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 10
         y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 10
 
-        #provide with the location of the
+        # provide with the location of the
         p_frame_left = self.calib.p_frame_left - x_move
         p_frame_top = self.calib.p_frame_top - y_move
 
@@ -1658,16 +1653,14 @@ class AutomaticModule(object):
 
         return p_frame_left, p_frame_top, p_frame_width, p_frame_height
 
-
     def crop_image_aruco(self):
-        '''
-        Method that takes the location of the 4 real corners and crop the sensor extensions to this frame
+        """ Method that takes the location of the 4 real corners and crop the sensor extensions to this frame
         :return:
             s_top: new value to update the calib.s_top
             s_left: new value to update the calib.s_left
             s_bottom: new value to update the calib.s_bottom
             s_right: new value to update the calib.s_right
-        '''
+        """
         id_LU = self.marker.convert_color_to_depth('Real', self.corner_id_LU, self.CoordinateMap)
         id_DR = self.marker.convert_color_to_depth('Real', self.corner_id_DR, self.CoordinateMap)
 
@@ -1678,19 +1671,20 @@ class AutomaticModule(object):
 
         return s_top, s_left, s_bottom, s_right
 
+
 class RMS_Grid():
 
     def __init__(self):
+        """ Class to load RMS grids and convert them to a regular grid to use them in the Block module
         """
-        Class to load RMS grids and convert them to a regular grid to use them in the Block module
-        """
+
         self.nx = None
         self.ny = None
         self.nz = None
         self.block_dict = {}
         self.regular_grid_dict = {}
-        self.regridding_resolution = [424, 512,
-                                      100]  # default resolution for the regridding. default is kinect v2 resolution and 100 depth levels
+        # default resolution for the regriding. default is kinect v2 resolution and 100 depth levels
+        self.regriding_resolution = [424, 512, 100]
         self.coords_x = None  # arrays to store coordinates of cells
         self.coords_y = None
         self.coords_z = None
@@ -1727,7 +1721,7 @@ class RMS_Grid():
         while True:  # skip to Livecell
             l = f.readline().split()
             if len(l) > 0 and l[0] == "LIVECELL":
-                self.parse_Livecells_vip(f, self.nx, self.ny, self.nz)
+                self.parse_livecells_vip(f, self.nx, self.ny, self.nz)
                 print("Livecells loaded")
                 break
 
@@ -1742,8 +1736,8 @@ class RMS_Grid():
             elif len(l) >= 2 and l[1] == "VALUE":
                 key = l[0]
                 try:
-                    self.parse_block_vip(f, self.block_dict, key, self.nx, self.ny,
-                                         self.nz)  # parse one block of data and store irt under the given key in the dictionary
+                    # parse one block of data and store irt under the given key in the dictionary
+                    self.parse_block_vip(f, self.block_dict, key, self.nx, self.ny, self.nz)
                 except:
                     print('loading block "' + key + "' failed: not a valid VALUE Format")
                     break
@@ -1791,10 +1785,11 @@ class RMS_Grid():
                     self.coords_y[x, y, z] = numpy.mean(numpy.array(py))
                     self.coords_z[x, y, z] = numpy.mean(numpy.array(pz))
 
-    def parse_Livecells_vip(self, current_file, nx, ny, nz):
+    def parse_livecells_vip(self, current_file, nx, ny, nz):
         data_np = numpy.empty((nx, ny, nz))
 
-        pointer = current_file.tell()  # store pointer position to come back to after the values per line were determined
+        # store pointer position to come back to after the values per line were determined
+        pointer = current_file.tell()
         line = current_file.readline().split()
         values_per_line = len(line)
         # print(values_per_line)
@@ -1805,7 +1800,7 @@ class RMS_Grid():
                 x = 0
                 for n in range(nx // values_per_line):  # read values in full lines
                     l = current_file.readline().split()
-                    if len(l) < values_per_line:  ##if there is an empty line, skip to the next
+                    if len(l) < values_per_line:  # if there is an empty line, skip to the next
                         l = current_file.readline().split()
                     for i in range(values_per_line):  # iterate values in the line
                         value = l[i]
@@ -1886,9 +1881,9 @@ class RMS_Grid():
         zmax = z.max()
 
         # prepare the regular grid:
-        gx = numpy.linspace(xmin, xmax, num=self.regridding_resolution[0])
-        gy = numpy.linspace(ymin, ymax, num=self.regridding_resolution[1])
-        gz = numpy.linspace(zmin, zmax, num=self.regridding_resolution[2])
+        gx = numpy.linspace(xmin, xmax, num=self.regriding_resolution[0])
+        gy = numpy.linspace(ymin, ymax, num=self.regriding_resolution[1])
+        gz = numpy.linspace(zmin, zmax, num=self.regriding_resolution[2])
 
         a, b, c = numpy.meshgrid(gx, gy, gz)
 
@@ -1923,9 +1918,9 @@ class RMS_Grid():
 
             # save to dictionary:
             # reshape to originasl dimension BUT WITH X AND Y EXCHANGEND
-            self.regular_grid_dict[key] = interp_grid.reshape([self.regridding_resolution[1],
-                                                               self.regridding_resolution[0],
-                                                               self.regridding_resolution[2]]
+            self.regular_grid_dict[key] = interp_grid.reshape([self.regriding_resolution[1],
+                                                               self.regriding_resolution[0],
+                                                               self.regriding_resolution[2]]
                                                               )
             print("done!")
 
@@ -1945,8 +1940,8 @@ class RMS_Grid():
         ymax = y.max()
 
         # prepare the regular grid:
-        gx = numpy.linspace(xmin, xmax, num=self.regridding_resolution[0])
-        gy = numpy.linspace(ymin, ymax, num=self.regridding_resolution[1])
+        gx = numpy.linspace(xmin, xmax, num=self.regriding_resolution[0])
+        gy = numpy.linspace(ymin, ymax, num=self.regriding_resolution[1])
         a, b = numpy.meshgrid(gx, gy)
 
         grid2d = numpy.stack((a.ravel(), b.ravel()), axis=1)
@@ -1956,7 +1951,7 @@ class RMS_Grid():
         top_z = self.coords_z[:, :, 0].ravel()
 
         topo = scipy.interpolate.griddata((top_x, top_y), top_z, grid2d)  # this has to be done with the linear method!
-        self.reservoir_topography = topo.reshape([self.regridding_resolution[1], self.regridding_resolution[0]])
+        self.reservoir_topography = topo.reshape([self.regriding_resolution[1], self.regriding_resolution[0]])
 
     def save(self, filename):
         """
@@ -1985,7 +1980,8 @@ class BlockModule(Module):
         self.reservoir_topography_topo_levels = None  # set in setup and in widget.
         self.result = None  # stores the output array of the current frame
 
-        #  self.rescaled_data_mask = None #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
+        # #rescaled Version of Livecell information. masking has to be done after scaling because the scaling does not support masked arrays
+        # self.rescaled_data_mask = None
         self.index = None  # index to find the cells in the rescaled block modules, corresponding to the topography in the sandbox
         self.widget = None  # widget to change models in runtime
         self.min_sensor_offset = 0
@@ -2456,7 +2452,6 @@ class GeoMapModule:
         Args:
             block:
             fault_blocks:
-            outfile:
 
         Returns:
 
@@ -2478,7 +2473,6 @@ class GeoMapModule:
             self.geol_map.add_contours(self.sub_contours, [self.x_grid, self.y_grid, elevation])
 
         return self.geol_map.figure
-
 
     def create_fault_line(self,
                           start=0.5,
@@ -2617,21 +2611,21 @@ class ArucoMarkers(object):
     TODO: run as loop in a thread, probably implement in API
     """
 
-    def __init__(self, sensor, aruco_dict=None, Area=None):
+    def __init__(self, sensor, aruco_dict=None, area=None):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
-        self.Area = Area  # set a square Area of interest here (Hot-Area)
+        self.area = area  # set a square Area of interest here (Hot-Area)
         self.kinect = sensor
         self.ir_markers = None
-        if self.kinect.calib.aruco_corners != None:
+        if self.kinect.calib.aruco_corners is not None:
             self.rgb_markers = pd.read_json(self.kinect.calib.aruco_corners)
         else:
             self.rgb_markers = None
         self.projector_markers = None
         self.dict_markers_current = None  # markers that were detected in the last frame
-        # self.dict_markers_all =pd.DataFrame({}) # all markers ever detected with their last known position and timestamp
+        # self.dict_markers_all = all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         self.ArucoImage = self.create_aruco_marker()
@@ -2640,15 +2634,14 @@ class ArucoMarkers(object):
         self.corner_middle = None
 
     def aruco_detect(self, image):
-        '''
-        Function to detect one aruco marker in a color image
-        :param
+        """ Function to detect one aruco marker in a color image
+        :param:
             image: numpy array containing a color image (BGR type)
         :return:
             corners: x, y location of a detected aruco marker(detect the 4 croners of the aruco)
             ids: id of the detected aruco
             rejectedImgPoints: show x, y coordinates of searches for aruco markers but not succesfull
-        '''
+       """
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         aruco_dict = aruco.Dictionary_get(self.aruco_dict)
         parameters = aruco.DetectorParameters_create()
@@ -2656,29 +2649,26 @@ class ArucoMarkers(object):
         return corners, ids, rejectedImgPoints
 
     def get_location_marker(self, corners):
-        '''
-        Get the middle position from the detected corners
-        :param
-            corners: List. Contain the position x, y of the aruco marker
-        :return:
-            pr1: x location
-            pr2: y location
-        '''
+        """Get the middle position from the detected corners
+         :param:
+             corners: List containing the position x, y of the aruco marker
+         :return:
+             pr1: x location
+             pr2: y location
+        """
+
         pr1 = int(numpy.mean(corners[:, 0]))
         pr2 = int(numpy.mean(corners[:, 1]))
         return pr1, pr2
 
     def find_markers_ir(self, amount=None):
-        '''
-        Function to search for a determined amount of arucos in the image. It will continue searching in
+        """ Function to search for a determined amount of arucos in the infrared image. It will continue searching in
         different frames of the image until it finds all the markers
-
-        :param
+        :param:
             amount: specify the number of arucos to search
         :return:
-            DataFrame with the id, x, y coordinates for the location of the aruco
-        '''
-
+            ir_marker: DataFrame with the id, x, y coordinates for the location of the aruco
+        """
         labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
 
@@ -2702,19 +2692,16 @@ class ArucoMarkers(object):
                                 df = pd.concat([df, df_temp], sort=False)
 
         self.ir_markers = df.reset_index(drop=True)
-
         return self.ir_markers
 
     def find_markers_rgb(self, amount=None):
-        '''
-        Function to search for a determined amount of arucos in the image. It will continue searching in
+        """ Function to search for a determined amount of arucos in the color image. It will continue searching in
         different frames of the image until it finds all the markers
-
-        :param
+        :param:
             amount: specify the number of arucos to search
         :return:
-            DataFrame with the id, x, y coordinates for the location of the aruco
-        '''
+            rgb_markers: DataFrame with the id, x, y coordinates for the location of the aruco
+        """
 
         labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
@@ -2733,20 +2720,18 @@ class ArucoMarkers(object):
                             df = pd.concat([df, df_temp], sort=False)
 
         self.rgb_markers = df.reset_index(drop=True)
-
         return self.rgb_markers
 
     def find_markers_projector(self, amount=None):
-        '''
-        Function to search for a determined amount of arucos in the image. It will continue searching in
+        """ Function to search for a determined amount of arucos in the projected image. It will continue searching in
         different frames of the image until it finds all the markers
-
-        :param
+        :param:
             amount: specify the number of arucos to search
         :return:
-            DataFrame with the id, x, y coordinates for the location of the aruco
-        '''
-        
+            projector_markers: DataFrame with the id, x, y coordinates for the location of the aruco
+            corner_middle: list that include the location of the central corner aruco with id=20
+        """
+
         labels = {"ids", "Corners_projector_x", "Corners_projector_y"}  # TODO: add orientation of aruco marker
         df = pd.DataFrame(columns=labels)
 
@@ -2755,11 +2740,13 @@ class ArucoMarkers(object):
                 color = self.kinect.get_color()
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
-                if not ids is None:
+                if ids is not None:
                     for j in range(len(ids)):
+                        if ids[j] == 20:
+                            # predefined id value to coincide with the projected aruco for the automatic calibration
+                            # method used to calculate the scaling factor
+                            self.corner_middle = corners[j][0]
                         if ids[j] not in df.ids.values:
-                            if ids[j] == 20:
-                                self.corner_middle = corners[j][0]
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
                                 {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc]})
@@ -2770,8 +2757,15 @@ class ArucoMarkers(object):
         return self.projector_markers, self.corner_middle
 
     def create_CoordinateMap(self):
-        x = numpy.arange(0, self.kinect.get_frame().shape[1])
-        y = numpy.arange(0, self.kinect.get_frame().shape[0])
+        """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
+        camera space. This method requires the depth frame to assign a depth value to the color point.
+        :return:
+            CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
+            real world values of x,y and z in meters
+        """
+        height, width = self.kinect.get_frame().shape
+        x = numpy.arange(0, width)
+        y = numpy.arange(0, height)
         xx, yy = numpy.meshgrid(x, y)
         xy_points = numpy.vstack([xx.ravel(), yy.ravel()]).T
         depth = self.kinect.get_frame()
@@ -2787,10 +2781,11 @@ class ArucoMarkers(object):
             x_point = xy_points[i, 0]
             y_point = xy_points[i, 1]
             z_point = depth[y_point][x_point]
-            if z_point != 0:
+            if z_point != 0:   # values that do not have depth information cannot be projected to the color space
                 point = PyKinectV2._DepthSpacePoint(x_point, y_point)
                 col = self.kinect.device._mapper.MapDepthPointToColorSpace(point, z_point)
                 cam = self.kinect.device._mapper.MapDepthPointToCameraSpace(point, z_point)
+                # since the position of the camera and sensor are different, they will not have the same coverage. Specially in the extremes
                 if col.y > 0:
                     depth_x.append(x_point)
                     depth_y.append(y_point)
@@ -2798,7 +2793,7 @@ class ArucoMarkers(object):
                     camera_x.append(cam.x)
                     camera_y.append(cam.y)
                     camera_z.append(cam.z)
-                    color_x.append(int(col.x)+8) ####TODO: constants addded since image is not exact - work but need to be changed
+                    color_x.append(int(col.x)+8) ####TODO: constants addded since image is not exact when doing the ttransformation
                     color_y.append(int(col.y)-65)
 
         self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
@@ -2812,21 +2807,16 @@ class ArucoMarkers(object):
 
         return self.CoordinateMap
 
-    def middle_point(self):
-        to_x = int(sum(self.dict_markers_current["Corners_IR_x"]) / 4)
-        to_y = int(sum(self.dict_markers_current["Corners_IR_y"]) / 4)
-        depthPoint = PyKinectV2._DepthSpacePoint(to_x, to_y)
-        depth = self.kinect.get_frame()[to_x][to_y]
-        ColorSpacePoint = self.kinect.device._mapper.MapDepthPointToColorSpace(depthPoint=depthPoint, depth=depth)
-        est_x = int(ColorSpacePoint.x)
-        est_y = int(ColorSpacePoint.y)
-
-        self.middle = pd.DataFrame({"Middle_IR_x": [to_x], "Middle_IR_y": [to_y],
-                                    "Middle_RGB_x": [est_x], "Middle_RGB_y": [est_y]})
-
-        return self.middle
-
     def create_aruco_marker(self, id = 1, resolution = 50, show=False, save=False):
+        """ Function that creates a single aruco marker providing its id and resolution
+        :param:
+            id: int indicating the id of the aruco to create
+            resolution: int
+            show: boolean. Display the created aruco marker
+            save: boolean. save the created aruco marker as an image "Aruco_Markers.jpg"
+        :return:
+            ArucoImage: numpy array with the aruco information
+        """
         self.ArucoImage = 0
 
         aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
@@ -2843,7 +2833,15 @@ class ArucoMarkers(object):
         self.ArucoImage = img
         return self.ArucoImage
 
-    def plot_aruco_location(self, string_kind):
+    def plot_aruco_location(self, string_kind = 'RGB'):
+        """ Function to visualize the location of the detected aruco markers in the image.
+        :param:
+            string_kind: IR -> Infrarred detection of aruco and visualization in infrared image
+                         RGB -> Detection of aruco in color space and visualization as color image
+                         Projector -> Detection of projected arucos inside sandbox and visualization in color image
+        :return:
+            image plot
+        """
         plt.figure(figsize=(20, 20))
         if string_kind == 'IR':
             plt.imshow(self.kinect.get_ir_frame(), cmap="gray")
@@ -2859,9 +2857,21 @@ class ArucoMarkers(object):
             plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
             plt.show()
         else:
-            print('Select Type of projection -> IR, or RGB or Projector')
+            print('Select Type of projection -> IR, RGB or Projector')
+
 
     def convert_color_to_depth(self, strg, ids, map):
+        """ Function to search in the previously created CoordinateMap - "create_CoordinateMap()" - the position of any
+        detected aruco marker from the color space to the depth space.
+        :param:
+            strg: "Proj" or "Real". Select which type of aruco want to be converted
+            ids: int. indicate the id of the aruco that want to be converted
+            map: DataFrame. From the create_CoordinateMap() function
+        :return:
+            value: Return the line from the CoordinateMap DataFrame showing the equivalence of its position in the color
+            space to the depth space
+        """
+
         if strg == 'Proj':
             rgb = self.projector_markers
             rgb2=rgb.loc[rgb['ids'] == ids]
@@ -2873,9 +2883,8 @@ class ArucoMarkers(object):
             x_rgb = int(rgb2.Corners_RGB_x.values)
             y_rgb = int(rgb2.Corners_RGB_y.values)
 
-
-        color_data = map[['Color_x','Color_y']]
-        distance = cdist([[x_rgb,y_rgb]],color_data)
+        color_data = map[['Color_x', 'Color_y']]
+        distance = cdist([[x_rgb, y_rgb]], color_data)
         sorted_val = numpy.argsort(distance)[:][0]
         value = map.loc[sorted_val[0]]
 
