@@ -20,7 +20,6 @@ import scipy.ndimage
 from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
 import matplotlib.colors as mcolors
-from PIL import Image
 
 # optional imports
 try:
@@ -928,7 +927,8 @@ class Scale(object):
 
     @property
     def output_res(self):
-        return self.calibration.p_frame_width, self.calibration.p_frame_height
+        # this is the dimension of the cropped kinect frame
+        return self.calibration.s_frame_width, self.calibration.s_frame_height
 
     def calculate_scales(self):
         """
