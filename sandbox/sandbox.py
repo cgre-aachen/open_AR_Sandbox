@@ -517,6 +517,7 @@ class KinectV2(Sensor):
         self.color = numpy.flipud(palette[position_palette])
         return self.color
 
+
 class Projector(object):
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
@@ -632,6 +633,7 @@ class Projector(object):
     def trigger(self):
         self.frame.param.trigger('object')
         return True
+
 
 class Plot:
 
@@ -1707,8 +1709,8 @@ class AutomaticModule(object):
             s_bottom: new value to update the calib.s_bottom
             s_right: new value to update the calib.s_right
         """
-        id_LU = self.marker.convert_color_to_depth('Real', self.corner_id_LU, self.CoordinateMap)
-        id_DR = self.marker.convert_color_to_depth('Real', self.corner_id_DR, self.CoordinateMap)
+        id_LU = self.marker.convert_color_to_depth(self.corner_id_LU, self.CoordinateMap, strg='Real')
+        id_DR = self.marker.convert_color_to_depth(self.corner_id_DR, self.CoordinateMap, strg='Real')
 
         s_top = int(id_LU.Depth_y)
         s_left = int(id_LU.Depth_x)
@@ -2772,8 +2774,6 @@ class GeoMapModule:
         self.geol_map.save(outfile=output)
 
 
-
-
 class ArucoMarkers(object):
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
@@ -2800,7 +2800,7 @@ class ArucoMarkers(object):
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         self.ArucoImage = self.create_aruco_marker()
         self.middle = None
-        self.CoordinateMap = None
+        self.CoordinateMap = self.create_CoordinateMap()
         self.corner_middle = None
 
     def aruco_detect(self, image):
@@ -3029,8 +3029,7 @@ class ArucoMarkers(object):
         else:
             print('Select Type of projection -> IR, RGB or Projector')
 
-
-    def convert_color_to_depth(self, strg, ids, map):
+    def convert_color_to_depth(self, ids, map, strg=None, data=None):
         """ Function to search in the previously created CoordinateMap - "create_CoordinateMap()" - the position of any
         detected aruco marker from the color space to the depth space.
         :param:
@@ -3041,21 +3040,71 @@ class ArucoMarkers(object):
             value: Return the line from the CoordinateMap DataFrame showing the equivalence of its position in the color
             space to the depth space
         """
-
-        if strg == 'Proj':
-            rgb = self.projector_markers
-            rgb2=rgb.loc[rgb['ids'] == ids]
-            x_rgb = int(rgb2.Corners_projector_x.values)
-            y_rgb = int(rgb2.Corners_projector_y.values)
-        elif strg == 'Real':
-            rgb = self.rgb_markers
-            rgb2 = rgb.loc[rgb['ids'] == ids]
-            x_rgb = int(rgb2.Corners_RGB_x.values)
-            y_rgb = int(rgb2.Corners_RGB_y.values)
-
         color_data = map[['Color_x', 'Color_y']]
-        distance = cdist([[x_rgb, y_rgb]], color_data)
-        sorted_val = numpy.argsort(distance)[:][0]
-        value = map.loc[sorted_val[0]]
+        if strg is not None:
+            if strg == 'Proj':
+                rgb = self.projector_markers
+                rgb2=rgb.loc[rgb['ids'] == ids]
+                x_rgb = int(rgb2.Corners_projector_x.values)
+                y_rgb = int(rgb2.Corners_projector_y.values)
+            elif strg == 'Real':
+                rgb = self.rgb_markers
+                rgb2 = rgb.loc[rgb['ids'] == ids]
+                x_rgb = int(rgb2.Corners_RGB_x.values)
+                y_rgb = int(rgb2.Corners_RGB_y.values)
+
+            distance = cdist([[x_rgb, y_rgb]], color_data)
+            sorted_val = numpy.argsort(distance)[:][0]
+            value = map.loc[sorted_val[0]]
+
+        else:
+            value = pd.DataFrame()
+            for i in range(len(data)):
+                x_loc = data.loc[i].x
+                y_loc = data.loc[i].y
+
+                distance = cdist([[x_loc, y_loc]], color_data)
+                sorted_val = numpy.argsort(distance)[:][0]
+                value_i = pd.DataFrame(map.loc[sorted_val[0]]).T
+                value_i.insert(0, 'ids', data.loc[i].ids)
+                value = pd.concat([value, value_i], sort=False)
 
         return value
+
+    def location_points(self, amount = None, plot = True):
+        """ Function to search for a determined amount of arucos to introduce as a data point to the depth space
+        :param:
+            amount: specify the number of arucos to search
+            plot: boolean to show the plot on color space and depth space if the mapped values are right
+        :return:
+            point_markers: DataFrame with the id, x, y coordinates for the location of the aruco
+        """
+        labels = {"ids", "x", "y"}  # TODO: add orientation of aruco marker
+        df = pd.DataFrame(columns=labels)
+
+        if amount is not None:
+            while len(df) < amount:
+                color = self.kinect.get_color()
+                corners, ids, rejectedImgPoints = self.aruco_detect(color)
+
+                if ids is not None:
+                    for j in range(len(ids)):
+                        if ids[j] not in df.ids.values:
+                            x_loc, y_loc = self.get_location_marker(corners[j][0])
+                            df_temp = pd.DataFrame({"ids": [ids[j][0]], "x": [x_loc], "y": [y_loc]})
+                            df = pd.concat([df, df_temp], sort=False)
+
+        df = df.reset_index(drop=True)
+        self.point_markers = self.convert_color_to_depth(None, self.CoordinateMap, data = df)
+
+        if plot:
+            plt.figure(figsize=(20,20))
+            plt.subplot(2, 1, 1)
+            plt.imshow(self.kinect.get_color())
+            plt.plot(self.point_markers.Color_x, self.point_markers.Color_y, "or")
+            plt.subplot(2, 1, 2)
+            plt.imshow(self.kinect.get_ir_frame())
+            plt.plot(self.point_markers.Depth_x, self.point_markers.Depth_y, "or")
+            plt.show()
+
+        return self.point_markers
