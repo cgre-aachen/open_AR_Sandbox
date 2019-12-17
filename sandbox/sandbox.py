@@ -1599,7 +1599,10 @@ class AutomaticModule(object):
 
         self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
 
-        self.offset = 100 #pixl distance from the frame corner so the aruco is always projected inside the sadbox
+        #TODO: pixel distance from the frame corner so the aruco is always projected inside the sandbox
+        self.offset = 100
+        #TODO: move the image this amount of pixels so when moving the image is at this distance from the detected aruco
+        self.pixel_displacement = 10
 
     def load_coordinate_map(self):
         """ Function that call the marker class function 'create_CoordinateMap()' to generate a point to point mapping
@@ -1678,8 +1681,8 @@ class AutomaticModule(object):
         scale_factor_y = 100 / (cor[:,1].max() - cor[:,1].min())
 
         # move x and y direction the whole frame to make coincide the projected aruco with the corner
-        x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - 10
-        y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - 10
+        x_move = int(((x_p - x_r) * scale_factor_x)) - self.offset - self.pixel_displacement
+        y_move = int(((y_p - y_r) * scale_factor_y)) - self.offset - self.pixel_displacement
 
         # provide with the location of the
         p_frame_left = self.calib.p_frame_left - x_move
@@ -1693,8 +1696,8 @@ class AutomaticModule(object):
         x_pc = int(df_p.loc[df_p.ids == self.center_id].Corners_projector_x.values)
         y_pc = int(df_p.loc[df_p.ids == self.center_id].Corners_projector_y.values)
 
-        width_move = int((x_c - x_pc) * scale_factor_x) + x_move - 10
-        height_move = int((y_c - y_pc) * scale_factor_y) + y_move - 10
+        width_move = int((x_c - x_pc) * scale_factor_x) + x_move - self.pixel_displacement
+        height_move = int((y_c - y_pc) * scale_factor_y) + y_move - self.pixel_displacement
 
         p_frame_width = self.calib.p_frame_width + width_move
         p_frame_height = self.calib.p_frame_height + height_move
@@ -2774,6 +2777,43 @@ class GeoMapModule:
         self.geol_map.save(outfile=output)
 
 
+class GradientModule(Module):
+    """
+    Module to display the gradient of the topography and the topography as a vector field.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
+        self.frame = None
+
+    def setup(self):
+        self.frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            self.frame = self.crop_frame(self.frame)
+        self.plot.render_frame(self.frame)
+        self.projector.frame.object = self.plot.figure
+
+    def update(self):
+        # with self.lock:
+        self.frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            self.frame = self.crop_frame(self.frame) #crops the extent of the kinect image to the sandbox dimensions
+            self.frame = self.clip_frame(self.frame) #clips the z values abopve and below the set vertical extent
+
+        self.plot.ax.cla()  # clear axes to draw new ones on figure
+        self.plot_grad()
+
+        self.projector.trigger() # trigger update in the projector class
+
+    def plot_grad(self):
+        """Create gradient plot and visalize in sandbox"""
+        height_map = self.frame
+        dx, dy = numpy.gradient(height_map)
+        self.plot.ax.pcolormesh(dx)
+
+
+
 class ArucoMarkers(object):
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
@@ -2800,8 +2840,11 @@ class ArucoMarkers(object):
         self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
         self.ArucoImage = self.create_aruco_marker()
         self.middle = None
-        self.CoordinateMap = self.create_CoordinateMap()
         self.corner_middle = None
+        # TODO: correction in x and y direction for the mapping between color space and depth space
+        self.correction_x = 8
+        self.correction_y = 65
+        self.CoordinateMap = self.create_CoordinateMap()
 
     def aruco_detect(self, image):
         """ Function to detect one aruco marker in a color image
@@ -2963,8 +3006,8 @@ class ArucoMarkers(object):
                     camera_x.append(cam.x)
                     camera_y.append(cam.y)
                     camera_z.append(cam.z)
-                    color_x.append(int(col.x)+8) ####TODO: constants addded since image is not exact when doing the ttransformation
-                    color_y.append(int(col.y)-65)
+                    color_x.append(int(col.x)+self.correction_x) ####TODO: constants addded since image is not exact when doing the transformation
+                    color_y.append(int(col.y)-self.correction_y)
 
         self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
                                            'Depth_y': depth_y,
@@ -3084,7 +3127,9 @@ class ArucoMarkers(object):
 
         if amount is not None:
             while len(df) < amount:
-                color = self.kinect.get_color()
+                frame = self.kinect.get_color()
+                color = frame[self.rgb_markers.Corners_RGB_y.max():self.rgb_markers.Corners_RGB_y.min(),
+                         self.rgb_markers.Corners_RGB_x.min():-self.rgb_markers.Corners_RGB_x.max()]
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if ids is not None:
@@ -3098,12 +3143,16 @@ class ArucoMarkers(object):
         self.point_markers = self.convert_color_to_depth(None, self.CoordinateMap, data = df)
 
         if plot:
+            color_crop = self.kinect.get_color()[self.rgb_markers.Corners_RGB_y.max():self.rgb_markers.Corners_RGB_y.min(),
+                         self.rgb_markers.Corners_RGB_x.min():-self.rgb_markers.Corners_RGB_x.max()]
+            depth_crop = self.kinect.get_ir_frame()[self.kinect.calib.s_bottom:-self.kinect.calib.s_top,
+                         self.kinect.calib.s_left:-self.kinect.calib.s_right]
             plt.figure(figsize=(20,20))
             plt.subplot(2, 1, 1)
-            plt.imshow(self.kinect.get_color())
+            plt.imshow(color_crop)
             plt.plot(self.point_markers.Color_x, self.point_markers.Color_y, "or")
             plt.subplot(2, 1, 2)
-            plt.imshow(self.kinect.get_ir_frame())
+            plt.imshow(depth_crop)
             plt.plot(self.point_markers.Depth_x, self.point_markers.Depth_y, "or")
             plt.show()
 
