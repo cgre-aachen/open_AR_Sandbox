@@ -21,6 +21,8 @@ from scipy.spatial.distance import cdist  # for DummySensor
 import skimage  # for resizing of block data
 import matplotlib.colors as mcolors
 
+from matplotlib.colors import LightSource
+
 # optional imports
 try:
     import freenect  # wrapper for KinectV1
@@ -2786,6 +2788,8 @@ class GradientModule(Module):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
         self.frame = None
+        self.grad_type = 1
+        self.set_lightsource()
 
     def setup(self):
         self.frame = self.sensor.get_filtered_frame()
@@ -2793,6 +2797,14 @@ class GradientModule(Module):
             self.frame = self.crop_frame(self.frame)
         self.plot.render_frame(self.frame)
         self.projector.frame.object = self.plot.figure
+
+    def set_gradient(self, i):
+        self.grad_type = i
+
+    def set_lightsource(self, azdeg=315, altdeg=4, ve=0.25):
+        self.azdeg = azdeg
+        self.altdeg = altdeg
+        self.ve = ve
 
     def update(self):
         # with self.lock:
@@ -2809,9 +2821,36 @@ class GradientModule(Module):
     def plot_grad(self):
         """Create gradient plot and visalize in sandbox"""
         height_map = self.frame
-        dx, dy = numpy.gradient(height_map)
-        self.plot.ax.pcolormesh(dx)
+        # self.frame = numpy.clip(height_map, self.frame.min(), 1500.)
+        self.frame = numpy.clip(height_map, 1350., 1700.)
+        dx, dy = numpy.gradient(self.frame)
+        # calculate curvature
+        dxdx, dxdy = numpy.gradient(dx)
+        dydx, dydy = numpy.gradient(dy)
+        laplacian = dxdx + dydy
+        #  hillshade
+        ls = LightSource(azdeg=self.azdeg, altdeg=self.altdeg)
+        rgb = ls.shade(self.frame, cmap=plt.cm.copper, vert_exag=self.ve, blend_mode='hsv')
+        #  for quiver
+        xx, yy = self.frame.shape
 
+        if self.grad_type == 1:
+            self.plot.ax.pcolormesh(dx, cmap='jet', vmin=-2, vmax=2)
+        if self.grad_type == 2:
+            self.plot.ax.pcolormesh(dy, cmap='jet', vmin=-2, vmax=2)
+        if self.grad_type == 3:
+            self.plot.ax.pcolormesh(numpy.sqrt(dx**2 + dy**2), cmap='jet', vmin=0, vmax=5)
+        if self.grad_type == 4:
+            self.plot.ax.pcolormesh(laplacian, cmap='jet', vmin=-1, vmax=1)
+        if self.grad_type == 5:
+            self.plot.ax.imshow(rgb, origin='lower left')
+        if self.grad_type == 6:
+            self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
+                                dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
+        if self.grad_type == 7:
+            self.plot.ax.pcolormesh(numpy.sqrt(dx ** 2 + dy ** 2), cmap='jet', vmin=0, vmax=5)
+            self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
+                                dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
 
 
 class ArucoMarkers(object):
