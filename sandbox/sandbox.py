@@ -1290,8 +1290,7 @@ class CalibModule(Module):
                                self._widget_box_width,
                                self._widget_box_height,
                                )
-        rows = pn.Row(widgets, self.calib_panel_frame)
-        panel = pn.Column('### box calibration', rows)
+        panel = pn.Column('### box calibration', widgets)
         return panel
 
     def calibrate(self):
@@ -2790,6 +2789,9 @@ class GradientModule(Module):
         self.frame = None
         self.grad_type = 1
         self.set_lightsource()
+        self.panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+        self._create_widget_gradients()
 
     def setup(self):
         self.frame = self.sensor.get_filtered_frame()
@@ -2835,22 +2837,114 @@ class GradientModule(Module):
         xx, yy = self.frame.shape
 
         if self.grad_type == 1:
-            self.plot.ax.pcolormesh(dx, cmap='jet', vmin=-2, vmax=2)
+            self.plot.ax.pcolormesh(dx, cmap='viridis', vmin=-2, vmax=2)
         if self.grad_type == 2:
-            self.plot.ax.pcolormesh(dy, cmap='jet', vmin=-2, vmax=2)
+            self.plot.ax.pcolormesh(dy, cmap='viridis', vmin=-2, vmax=2)
         if self.grad_type == 3:
-            self.plot.ax.pcolormesh(numpy.sqrt(dx**2 + dy**2), cmap='jet', vmin=0, vmax=5)
+            self.plot.ax.pcolormesh(numpy.sqrt(dx**2 + dy**2), cmap='viridis', vmin=0, vmax=5)
         if self.grad_type == 4:
-            self.plot.ax.pcolormesh(laplacian, cmap='jet', vmin=-1, vmax=1)
+            self.plot.ax.pcolormesh(laplacian, cmap='RdBu_r', vmin=-1, vmax=1)
         if self.grad_type == 5:
-            self.plot.ax.imshow(rgb, origin='lower left')
+            self.plot.ax.imshow(rgb, origin='lower left') # TODO: use pcolormesh insteead of imshow, this method generates axis to the plot
+            self.plot.ax.axis('off')
+            self.plot.ax.get_xaxis().set_visible(False)
+            self.plot.ax.get_yaxis().set_visible(False)
         if self.grad_type == 6:
             self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
                                 dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
         if self.grad_type == 7:
-            self.plot.ax.pcolormesh(numpy.sqrt(dx ** 2 + dy ** 2), cmap='jet', vmin=0, vmax=5)
+            self.plot.ax.pcolormesh(laplacian, cmap='RdBu_r', vmin=-1, vmax=1)
             self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
                                 dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
+
+        if self.grad_type == 8:
+            self.plot.ax.pcolormesh(laplacian, cmap='RdBu_r', vmin=-1, vmax=1)
+            self.plot.ax.streamplot(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
+                                dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
+
+        # streamplot(X, Y, U, V, density=[0.5, 1])
+
+    # Layouts
+    def widget_gradients(self):
+        widgets = pn.WidgetBox(self._widget_gradient_dx,
+                               self._widget_gradient_dy,
+                               self._widget_gradient_sqrt,
+                               self._widget_laplacian,
+                               self._widget_lightsource,
+                               self._widget_vector_field,
+                               self._widget_laplacian_vector,
+                               self._widget_laplacian_stream)
+
+        panel = pn.Column("### Plot gradient model", widgets)
+        return panel
+
+    def _create_widget_gradients(self):
+
+        self._widget_gradient_dx = pn.widgets.Button(name = 'Gradient dx', button_type="success")
+        self._widget_gradient_dx.param.watch(self._callback_gradient_dx, 'clicks', onlychanged=False)
+
+        self._widget_gradient_dy = pn.widgets.Button(name = 'Gradient dy', button_type="success")
+        self._widget_gradient_dy.param.watch(self._callback_gradient_dy, 'clicks', onlychanged=False)
+
+        self._widget_gradient_sqrt = pn.widgets.Button(name = 'Gradient all',button_type="success")
+        self._widget_gradient_sqrt.param.watch(self._callback_gradient_sqrt, 'clicks', onlychanged=False)
+
+        self._widget_laplacian = pn.widgets.Button(name = 'Laplacian', button_type="success")
+        self._widget_laplacian.param.watch(self._callback_laplacian, 'clicks', onlychanged=False)
+
+        self._widget_lightsource = pn.widgets.Button(name = 'Lightsource', button_type="success")
+        self._widget_lightsource.param.watch(self._callback_lightsource, 'clicks', onlychanged=False)
+
+        self._widget_vector_field = pn.widgets.Button(name = 'Vector field', button_type="success")
+        self._widget_vector_field.param.watch(self._callback_vector_field, 'clicks', onlychanged=False)
+
+        self._widget_laplacian_vector = pn.widgets.Button(name = 'Laplacian + Vector field', button_type="success")
+        self._widget_laplacian_vector.param.watch(self._callback_laplacian_vector, 'clicks', onlychanged=False)
+
+        self._widget_laplacian_stream = pn.widgets.Button(name = 'Laplacian + Stream',button_type="success")
+        self._widget_laplacian_stream.param.watch(self._callback_laplacian_stream, 'clicks', onlychanged=False)
+
+        return True
+
+    def _callback_gradient_dx (self, event):
+        self.pause()
+        self.set_gradient(1)
+        self.resume()
+
+    def _callback_gradient_dy (self, event):
+        self.pause()
+        self.set_gradient(2)
+        self.resume()
+
+    def _callback_gradient_sqrt (self, event):
+        self.pause()
+        self.set_gradient(3)
+        self.resume()
+
+    def _callback_laplacian (self, event):
+        self.pause()
+        self.set_gradient(4)
+        self.resume()
+
+    def _callback_lightsource (self, event):
+        self.pause()
+        self.set_gradient(5)
+        self.resume()
+
+    def _callback_vector_field (self, event):
+        self.pause()
+        self.set_gradient(6)
+        self.resume()
+
+    def _callback_laplacian_vector (self, event):
+        self.pause()
+        self.set_gradient(7)
+        self.resume()
+
+    def _callback_laplacian_stream (self, event):
+        self.pause()
+        self.set_gradient(8)
+        self.resume()
 
 
 class ArucoMarkers(object):
