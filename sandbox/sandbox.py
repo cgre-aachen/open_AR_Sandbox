@@ -1195,12 +1195,16 @@ class TopoModule(Module):
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
         # with self.lock:
         frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.trigger()
 
@@ -2946,6 +2950,96 @@ class GradientModule(Module):
         self.set_gradient(8)
         self.resume()
 
+
+class LoadSaveTopoModule(Module):
+    """
+    Module tosave the current topography in a subset of the sandbox
+    and recreate it at a later time
+    two different representations are saved to the numpy file:
+
+    absolute Topography:
+    deviation from the mean height inside the bounding box in millimeter
+
+    relative Height:
+    height of each pixel relative to the vmin and vmax of the currently used calibration.
+    use relative height with the gempy module to get the same geologic map with different calibration settings.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
+        self.box_origin = (10, 10)  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        self.box_width = 200
+        self.box_height = 150
+        self.absolute_topo = None
+        self.relative_topo = None
+
+    def setup(self):
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+        self.projector.frame.object = self.plot.figure
+
+    def update(self):
+        # with self.lock:
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+        self.showBox(self.box_origin,self.box_width,self.box_height)
+        self.projector.trigger()
+
+    def showBox(self, origin, width, height):
+        """
+        draws a wide rectangle outline in the live view
+        :param origin: tuple,relative position from bottom left in sensor pixel space
+        :param width: width of box in sensor pixels
+        :param height: height of box in sensor pixels
+
+        """
+        box = matplotlib.patches.Rectangle(origin, width, height, fill=False, edgecolor='white')
+        self.plot.ax.add_patch(box)
+
+    def extractTopo(self):
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+
+        #crop sensor image to dimensions of box
+        cropped_frame = frame[self.box_origin[1]:self.box_origin[1]+self.box_height,
+                              self.box_origin[0]:self.box_origin[0]+self.box_width]
+
+        mean_height = cropped_frame.mean()
+        self.absolute_topo = cropped_frame-mean_height
+        self.relative_topo = self.absolute_topo/(self.calib.s_max-self.calib.s_min)
+        return self.absolute_topo, self.relative_topo
+
+    def saveTopo(self, filename="savedTopography.npz"):
+        numpy.savez(filename, self.absolute_topo, self.relative_topo)
+
+    def loadTopo(self, filename="savedTopography.npz"):
+        files = numpy.load(filename)
+        self.absolute_topo = files['arr_0']
+        self.relative_topo = files['arr_1']
+
+    def showDifference(self, frame):
+        #crop frame
+        #create diff
+        #crate empty array
+        #paste diff array at right location
+        #plot
+        pass
+
+
+
+
+
+    def saveTopoVector(self):
+        """
+        saves a vector graphic of the contour map to disk
+        """
+        pass
 
 class ArucoMarkers(object):
     """
