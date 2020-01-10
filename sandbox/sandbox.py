@@ -84,7 +84,8 @@ class Sandbox:
 class CalibrationData(object):
     """
         changes from 0.8alpha to 0.9alpha: introduction of box_width and box_height
-        changes from 0.9 alpha to 1.0alpha: Introduction of aruco corners position
+        changes from 0.9alpha to 1.0alpha: Introduction of aruco corners position
+        changes from 1.0alpha to 1.1alpha: Introduction of aruco pose estimation and camera color intrinsic parameters
     """
 
     def __init__(self,
@@ -92,7 +93,7 @@ class CalibrationData(object):
                  p_frame_width=600, p_frame_height=450,
                  s_top=10, s_right=10, s_bottom=10, s_left=10, s_min=700, s_max=1500,
                  box_width=1000.0, box_height=800.0,
-                 file=None, aruco_corners=None):
+                 file=None, aruco_corners=None, camera_mtx=None, camera_dist=None):
         """
 
         Args:
@@ -115,7 +116,7 @@ class CalibrationData(object):
         """
 
         # version identifier (will be changed if new calibration parameters are introduced / removed)
-        self.version = "1.0beta"
+        self.version = "1.1alpha"
 
         # projector
         self.p_width = p_width
@@ -160,6 +161,8 @@ class CalibrationData(object):
 
         # Aruco Corners
         self.aruco_corners = aruco_corners
+        self.camera_mtx = camera_mtx
+        self.camera_dist = camera_dist
 
         if file is not None:
             self.load_json(file)
@@ -3073,6 +3076,28 @@ class ArucoMarkers(object):
         self.correction_y = 65
         self.CoordinateMap = self.create_CoordinateMap()
 
+        if self.kinect.calib.camera_dist is not None:
+            self.mtx = numpy.array((self.kinect.calib.camera_mtx))
+            self.dist = numpy.array((self.kinect.calib.camera_dist))
+        else:
+            self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575], #Hardcoded distorion parameter
+                                    [0.0, 2098.757943278828, 962.426967248953],
+                                    [0.0, 0.0, 1.0]])
+            self.dist = numpy.array([[-0.1521704243263453], #hard-coded distortion parameters
+                                     [-0.5137710352422746],
+                                     [-0.010673768065933672],
+                                     [0.01065954734833698],
+                                     [2.2812034123550817],
+                                     [0.15820606213404878],
+                                     [0.5618247374672848],
+                                     [-2.195963638734801],
+                                     [0.0],
+                                     [0.0],
+                                     [0.0],
+                                     [0.0],
+                                     [0.0],
+                                     [0.0]])
+
     def aruco_detect(self, image):
         """ Function to detect one aruco marker in a color image
         :param:
@@ -3384,3 +3409,97 @@ class ArucoMarkers(object):
             plt.show()
 
         return self.point_markers
+
+    def calibrate_camera_charucoBoard(self):
+        '''
+        Method to obtain the camera intrinsic parameters to perform the aruco pose estimation
+
+        :return:
+            mtx: cameraMatrix Output 3x3 floating-point camera matrix
+            dist: Output vector of distortion coefficient
+            rvecs: Output vector of rotation vectors (see Rodrigues ) estimated for each board view
+            tvecs: Output vector of translation vectors estimated for each pattern view.
+        '''
+
+        aruco_dict = aruco.Dictionary_get(self.aruco_dict)
+        board = aruco.CharucoBoard_create(7, 5, 1, .8, aruco_dict)
+        images = []
+        print('Start moving randomly the aruco board')
+        n = 400 # number of frames
+        for i in range(n):
+            frame = self.kinect.get_color()
+            images.append(frame)
+        print("Stop moving the board")
+        img_frame = numpy.array(images)[0::5]
+
+        print("Calculating Aruco location of ",img_frame.shape[0], "images")
+        allCorners = []
+        allIds = []
+        decimator = 0
+
+        for im in img_frame:
+            # print("=> Processing image {0}".format(im))
+            # frame = cv2.imread(im)
+            gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+            res = cv2.aruco.detectMarkers(gray, aruco_dict)
+
+            if len(res[0]) > 0:
+                res2 = cv2.aruco.interpolateCornersCharuco(res[0], res[1], gray, board)
+                if res2[1] is not None and res2[2] is not None and len(res2[1]) > 3 and decimator % 1 == 0:
+                    allCorners.append(res2[1])
+                    allIds.append(res2[2])
+
+            decimator += 1
+        imsize = gray.shape
+        print("Finish")
+
+        print("Calculating camera parameters")
+        cameraMatrixInit = numpy.array([[2000., 0., imsize[0] / 2.],
+                                     [0., 2000., imsize[1] / 2.],
+                                     [0., 0., 1.]])
+
+        distCoeffsInit = numpy.zeros((5, 1))
+        flags = (cv2.CALIB_USE_INTRINSIC_GUESS + cv2.CALIB_RATIONAL_MODEL)
+        ret, mtx, dist, rvecs, tvecs, stdDeviationsIntrinsics, stdDeviationsExtrinsics, perViewErrors = cv2.aruco.calibrateCameraCharucoExtended(
+            charucoCorners=allCorners,
+            charucoIds=allIds,
+            board=board,
+            imageSize=imsize,
+            cameraMatrix=cameraMatrixInit,
+            distCoeffs=distCoeffsInit,
+            flags=flags,
+            criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9))
+
+        print("Finish")
+
+        self.kinect.calib.camera_mtx = mtx.tolist()
+        self.kinect.calib.camera_dist = dist.tolist()
+
+        return mtx, dist, rvecs, tvecs
+
+    def real_time_poseEstimation(self):
+        cv2.namedWindow("Aruco")
+        frame = self.kinect.get_color()
+        rval = True
+
+        while rval:
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            parameters = aruco.DetectorParameters_create()
+            aruco_dict = aruco.Dictionary_get(self.aruco_dict)
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            if ids is not None:
+                frame = aruco.drawDetectedMarkers(frame, corners, ids)
+
+                size_of_marker = 0.0145  # side lenght of the marker in meter
+                rvecs, tvecs, trash = aruco.estimatePoseSingleMarkers(corners, size_of_marker, self.mtx, self.dist)
+                length_of_axis = 0.05
+                for i in range(len(tvecs)):
+                    frame = aruco.drawAxis(frame, self.mtx, self.dist, rvecs[i], tvecs[i], length_of_axis)
+
+            cv2.imshow("Aruco", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            frame = self.kinect.get_color()
+            key = cv2.waitKey(20)
+            if key == 27:  # exit on ESC
+                break
+
+        cv2.destroyWindow("Aruco")
