@@ -3076,6 +3076,9 @@ class ArucoMarkers(object):
         self.correction_y = 65
         self.CoordinateMap = self.create_CoordinateMap()
 
+        self.point_markers = None
+
+        #Pose Estimation
         if self.kinect.calib.camera_dist is not None:
             self.mtx = numpy.array((self.kinect.calib.camera_mtx))
             self.dist = numpy.array((self.kinect.calib.camera_dist))
@@ -3097,6 +3100,8 @@ class ArucoMarkers(object):
                                      [0.0],
                                      [0.0],
                                      [0.0]])
+        self.size_of_marker = 0.02  # size of aruco markers in meters
+        self.length_of_axis = 0.05  # length of the axis drawn on the frame in meters
 
     def aruco_detect(self, image):
         """ Function to detect one aruco marker in a color image
@@ -3133,8 +3138,9 @@ class ArucoMarkers(object):
             amount: specify the number of arucos to search
         :return:
             ir_marker: DataFrame with the id, x, y coordinates for the location of the aruco
+                        And rotation and translation vectors for the pos estimation
         """
-        labels = {'ids', 'Corners_IR_x', 'Corners_IR_y'}  # TODO: add orientation of aruco marker
+        labels = {'ids', 'Corners_IR_x', 'Corners_IR_y', "Rotation_vector", "Translation_vector"}
         df = pd.DataFrame(columns=labels)
 
         if amount is not None:
@@ -3151,9 +3157,13 @@ class ArucoMarkers(object):
                     if not ids is None:
                         for j in range(len(ids)):
                             if ids[j] not in df.ids.values:
+                                rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]],
+                                                                                    self.size_of_marker,
+                                                                                    self.mtx, self.dist)
                                 x_loc, y_loc = self.get_location_marker(corners[j][0])
                                 df_temp = pd.DataFrame(
-                                    {'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc]})
+                                    {'ids': [ids[j][0]], 'Corners_IR_x': [x_loc], 'Corners_IR_y': [y_loc],
+                                     "Rotation_vector": [rvec], "Translation_vector": [tvec]})
                                 df = pd.concat([df, df_temp], sort=False)
 
         self.ir_markers = df.reset_index(drop=True)
@@ -3166,9 +3176,10 @@ class ArucoMarkers(object):
             amount: specify the number of arucos to search
         :return:
             rgb_markers: DataFrame with the id, x, y coordinates for the location of the aruco
+                        and rotation and translation vectors for the pos estimation
         """
 
-        labels = {"ids", "Corners_RGB_x", "Corners_RGB_y"}  # TODO: add orientation of aruco marker
+        labels = {"ids", "Corners_RGB_x", "Corners_RGB_y", "Rotation_vector", "Translation_vector"}
         df = pd.DataFrame(columns=labels)
 
         if amount is not None:
@@ -3179,9 +3190,12 @@ class ArucoMarkers(object):
                 if not ids is None:
                     for j in range(len(ids)):
                         if ids[j] not in df.ids.values:
+                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self.size_of_marker,
+                                                                                  self.mtx, self.dist)
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
-                                {"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc]})
+                                {"ids": [ids[j][0]], "Corners_RGB_x": [x_loc], "Corners_RGB_y": [y_loc],
+                                 "Rotation_vector": [rvec], "Translation_vector": [tvec]})
                             df = pd.concat([df, df_temp], sort=False)
 
         self.rgb_markers = df.reset_index(drop=True)
@@ -3194,10 +3208,11 @@ class ArucoMarkers(object):
             amount: specify the number of arucos to search
         :return:
             projector_markers: DataFrame with the id, x, y coordinates for the location of the aruco
+                                and rotation and translation vectors for the pos estimation
             corner_middle: list that include the location of the central corner aruco with id=20
         """
 
-        labels = {"ids", "Corners_projector_x", "Corners_projector_y"}  # TODO: add orientation of aruco marker
+        labels = {"ids", "Corners_projector_x", "Corners_projector_y", "Rotation_vector", "Translation_vector"}
         df = pd.DataFrame(columns=labels)
 
         if amount is not None:
@@ -3212,9 +3227,12 @@ class ArucoMarkers(object):
                             # method used to calculate the scaling factor
                             self.corner_middle = corners[j][0]
                         if ids[j] not in df.ids.values:
+                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self.size_of_marker,
+                                                                                self.mtx, self.dist)
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
-                                {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc]})
+                                {"ids": [ids[j][0]], "Corners_projector_x": [x_loc], "Corners_projector_y": [y_loc],
+                                 "Rotation_vector": [rvec], "Translation_vector": [tvec]})
                             df = pd.concat([df, df_temp], sort=False)
 
         self.projector_markers = df.reset_index(drop=True)
@@ -3354,15 +3372,16 @@ class ArucoMarkers(object):
 
         else:
             value = pd.DataFrame()
-            for i in range(len(data)):
-                x_loc = data.loc[i].x
-                y_loc = data.loc[i].y
+            if data is not None:
+                for i in range(len(data)):
+                    x_loc = data.loc[i].x
+                    y_loc = data.loc[i].y
 
-                distance = cdist([[x_loc, y_loc]], color_data)
-                sorted_val = numpy.argsort(distance)[:][0]
-                value_i = pd.DataFrame(map.loc[sorted_val[0]]).T
-                value_i.insert(0, 'ids', data.loc[i].ids)
-                value = pd.concat([value, value_i], sort=False)
+                    distance = cdist([[x_loc, y_loc]], color_data)
+                    sorted_val = numpy.argsort(distance)[:][0]
+                    value_i = pd.DataFrame(map.loc[sorted_val[0]]).T
+                    value_i.insert(0, 'ids', data.loc[i].ids)
+                    value = pd.concat([value, value_i], sort=False)
 
         return value
 
@@ -3374,14 +3393,14 @@ class ArucoMarkers(object):
         :return:
             point_markers: DataFrame with the id, x, y coordinates for the location of the aruco
         """
-        labels = {"ids", "x", "y"}  # TODO: add orientation of aruco marker
+        labels = {"ids", "x", "y"}
         df = pd.DataFrame(columns=labels)
 
         if amount is not None:
             while len(df) < amount:
                 frame = self.kinect.get_color()
-                color = frame[self.rgb_markers.Corners_RGB_y.max():self.rgb_markers.Corners_RGB_y.min(),
-                         self.rgb_markers.Corners_RGB_x.min():-self.rgb_markers.Corners_RGB_x.max()]
+                color = frame#[self.rgb_markers.Corners_RGB_y.min():self.rgb_markers.Corners_RGB_y.max(),
+                         #self.rgb_markers.Corners_RGB_x.min():self.rgb_markers.Corners_RGB_x.max()]
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if ids is not None:
@@ -3395,17 +3414,21 @@ class ArucoMarkers(object):
         self.point_markers = self.convert_color_to_depth(None, self.CoordinateMap, data = df)
 
         if plot:
-            color_crop = self.kinect.get_color()[self.rgb_markers.Corners_RGB_y.max():self.rgb_markers.Corners_RGB_y.min(),
-                         self.rgb_markers.Corners_RGB_x.min():-self.rgb_markers.Corners_RGB_x.max()]
-            depth_crop = self.kinect.get_ir_frame()[self.kinect.calib.s_bottom:-self.kinect.calib.s_top,
-                         self.kinect.calib.s_left:-self.kinect.calib.s_right]
+            color_crop = self.kinect.get_color()#[self.rgb_markers.Corners_RGB_y.min():self.rgb_markers.Corners_RGB_y.max(),
+                         #self.rgb_markers.Corners_RGB_x.min():self.rgb_markers.Corners_RGB_x.max()]
+            depth_crop = self.kinect.get_ir_frame()#[self.kinect.calib.s_bottom:-self.kinect.calib.s_top,
+                         #self.kinect.calib.s_left:-self.kinect.calib.s_right]
             plt.figure(figsize=(20,20))
             plt.subplot(2, 1, 1)
             plt.imshow(color_crop)
             plt.plot(self.point_markers.Color_x, self.point_markers.Color_y, "or")
+            plt.xlim(self.rgb_markers.Corners_RGB_x.min(),self.rgb_markers.Corners_RGB_x.max())
+            plt.ylim(self.rgb_markers.Corners_RGB_y.min(),self.rgb_markers.Corners_RGB_y.max())
             plt.subplot(2, 1, 2)
             plt.imshow(depth_crop)
             plt.plot(self.point_markers.Depth_x, self.point_markers.Depth_y, "or")
+            plt.xlim(self.kinect.calib.s_left,depth_crop.shape[1]-self.kinect.calib.s_right)
+            plt.ylim(depth_crop.shape[0]-self.kinect.calib.s_bottom, self.kinect.calib.s_top)
             plt.show()
 
         return self.point_markers
@@ -3478,6 +3501,10 @@ class ArucoMarkers(object):
         return mtx, dist, rvecs, tvecs
 
     def real_time_poseEstimation(self):
+        '''
+        Method that display real time detection of the aruco markers with the pose estimation and id of each
+        :return:
+        '''
         cv2.namedWindow("Aruco")
         frame = self.kinect.get_color()
         rval = True
@@ -3489,12 +3516,10 @@ class ArucoMarkers(object):
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
             if ids is not None:
                 frame = aruco.drawDetectedMarkers(frame, corners, ids)
-
-                size_of_marker = 0.0145  # side lenght of the marker in meter
-                rvecs, tvecs, trash = aruco.estimatePoseSingleMarkers(corners, size_of_marker, self.mtx, self.dist)
-                length_of_axis = 0.05
+                # side lenght of the marker in meter
+                rvecs, tvecs, trash = aruco.estimatePoseSingleMarkers(corners, self.size_of_marker, self.mtx, self.dist)
                 for i in range(len(tvecs)):
-                    frame = aruco.drawAxis(frame, self.mtx, self.dist, rvecs[i], tvecs[i], length_of_axis)
+                    frame = aruco.drawAxis(frame, self.mtx, self.dist, rvecs[i], tvecs[i], self.length_of_axis)
 
             cv2.imshow("Aruco", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             frame = self.kinect.get_color()
@@ -3503,3 +3528,23 @@ class ArucoMarkers(object):
                 break
 
         cv2.destroyWindow("Aruco")
+
+    def drawPoseEstimation(self, df, frame):
+        '''
+        Method that draws over the frame the coordinate system of each aruco marker in relation to the camera space
+        :param
+            df: data frame containing the information of the tranlation and rotation vectors previously detected
+            frame: frame to draw the coordinate sytems
+        :return:
+            frame: with the resulting coordinate system
+
+        '''
+        for i in range(len(df)):
+            frame = aruco.drawAxis(frame,
+                               self.mtx,
+                               self.dist,
+                               df.loc[i].Rotation_vector[0],
+                               df.loc[i].Translation_vector[0],
+                               self.length_of_axis)
+        return frame.get()
+
