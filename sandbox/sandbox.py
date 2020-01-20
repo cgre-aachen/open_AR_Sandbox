@@ -38,7 +38,9 @@ except ImportError:
 try:
     import cv2
     from cv2 import aruco
+    CV2_IMPORT = True
 except ImportError:
+    CV2_IMPORT = False
     # warn('opencv is not installed. Object detection will not work')
     pass
 
@@ -551,7 +553,7 @@ class Projector(object):
     }
     '''
 
-    def __init__(self, calibrationdata):
+    def __init__(self, calibrationdata, use_panel=True):
         self.calib = calibrationdata
 
         # flags
@@ -566,8 +568,9 @@ class Projector(object):
         self.hot = None
         self.profile = None
 
-        self.create_panel()
-        self.start_server()
+        if use_panel is True:
+            self.create_panel()
+            self.start_server()
 
     def create_panel(self):
 
@@ -1086,7 +1089,8 @@ class Module(object):
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-        self.auto = AutomaticModule(calibrationdata, sensor, projector)
+        if CV2_IMPORT is True:
+            self.auto = AutomaticModule(calibrationdata, sensor, projector)
 
         # flags
         self.crop = crop
@@ -1602,8 +1606,9 @@ class AutomaticModule(object):
 
         self.sensor = sensor
         self.projector = projector
-        self.marker = ArucoMarkers(sensor)
-        self.CoordinateMap = self.load_coordinate_map()
+        if CV2_IMPORT is True:
+            self.marker = ArucoMarkers(sensor)
+            self.CoordinateMap = self.load_coordinate_map()
 
         self.auto_plot = Plot(self.calib, contours=False, cmap='gray')
 
@@ -3043,6 +3048,7 @@ class LoadSaveTopoModule(Module):
         saves a vector graphic of the contour map to disk
         """
         pass
+
 
 class ArucoMarkers(object):
     """
