@@ -1029,7 +1029,10 @@ class Grid(object):
                 self.scale.extent[0]])
         """
 
-        x = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
+        x_mirrored = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
+        # above: old way to create the depth grid resulted in a mirrored model!
+
+        x = numpy.linspace(self.scale.extent[1], self.scale.extent[0], self.scale.output_res[0])
         y = numpy.linspace(self.scale.extent[2], self.scale.extent[3], self.scale.output_res[1])
         xx, yy = numpy.meshgrid(x, y, indexing='ij')
         self.empty_depth_grid = numpy.vstack([xx.ravel(), yy.ravel()]).T
