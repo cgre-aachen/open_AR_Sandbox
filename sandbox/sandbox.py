@@ -847,7 +847,7 @@ class Plot:
             self.ax.clabel(contours,
                            inline=self.contours_label_inline,
                            fontsize=self.contours_label_fontsize,
-                           fmt=self.contours_label_format)#,
+                           fmt=self.contours_label_format)
                            #extent=extent)
 
     def update_model(self, model):
@@ -903,28 +903,22 @@ class Plot:
     def plot_aruco(self, df_position): # Not implemented yet
         if len(df_position) > 0:
 
-            #labels = {"ids", "x", "y"}
-            df = df_position[df_position['is_inside_box']]
-
-
             self.ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
                             df_position[df_position['is_inside_box']]['box_y'].values,
-                            s=100, facecolors='none', edgecolors='r', linewidths=2)
+                            s=350, facecolors='none', edgecolors='r', linewidths=2)
             for i in range(len(df_position[df_position['is_inside_box']])):
                 self.ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
                                  (df_position[df_position['is_inside_box']]['box_x'].values[i],
                                  df_position[df_position['is_inside_box']]['box_y'].values[i]),
                                  c='r',
-                                 fontsize=15)
+                                 fontsize=20,
+                                 textcoords='offset pixels',
+                                 xytext=(20, 20))
             self.ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
-                            df_position[df_position['is_inside_box']]['box_y'].values, '-r')
-            #ax1.set_xlim(self.calib.s_left, self.calib.s_width - self.calib.s_right)
-            #ax1.set_ylim(self.calib.s_top, self.calib.s_height - self.calib.s_bottom)
-            #ax1.invert_yaxis()
-            self.ax.set_axis_off()
-            #self.ax.append(ax1)
+                         df_position[df_position['is_inside_box']]['box_y'].values, '-r')
 
-            #increase counter
+            self.ax.set_axis_off()
+
 
 class Scale(object):
     """
@@ -1060,7 +1054,7 @@ class Grid(object):
         """
 
         x_mirrored = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
-        # above: old way to create the depth grid resulted in a mirrored model!
+        # above: old way to create the depth grid resulted in a mirrored model! it works but is flipped towards the model in gempy
 
         x = numpy.linspace(self.scale.extent[1], self.scale.extent[0], self.scale.output_res[0])
         y = numpy.linspace(self.scale.extent[2], self.scale.extent[3], self.scale.output_res[1])
@@ -1117,13 +1111,13 @@ class Module(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, crop=True, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, Aruco=None, crop=True, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.plot = Plot(self.calib, **kwargs)
-        if CV2_IMPORT is True:
-            self.auto = AutomaticModule(calibrationdata, sensor, projector)
+      #  if CV2_IMPORT is True: #TODO: Daniel, can this go? I commented it out for now but that likely broke the automatic calibration...
+      #      self.auto = AutomaticModule(calibrationdata, sensor, projector)
 
         # flags
         self.crop = crop
@@ -1135,6 +1129,8 @@ class Module(object):
         self.automatic_calibration = False
         self.automatic_cropping = False
 
+        #connect to ArucoMarker class
+        self.Aruco=Aruco
         # self.setup()
 
     @abstractmethod
@@ -1223,48 +1219,12 @@ class Module(object):
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
 
-    def search_aruco(self):
+    def search_aruco(self): #TODO:Daniel: move this to ArucoMarkers module if still necessary
         #df = self.auto.marker.location_points(amount=self.amount_markersplot=False)
         self.loc_marker = pd.concat([self.loc_marker,
                                      self.auto.marker.location_points(amount=self.amount_markers,
                                                                  plot=False)],
                                     sort=False)
-
-
-class ArucoModule(Module):
-    """
-     """
-
-    def __init__(self, *args, **kwargs):
-        # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
-        self.loc_marker = pd.DataFrame()
-        self.amount_markers = 1
-    def setup(self):
-        frame = self.sensor.get_filtered_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-
-        #self.plot.render_frame(frame)
-        self.plot.figure = self.projector.frame.object
-
-    def update(self):
-        # with self.lock:
-        frame = self.sensor.get_filtered_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-        #self.search_aruco()
-        if len(self.loc_marker) > 0:
-            self.plot.add_marker_position(self.loc_marker)
-        #self.plot.render_frame(frame)
-        self.projector.trigger()
-
-    def search_aruco(self):
-        self.loc_marker = pd.concat([self.loc_marker,
-                                     self.auto.marker.location_points(amount=self.amount_markers,
-                                                                 plot=False)],
-                                    sort=False)
-
 
 class CalibModule(Module):
     """
@@ -1655,9 +1615,7 @@ class TopoModule(Module):
                          vmax=1100,
                          contours_label=True,
                          **kwargs)
-        self.markers_in_frame = pd.DataFrame()
-        self.aruco_markers = pd.DataFrame()
-        self.threshold = 10.0
+
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -1676,66 +1634,16 @@ class TopoModule(Module):
             #frame = self.clip_frame(frame)
 
         self.plot.render_frame(frame)
-        self.search_aruco()
-        self.update_marker_dict()
-        self.transform_to_box_coordinates()
-        self.plot.plot_aruco(self.aruco_markers)
-        self.projector.trigger()
 
-    def search_aruco(self):
-        frame = self.sensor.get_color()
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        parameters = aruco.DetectorParameters_create()
-        aruco_dict = aruco.Dictionary_get(self.auto.marker.aruco_dict)
-        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-        if ids is not None:
-            labels = {"ids", "x", "y", "Counter"}
-            df = pd.DataFrame(columns=labels)
-            for j in range(len(ids)):
-                if ids[j] not in df.ids.values:
-                    x_loc, y_loc = self.auto.marker.get_location_marker(corners[j][0])
-                    df_temp = pd.DataFrame(
-                        {"ids": [ids[j][0]], "x": [x_loc], "y": [y_loc]})
-                    df = pd.concat([df, df_temp], sort=False)
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.plot.plot_aruco(self.Aruco.aruco_markers)
 
-            df = df.reset_index(drop=True)
-            self.markers_in_frame = self.auto.marker.convert_color_to_depth(None, self.auto.marker.CoordinateMap, data=df)
-            self.markers_in_frame.insert(0, 'counter', 0)
-            self.markers_in_frame.insert(1, 'box_x', numpy.NaN)
-            self.markers_in_frame.insert(2, 'box_y', numpy.NaN)
-            self.markers_in_frame.insert(0, 'is_inside_box', numpy.NaN)
-            self.markers_in_frame = self.markers_in_frame.set_index(self.markers_in_frame['ids'], drop = True)
-            self.markers_in_frame = self.markers_in_frame.drop(columns=['ids'])
+        self.projector.trigger() #triggers the update of the bokeh plot
 
-            return self.markers_in_frame
-
-    def update_marker_dict(self):
-        for j in self.markers_in_frame.index:
-            if j not in self.aruco_markers.index:
-                self.aruco_markers = self.aruco_markers.append(self.markers_in_frame.loc[j])
-
-            else:
-                df_temp = self.markers_in_frame.loc[j]
-                self.aruco_markers.loc[j] = df_temp
-
-        for i in self.aruco_markers.index:# increment counter for not found arucos
-            if i not in self.markers_in_frame.index:
-                self.aruco_markers.at[i,'counter'] += 1.0
-                print( self.aruco_markers.loc[i]['counter'])
-            if self.aruco_markers.loc[i]['counter'] >= self.threshold:
-                self.aruco_markers = self.aruco_markers.drop(i)
-
-        #return self.aruco_markers
-
-    def transform_to_box_coordinates(self):
-        if len(self.aruco_markers)>0:
-            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x']- self.calib.s_left
-            self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
-            for j in self.aruco_markers.index:
-                self.aruco_markers['is_inside_box'].loc[j] = self.calib.s_frame_width > (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left) and \
-                                                  (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left)> 0 and \
-                                                  (self.calib.s_frame_height > (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) and \
-                                                  (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) > 0)
 
 class AutomaticModule(object):
     """ Module for performing an automatic calibration of the projected image by resizing the projection frame
@@ -2589,8 +2497,9 @@ class BlockModule(Module):
 
 class GemPyModule(Module):
 
-    def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
-        super().__init__(calibrationdata, sensor, projector, crop, **kwarg)  # call parent init
+    #def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
+    def __init__(self,geo_model, *args, ** kwargs):
+        super().__init__(*args, **kwargs)  # call parent init
 
 
         """
@@ -2626,6 +2535,9 @@ class GemPyModule(Module):
 
         self.plot_topography = True
         self.plot_faults = True
+
+        #dataframe to safe Arucos in model Space:
+        self.modelspace_arucos=pd.DataFrame()
 
     def setup(self):
 
@@ -2673,9 +2585,29 @@ class GemPyModule(Module):
                                extent=self.geo_model.grid.topography.extent)
         self.plot.add_faults()
         self.plot.add_lith()
+
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.compute_modelspace_arucos()
+            self.plot.plot_aruco(self.modelspace_arucos)
+
         self.projector.trigger()
 
         return True
+
+    def compute_modelspace_arucos(self):
+        df = self.Aruco.aruco_markers.copy()
+        for i in self.Aruco.aruco_markers.index:  # increment counter for not found arucos
+
+            #the combination below works though it should not! Look into scale again!!
+            #pixel scale and pixel size should be consistent!
+            df.at[i, 'box_x'] = (self.scale.pixel_size[0]*self.Aruco.aruco_markers['box_x'][i])
+            df.at[i, 'box_y'] = (self.scale.pixel_scale[1]*self.Aruco.aruco_markers['box_y'][i])
+        self.modelspace_arucos = df
+
 
     def show_widgets(self, Model_dict):
         self.original_sensor_min = self.calib.s_min  # store original sensor values on start
@@ -2948,7 +2880,13 @@ class GradientModule(Module):
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
         self.frame = None
         self.grad_type = 1
+
+        #lightsource parameter
+        self.azdeg = 315
+        self.altdeg = 4
+        self.ve= 0.25
         self.set_lightsource()
+
         self.panel_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
         self._create_widget_gradients()
@@ -2978,10 +2916,17 @@ class GradientModule(Module):
         self.plot.ax.cla()  # clear axes to draw new ones on figure
         self.plot_grad()
 
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.plot.plot_aruco(self.Aruco.aruco_markers)
+
         self.projector.trigger() # trigger update in the projector class
 
     def plot_grad(self):
-        """Create gradient plot and visalize in sandbox"""
+        """Create gradient plot and visualize in sandbox"""
         height_map = self.frame
         # self.frame = numpy.clip(height_map, self.frame.min(), 1500.)
         self.frame = numpy.clip(height_map, 1350., 1700.)
@@ -3025,6 +2970,39 @@ class GradientModule(Module):
         # streamplot(X, Y, U, V, density=[0.5, 1])
 
     # Layouts
+    def widget_lightsource(self):
+        self._widget_azdeg = pn.widgets.FloatSlider(name='Azimuth',
+
+                                                    value=self.azdeg,
+                                                    start=0.0,
+                                                    end=360.0)
+        self._widget_azdeg.param.watch(self._callback_lightsource_azdeg, 'value')
+
+        self._widget_altdeg = pn.widgets.FloatSlider(name='Altitude',
+                                                    value=self.altdeg,
+                                                    start=0.0,
+                                                    end=90.0)
+        self._widget_altdeg.param.watch(self._callback_lightsource_altdeg, 'value')
+
+        widgets=pn.WidgetBox('<b>Azimuth</b>',
+                             self._widget_azdeg,
+                             '<b>Altitude</b>',
+                             self._widget_altdeg)
+
+        panel = pn.Column("### Lightsource ", widgets)
+        return panel
+
+
+    def _callback_lightsource_azdeg(self, event):
+      #  self.pause()
+        self.azdeg = event.new
+      #  self.resume()
+
+    def _callback_lightsource_altdeg(self, event):
+      #  self.pause()
+        self.altdeg = event.new
+      #  self.resume()
+
     def widget_gradients(self):
         widgets = pn.WidgetBox(self._widget_gradient_dx,
                                self._widget_gradient_dy,
@@ -3109,7 +3087,7 @@ class GradientModule(Module):
 
 class LoadSaveTopoModule(Module):
     """
-    Module tosave the current topography in a subset of the sandbox
+    Module to save the current topography in a subset of the sandbox
     and recreate it at a later time
     two different representations are saved to the numpy file:
 
@@ -3202,19 +3180,19 @@ class ArucoMarkers(object):
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
-    TODO: run as loop in a thread, probably implement in API
     """
 
-    def __init__(self, sensor, aruco_dict=None, area=None):
+    def __init__(self, sensor, calibration, aruco_dict=None, area=None):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
         self.area = area  # set a square Area of interest here (Hot-Area)
         self.kinect = sensor
+        self.calib = calibration
         self.ir_markers = None
-        if self.kinect.calib.aruco_corners is not None:
-            self.rgb_markers = pd.read_json(self.kinect.calib.aruco_corners)
+        if self.calib.aruco_corners is not None:
+            self.rgb_markers = pd.read_json(self.calib.aruco_corners)
         else:
             self.rgb_markers = None
         self.projector_markers = None
@@ -3232,10 +3210,16 @@ class ArucoMarkers(object):
 
         self.point_markers = None
 
+
+        #dataframes and variables used in the update loop:
+        self.markers_in_frame = pd.DataFrame()
+        self.aruco_markers = pd.DataFrame()
+        self.threshold = 10.0
+
         #Pose Estimation
-        if self.kinect.calib.camera_dist is not None:
-            self.mtx = numpy.array((self.kinect.calib.camera_mtx))
-            self.dist = numpy.array((self.kinect.calib.camera_dist))
+        if self.calib.camera_dist is not None:
+            self.mtx = numpy.array((self.calib.camera_mtx))
+            self.dist = numpy.array((self.calib.camera_dist))
         else:
             self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575], #Hardcoded distorion parameter
                                     [0.0, 2098.757943278828, 962.426967248953],
@@ -3256,6 +3240,80 @@ class ArucoMarkers(object):
                                      [0.0]])
         self.size_of_marker = 0.02  # size of aruco markers in meters
         self.length_of_axis = 0.05  # length of the axis drawn on the frame in meters
+
+    def search_aruco(self):
+        """
+        searches for aruco markers in the current kinect image and writes detected markers to
+         self.markers_in_frame. call this first in the update function.
+        :return:
+        """
+        frame = self.kinect.get_color()
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        parameters = aruco.DetectorParameters_create()
+        aruco_dict = aruco.Dictionary_get(self.aruco_dict)
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        if ids is not None:
+            labels = {"ids", "x", "y", "Counter"}
+            df = pd.DataFrame(columns=labels)
+            for j in range(len(ids)):
+                if ids[j] not in df.ids.values:
+                    x_loc, y_loc = self.get_location_marker(corners[j][0])
+                    df_temp = pd.DataFrame(
+                        {"ids": [ids[j][0]], "x": [x_loc], "y": [y_loc]})
+                    df = pd.concat([df, df_temp], sort=False)
+
+            df = df.reset_index(drop=True)
+            self.markers_in_frame = self.convert_color_to_depth(None, self.CoordinateMap, data=df)
+            self.markers_in_frame.insert(0, 'counter', 0)
+            self.markers_in_frame.insert(1, 'box_x', numpy.NaN)
+            self.markers_in_frame.insert(2, 'box_y', numpy.NaN)
+            self.markers_in_frame.insert(0, 'is_inside_box', numpy.NaN)
+            self.markers_in_frame = self.markers_in_frame.set_index(self.markers_in_frame['ids'], drop = True)
+            self.markers_in_frame = self.markers_in_frame.drop(columns=['ids'])
+        else:
+            labels = {"ids", "x", "y", "Counter"}
+            self.markers_in_frame = pd.DataFrame(columns=labels)
+
+        return self.markers_in_frame
+
+    def update_marker_dict(self):
+        """
+        updates existing marker positions in self.aruco_markers. new found markers are auomatically added.
+        A marker that is not detected for more than *self.threshold* frames is removed from the list.
+        call in update after self.search_aruco():
+        :return:
+        """
+        for j in self.markers_in_frame.index:
+            if j not in self.aruco_markers.index:
+                self.aruco_markers = self.aruco_markers.append(self.markers_in_frame.loc[j])
+
+            else:
+                df_temp = self.markers_in_frame.loc[j]
+                self.aruco_markers.at[j] = df_temp
+
+        for i in self.aruco_markers.index:# increment counter for not found arucos
+            if i not in self.markers_in_frame.index:
+                self.aruco_markers.at[i, 'counter'] += 1.0
+                #print( self.aruco_markers.loc[i]['counter'])
+            if self.aruco_markers.loc[i]['counter'] >= self.threshold:
+                self.aruco_markers = self.aruco_markers.drop(i)
+
+        #return self.aruco_markers
+
+    def transform_to_box_coordinates(self):
+        """
+        checks if aruco markers are within the dimensions of the sandbox (boolean: is_inside_box)
+        and converts the location to box coordinates x,y. call after self.update_markers in the update loop
+        :return:
+        """
+        if len(self.aruco_markers)>0:
+            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x']- self.calib.s_left
+            self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
+            for j in self.aruco_markers.index:
+                self.aruco_markers['is_inside_box'].loc[j] = self.calib.s_frame_width > (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left) and \
+                                                  (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left)> 0 and \
+                                                  (self.calib.s_frame_height > (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) and \
+                                                  (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) > 0)
 
     def aruco_detect(self, image):
         """ Function to detect one aruco marker in a color image
@@ -3466,7 +3524,7 @@ class ArucoMarkers(object):
             plt.close()
 
         if save is True:
-            plt.savefig("Aruco_Markers.jpg")
+            plt.savefig("Aruco_Markers.png")
 
         self.ArucoImage = img
         return self.ArucoImage
@@ -3592,13 +3650,15 @@ class ArucoMarkers(object):
             plt.subplot(2, 1, 1)
             plt.imshow(color_crop)
             plt.plot(self.point_markers.Color_x, self.point_markers.Color_y, "or")
-            plt.xlim(self.rgb_markers.Corners_RGB_x.min(),self.rgb_markers.Corners_RGB_x.max())
-            plt.ylim(self.rgb_markers.Corners_RGB_y.min(),self.rgb_markers.Corners_RGB_y.max())
+            #if self.rgb_markers.Corners_RGB_x.min() > 10:
+            #    plt.xlim(self.rgb_markers.Corners_RGB_x.min(),self.rgb_markers.Corners_RGB_x.max())
+            #    plt.ylim(self.rgb_markers.Corners_RGB_y.min(),self.rgb_markers.Corners_RGB_y.max())
+
             plt.subplot(2, 1, 2)
             plt.imshow(depth_crop)
             plt.plot(self.point_markers.Depth_x, self.point_markers.Depth_y, "or")
-            plt.xlim(self.kinect.calib.s_left,depth_crop.shape[1]-self.kinect.calib.s_right)
-            plt.ylim(depth_crop.shape[0]-self.kinect.calib.s_bottom, self.kinect.calib.s_top)
+            plt.xlim(self.calib.s_left,depth_crop.shape[1]-self.calib.s_right)
+            plt.ylim(depth_crop.shape[0]-self.calib.s_bottom, self.calib.s_top)
             plt.show()
 
         return self.point_markers
@@ -3665,8 +3725,8 @@ class ArucoMarkers(object):
 
         print("Finish")
 
-        self.kinect.calib.camera_mtx = mtx.tolist()
-        self.kinect.calib.camera_dist = dist.tolist()
+        self.calib.camera_mtx = mtx.tolist()
+        self.calib.camera_dist = dist.tolist()
 
         return mtx, dist, rvecs, tvecs
 
