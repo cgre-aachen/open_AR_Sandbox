@@ -656,7 +656,8 @@ class Plot:
                  contours_label=False, contours_label_inline=True,
                  contours_label_fontsize=15, contours_label_format='%3.0f', #old args
                  model=None, show_faults=True, show_lith=True, #new args
-                 marker_position=None):
+                 marker_position=None, minor_contours=False, contours_step_minor=50,
+                 contours_width_minor = 0.5):
         """Creates a new plot instance.
 
         Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
@@ -703,6 +704,7 @@ class Plot:
         self.show_lith = show_lith
         self.show_faults = show_faults
         self.marker_position = marker_position
+        self.minor_contours = minor_contours
 
 
         # z-range handling
@@ -741,15 +743,8 @@ class Plot:
         self.contours_label_fontsize = contours_label_fontsize
         self.contours_label_format = contours_label_format
 
-        # z-range handling
-        if vmin is not None:
-            self.vmin = vmin
-        else:
-            self.vmin = self.calib.s_min
-        if vmax is not None:
-            self.vmax = vmax
-        else:
-            self.vmax = self.calib.s_max
+        self.contours_step_minor = contours_step_minor
+        self.contours_width_minor = contours_width_minor
 
 
         # margin patches setup
@@ -833,6 +828,12 @@ class Plot:
 
         return numpy.arange(self.vmin, self.vmax, self.contours_step)
 
+    @property
+    def contours_levels_minor(self):
+        """Returns the current contour levels, being aware of changes in calibration."""
+
+        return numpy.arange(self.vmin, self.vmax, self.contours_step_minor)
+
     def add_contours(self, data, extent=None):
         """Renders contours to the current plot object.
         Uses the different attributes to style contour lines and contour labels.
@@ -843,6 +844,15 @@ class Plot:
                                    linewidths=self.contours_width,
                                    colors=self.contours_color,
                                    extent=extent)
+
+        if self.minor_contours:
+            self.ax.contour(data,
+                            levels=self.contours_levels_minor,
+                            linewidths=self.contours_width_minor,
+                            colors=self.contours_color,
+                            extent=extent)
+
+
         if self.contours_label:
             self.ax.clabel(contours,
                            inline=self.contours_label_inline,
@@ -1119,6 +1129,7 @@ class Module(object):
 
         # flags
         self.crop = crop
+        self.norm = False # for TopoModule to scale the topography
 
         # threading
         self.lock = threading.Lock()
@@ -1218,12 +1229,6 @@ class Module(object):
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
 
-    def search_aruco(self): #TODO:Daniel: move this to ArucoMarkers module if still necessary
-        #df = self.auto.marker.location_points(amount=self.amount_markersplot=False)
-        self.loc_marker = pd.concat([self.loc_marker,
-                                     self.auto.marker.location_points(amount=self.amount_markers,
-                                                                 plot=False)],
-                                    sort=False)
 
 class CalibModule(Module):
     """
@@ -1615,31 +1620,44 @@ class TopoModule(Module):
 
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        self.height = 2000
         super().__init__(*args, contours=True,
                          cmap='gist_earth',
                          over='k',
                          under='k',
-                         vmin=700,
-                         vmax=1100,
+                         vmin=0,
+                         vmax=500,
                          contours_label=True,
                          **kwargs)
 
 
     def setup(self):
+        self.norm = True
+        self.plot.minor_contours = True
         frame = self.sensor.get_filtered_frame()
-        frame = (frame.max()-frame)
         if self.crop:
             frame = self.crop_frame(frame)
+            frame = self.clip_frame(frame)
+            frame = self.calib.s_max - frame
+        if self.norm:
+            frame = frame * (self.height / frame.max())
+            self.plot.vmin = 0
+            self.plot.vmax = self.height
+
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
         # with self.lock:
         frame = self.sensor.get_filtered_frame()
-        frame = frame.max() - frame
         if self.crop:
             frame = self.crop_frame(frame)
-            #frame = self.clip_frame(frame)
+            frame = self.clip_frame(frame)
+            frame = self.calib.s_max - frame
+        if self.norm:
+            frame = frame * (self.height / frame.max())
+            self.plot.vmin = 0
+            self.plot.vmax = self.height
 
         self.plot.render_frame(frame)
 
