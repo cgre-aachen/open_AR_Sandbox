@@ -7,6 +7,7 @@ import logging
 import threading
 from time import sleep
 from warnings import warn
+import traceback
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -3056,6 +3057,232 @@ class LoadSaveTopoModule(Module):
         """
         pass
 
+class LandslideSimulation(Module):
+
+    def __init__(self, *args, **kwargs):
+        # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        #super().__init__(*args, contours=True,
+         #                cmap='gist_earth',
+          #               over='k',
+           #              under='k',
+            #             vmin=0,
+             #            vmax=500,
+              #           contours_label=True,
+               #          minor_contours=True,
+                #         **kwargs)
+
+        super().__init__(*args, contours = True, cmap = 'gist_earth_r', over = 'k', under = 'k', ** kwargs)
+
+        self.folder_dir_out = None
+
+        self.ncols = None
+        self.nrows = None
+        self.xllcorner = None
+        self.yllcorner = None
+        self.cellsize = None
+        self.NODATA_value = None
+        self.asc_data = None
+
+        self.a_line = None
+        self.b_line = None
+        self.xyz_data = None
+
+        self.release_area = None
+        self.hazard_map = None
+        self.max_height = None
+        self.max_velocity = None
+
+        self.domain = None
+        self.absolute_topo = None
+        self.relative_topo = None
+
+        self.horizontal_flow = None
+        self.vertical_flow = None
+
+        self.flow_selector = None
+        self.frame_selector = 0
+        self.counter = None
+        self.simulation_frame = 0
+        self.running_simulation = False
+
+        self.widget = None
+
+    def setup(self):
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+        self.projector.frame.object = self.plot.figure
+
+    def update(self):
+        # with self.lock:
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+        self.plot.render_frame(frame)
+
+        self.plot_landslide_frame()
+
+        self.projector.trigger()
+
+    def plot_landslide_frame(self):
+        if self.running_simulation:
+            self.simulation_frame+=1
+            if self.simulation_frame == 60:
+                self.simulation_frame = 0
+
+        if self.flow_selector =='Horizontal':
+            if self.running_simulation:
+                move = self.horizontal_flow[:, :, self.simulation_frame]
+            else:
+                move = self.horizontal_flow[:, :, self.frame_selector]
+
+            move[move == 0] = numpy.nan
+            self.plot.ax.pcolormesh(move, cmap='hot')
+
+        elif self.flow_selector == 'Vertical':
+            if self.running_simulation:
+                move = self.vertical_flow[:, :, self.simulation_frame]
+            else:
+                move = self.vertical_flow[:,:,self.frame_selector]
+
+            move[move == 0] = numpy.nan
+            self.plot.ax.pcolormesh(move, cmap='hot')
+
+    def load_data_asc(self, infile):
+        f = open(infile, "r")
+        self.ncols = int(f.readline().split()[1])
+        self.nrows = int(f.readline().split()[1])
+        self.xllcorner = float(f.readline().split()[1])
+        self.yllcorner = float(f.readline().split()[1])
+        self.cellsize = float(f.readline().split()[1])
+        self.NODATA_value = float(f.readline().split()[1])
+        self.asc_data = numpy.reshape(numpy.array([float(i) for i in f.read().split()]), (self.nrows, self.ncols))
+        return self.asc_data
+
+    def load_data_xyz(self, infile):
+        f = open(infile, "r")
+        self.ncols, self.nrows = map(int, f.readline().split())
+        self.a_line = numpy.array([float(i) for i in f.readline().split()])
+        self.b_line = numpy.array([float(i) for i in f.readline().split()])
+        self.xyz_data = numpy.reshape(numpy.array([float(i) for i in f.read().split()]), (self.nrows, self.ncols))
+        return self.xyz_data
+
+    def load_release_area_rel(self, infile):
+        f = open(infile, "r")
+        data = numpy.array([float(i) for i in f.read().split()])
+        self.release_area = numpy.reshape(data[1:], (int(data[0]), 2))
+        return self.release_area
+
+    def load_out_hazard_map_asc(self, infile):
+        f = open(infile, "r")
+        data = numpy.array([float(i) for i in f.read().split()])
+        self.hazard_map = numpy.reshape(data, (data.shape[0]/3, 3))
+        return self.hazard_map
+
+    def load_out_maxheight_asc(self, infile):
+        f = open(infile, "r")
+        self.max_height = numpy.array([float(i) for i in f.read().split()])
+        return self.max_height
+
+    def load_out_maxvelocity_asc(self, infile):
+        f = open(infile, "r")
+        self.max_velocity = numpy.array([float(i) for i in f.read().split()])
+        return self.max_velocity
+
+    def load_domain_dom(self, infile):
+        f = open(infile, "r")
+        self.domain = numpy.array([float(i) for i in f.read().split()])
+        return self.domain
+
+    def load_npz(self, infile):
+        files = numpy.load(infile)
+        self.absolute_topo = files['arr_0']
+        self.relative_topo = files['arr_1']
+        return self.absolute_topo, self.relative_topo
+
+    def load_vertical_npy(self, infile):
+        self.vertical_flow = numpy.load(infile)
+        self.counter = self.vertical_flow.shape[2]-1
+        return self.vertical_flow
+
+    def load_horizontal_npy(self, infile):
+        self.horizontal_flow = numpy.load(infile)
+        self.counter = self.horizontal_flow.shape[2] - 1
+        return self.horizontal_flow
+
+    def show_widgets(self):
+        self._create_widgets()
+        widgets = pn.WidgetBox('<b>Select Flow </b>',
+                               self._widget_select_h_direction,
+                               self._widget_select_v_direction,
+                               '<b>Select Frame </b>',
+                               self._widget_frame_selector,
+                               '<b>Run Simulation</b>',
+                               self._widget_run_simulation,
+                               self._widget_stop_simulation
+                               )
+
+        panel = pn.Column("### Interaction widgets", widgets)
+        self.widget = panel
+
+        return panel
+
+    def _create_widgets(self):
+        self._widget_frame_selector = pn.widgets.IntSlider(name='Frame',
+                                                    value=self.frame_selector,
+                                                  start=0,
+                                                  end=self.counter)
+        self._widget_frame_selector.param.watch(self._callback_select_frame, 'value', onlychanged=False)
+
+        self._widget_select_h_direction = pn.widgets.Button(name="Horizontal Flow", button_type="success")
+        self._widget_select_h_direction.param.watch(self._callback_set_h_direction, 'clicks',
+                                                      onlychanged=False)
+
+        self._widget_select_v_direction = pn.widgets.Button(name="Vertical Flow", button_type="success")
+        self._widget_select_v_direction.param.watch(self._callback_set_v_direction, 'clicks',
+                                                  onlychanged=False)
+
+        self._widget_run_simulation = pn.widgets.Button(name="Run", button_type="success")
+        self._widget_run_simulation.param.watch(self._callback_run_simulation, 'clicks',
+                                                    onlychanged=False)
+
+        self._widget_stop_simulation = pn.widgets.Button(name="Stop", button_type="success")
+        self._widget_stop_simulation.param.watch(self._callback_stop_simulation, 'clicks',
+                                                onlychanged=False)
+
+        return True
+
+    def _callback_select_frame(self, event):
+        self.pause()
+        self.frame_selector = event.new
+        self.plot_landslide_frame()
+        self.resume()
+
+    def _callback_set_h_direction(self, event):
+        self.pause()
+        self.flow_selector = 'Horizontal'
+        self.plot_landslide_frame()
+        self.resume()
+
+    def _callback_set_v_direction(self, event):
+        self.pause()
+        self.flow_selector = 'Vertical'
+        self.plot_landslide_frame()
+        self.resume()
+
+    def _callback_run_simulation(self, event):
+        self.pause()
+        self.running_simulation = True
+        self.plot_landslide_frame()
+        self.resume()
+
+    def _callback_stop_simulation(self, event):
+        self.pause()
+        self.running_simulation = False
+        self.plot_landslide_frame()
+        self.resume()
+
 
 class NotebookConnection(Module):
     """
@@ -3072,6 +3299,9 @@ class NotebookConnection(Module):
                          vmax=500,
                          contours_label=True,
                          **kwargs)
+
+        self.function_to_run=None
+        self.active_connection = False
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -3101,14 +3331,16 @@ class NotebookConnection(Module):
             self.plot.vmin = 0
             self.plot.vmax = self.height
 
-        self.plot.render_frame(frame)
+        if self.active_connection:
+            self.plot.ax.cla()
+            try:
+                self.function_to_run()
+            except Exception:
+                traceback.print_exc()
+                self.active_connection = False
 
-        #TODO: connectivity
-
-        self.fig, self.ax = self.plot_notebook()
-
-        #self.projector.frame.object =
-
+        else:
+            self.plot.render_frame(frame)
 
 
         # if aruco Module is specified:search, update, plot aruco markers
@@ -3120,8 +3352,14 @@ class NotebookConnection(Module):
 
         self.projector.trigger()  # triggers the update of the bokeh plot
 
-    def plot_notebook(self, fig, ax):
-        pass
+    def plot_sandbox(self, func):
+        def inner1(*args, **kwargs):
+            frame = self.sensor.get_filtered_frame()
+            if self.crop:
+                frame = self.crop_frame(frame)
+                frame = self.clip_frame(frame)
+            func(*args, sandbox_ax = self.plot.ax, sandbox_frame = frame,**kwargs)
+        return inner1
 
 
 class ArucoMarkers(object):
