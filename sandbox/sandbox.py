@@ -3321,11 +3321,13 @@ class LandslideSimulation(Module):
 
         self.flow_selector = None
         self.frame_selector = 0
-        self.counter = None
+        self.counter = 1
         self.simulation_frame = 0
         self.running_simulation = False
 
         self.widget = None
+
+        self.npz_filename = None
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -3431,8 +3433,20 @@ class LandslideSimulation(Module):
         self.counter = self.horizontal_flow.shape[2] - 1
         return self.horizontal_flow
 
+    def load_simulation_data_npz(self, infile):
+        files = numpy.load(infile)
+        self.vertical_flow = files['arr_0']
+        self.horizontal_flow = files['arr_1']
+        self.counter = self.horizontal_flow.shape[2] - 1
+
     def show_widgets(self):
         self._create_widgets()
+        tabs = pn.Tabs(('Controllers', self.show_tools()),
+                       ('Load Simulation', self.show_load())
+                       )
+        return tabs
+
+    def show_tools(self):
         widgets = pn.WidgetBox('<b>Select Flow </b>',
                                self._widget_select_h_direction,
                                self._widget_select_v_direction,
@@ -3444,7 +3458,16 @@ class LandslideSimulation(Module):
                                )
 
         panel = pn.Column("### Interaction widgets", widgets)
-        self.widget = panel
+        return panel
+
+    def show_load(self):
+        widgets = pn.WidgetBox('<b>Filename</b>',
+                               self._widget_npz_filename,
+                               '<b>Load Simulation</b>',
+                               self._widget_load
+                               )
+
+        panel = pn.Column("### Load widget", widgets)
 
         return panel
 
@@ -3471,7 +3494,22 @@ class LandslideSimulation(Module):
         self._widget_stop_simulation.param.watch(self._callback_stop_simulation, 'clicks',
                                                 onlychanged=False)
 
+        # Load widgets
+        self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to load the simulation:')
+        self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
+        self._widget_npz_filename.value = 'simulation_results_for_sandbox.npz'
+
+        self._widget_load = pn.widgets.Button(name='Load')
+        self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
+
         return True
+
+    def _callback_filename(self, event):
+        self.npz_filename = event.new
+
+    def _callback_load(self, event):
+        if self.npz_filename is not None:
+            self.load_simulation_data_npz(infile=self.npz_filename)
 
     def _callback_select_frame(self, event):
         self.pause()
