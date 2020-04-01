@@ -3002,6 +3002,13 @@ class LoadSaveTopoModule(Module):
         self.transparency_difference = 0.5
         self.cmap_difference = matplotlib.colors.ListedColormap(['Red', 'Blue'])
 
+        self.npz_filename = None
+
+        self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()  # close figure to prevent inline display
+
+        self._create_widgets()
+
     def setup(self):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
@@ -3122,8 +3129,21 @@ class LoadSaveTopoModule(Module):
         else:
             print('No topography to show difference')
 
+    def snapshotFrame(self):
+        fig = plt.figure()
+        ax = plt.gca()
+        ax.pcolormesh(self.absolute_topo)
+        self.snapshot_frame.object = fig
+        self.snapshot_frame.param.trigger('object')
+
     def show_widgets(self):
-        self._create_widgets()
+        tabs = pn.Tabs(('Box widgets', self.widgets_box()),
+                       ('Save Topography', self.widgets_save()),
+                       ('Load Topography', self.widgets_load())
+                       )
+        return tabs
+
+    def widgets_box(self):
         widgets = pn.WidgetBox('<b>Modify box size </b>',
                                self._widget_move_box_horizontal,
                                self._widget_move_box_vertical,
@@ -3137,14 +3157,35 @@ class LoadSaveTopoModule(Module):
                                self._widget_show_difference
                                )
 
+        rows = pn.Row(widgets, self.snapshot_frame)
+        panel = pn.Column("### Interaction widgets", rows)
 
+        return panel
 
-        panel = pn.Column("### Interaction widgets", widgets)
-        self.widget = panel
+    def widgets_save(self):
+        widgets = pn.WidgetBox('<b>Filename</b>',
+                               self._widget_npz_filename,
+                               '<b>Safe Topography</b>',
+                               self._widget_save,
+                               )
+
+        panel = pn.Column("### Save widget", widgets)
+
+        return panel
+
+    def widgets_load(self):
+        widgets = pn.WidgetBox('<b>Filename</b>',
+                               self._widget_npz_filename,
+                               '<b>Load Topography</b>',
+                               self._widget_load
+                               )
+
+        panel = pn.Column("### Load widget", widgets)
 
         return panel
 
     def _create_widgets(self):
+        # Box widgets
         self._widget_move_box_horizontal = pn.widgets.IntSlider(name='x box origin',
                                                            value=self.box_origin[0],
                                                            start=0,
@@ -3181,7 +3222,30 @@ class LoadSaveTopoModule(Module):
         self._widget_show_difference.param.watch(self._callback_show_difference, 'value',
                                                onlychanged=False)
 
+        # Load save widgets
+        self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename for the topography snapshot:')
+        self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
+        self._widget_npz_filename.value = 'savedTopography.npz'
+
+        self._widget_save = pn.widgets.Button(name='Save')
+        self._widget_save.param.watch(self._callback_save, 'clicks', onlychanged=False)
+
+        self._widget_load = pn.widgets.Button(name='Load')
+        self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
+
         return True
+
+    def _callback_filename(self, event):
+        self.npz_filename = event.new
+
+    def _callback_save(self, event):
+        if self.npz_filename is not None:
+            self.saveTopo(filename=self.npz_filename)
+
+    def _callback_load(self, event):
+        if self.npz_filename is not None:
+            self.loadTopo(filename=self.npz_filename)
+            self.snapshotFrame()
 
     def _callback_move_box_horizontal(self, event):
         self.box_origin[0] = event.new
@@ -3190,20 +3254,15 @@ class LoadSaveTopoModule(Module):
         self.box_origin[1] = event.new
 
     def _callback_box_width(self, event):
-        #self.pause()
         self.box_width = event.new
-        #self.resume()
+
 
     def _callback_box_height(self, event):
-        #self.pause()
         self.box_height = event.new
-        #self.resume()
 
     def _callback_snapshot(self, event):
-        #self.pause()
         self.extractTopo()
-        #then plot next to the panel the screenshot taken
-        #self.resume()
+        self.snapshotFrame()
 
     def _callback_show_snapshot(self, event):
         self.show_loaded = event.new
