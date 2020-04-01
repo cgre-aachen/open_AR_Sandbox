@@ -2984,11 +2984,23 @@ class LoadSaveTopoModule(Module):
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
-        self.box_origin = (10, 10)  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        self.box_origin = [10, 10]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         self.box_width = 200
         self.box_height = 150
         self.absolute_topo = None
         self.relative_topo = None
+
+        self.comparison_distance = 10 # Milimeters
+
+        self.is_loaded = False  # Flag to know is a file have been loaded or not
+        self.show_loaded = False  # Flag to indicate the axes to be plotted
+        self.show_difference = False
+
+        self.difference = None
+        self.loaded = None
+
+        self.transparency_difference = 0.5
+        self.cmap_difference = matplotlib.colors.ListedColormap(['Red', 'Blue'])
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -3003,7 +3015,15 @@ class LoadSaveTopoModule(Module):
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
-        self.showBox(self.box_origin,self.box_width,self.box_height)
+
+        if self.show_loaded:
+            self.showLoadedTopo()
+
+        if self.show_difference:
+            self.showDifference()
+
+        self.showBox(self.box_origin, self.box_width, self.box_height)
+
         self.projector.trigger()
 
     def showBox(self, origin, width, height):
@@ -3017,45 +3037,186 @@ class LoadSaveTopoModule(Module):
         box = matplotlib.patches.Rectangle(origin, width, height, fill=False, edgecolor='white')
         self.plot.ax.add_patch(box)
 
-    def extractTopo(self):
+    def getBoxFrame(self):
+        """
+        Get the absolute and relative topo of the sensor readings
+        Returns:
+
+        """
         frame = self.sensor.get_filtered_frame()
         if self.crop:
             frame = self.crop_frame(frame)
 
-        #crop sensor image to dimensions of box
-        cropped_frame = frame[self.box_origin[1]:self.box_origin[1]+self.box_height,
-                              self.box_origin[0]:self.box_origin[0]+self.box_width]
+        # crop sensor image to dimensions of box
+        cropped_frame = frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
+                        self.box_origin[0]:self.box_origin[0] + self.box_width]
 
         mean_height = cropped_frame.mean()
-        self.absolute_topo = cropped_frame-mean_height
-        self.relative_topo = self.absolute_topo/(self.calib.s_max-self.calib.s_min)
+        absolute_topo = cropped_frame - mean_height
+        relative_topo = absolute_topo / (self.calib.s_max - self.calib.s_min)
+        return absolute_topo, relative_topo
+
+    def extractTopo(self):
+        self.is_loaded = True
+        self.absolute_topo, self.relative_topo = self.getBoxFrame()
         return self.absolute_topo, self.relative_topo
 
     def saveTopo(self, filename="savedTopography.npz"):
-        numpy.savez(filename, self.absolute_topo, self.relative_topo)
+        numpy.savez(filename,
+                    self.absolute_topo,
+                    self.relative_topo,
+                    self.box_origin,
+                    self.box_height,
+                    self.box_width)
 
     def loadTopo(self, filename="savedTopography.npz"):
-        files = numpy.load(filename)
+        self.is_loaded = True
+        files = numpy.load(filename, allow_pickle=True)
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
+        self.box_origin = files['arr_2']
+        self.box_height = files['arr_3']
+        self.box_width = files['arr_4']
 
-    def showDifference(self, frame):
-        #crop frame
-        #create diff
-        #crate empty array
-        #paste diff array at right location
-        #plot
-        pass
+    def showLoadedTopo(self): # Not working
+        if self.is_loaded:
+            self.loaded = self.modify_to_box_coordinates(self.absolute_topo)
+            self.plot.ax.pcolormesh(self.loaded)
+        else:
+            print("No Topography loaded, please load a Topography")
+
+    def modify_to_box_coordinates(self, frame):
+        width = frame.shape[0]
+        left = numpy.ones((self.box_origin[0], width))
+        left[left == 1] = numpy.nan
+        frame = numpy.insert(frame, 0, left, axis=1)
+
+        height = frame.shape[1]
+        bot = numpy.ones((self.box_origin[1], height))
+        bot[bot == 1] = numpy.nan
+        frame = numpy.insert(frame, 0, bot, axis=0)
+        return frame
+
+    def showDifference(self):
+
+        if self.is_loaded:
+            current_absolute_topo, current_relative_topo = self.getBoxFrame()
+
+            # Mask arrays
+            equal = current_absolute_topo == self.absolute_topo
+            more = current_absolute_topo > self.absolute_topo
+            less = current_absolute_topo < self.absolute_topo
+
+            # crate empty array and use the masks
+            diff = numpy.empty((self.box_height, self.box_width))
+            diff[equal] = numpy.nan
+            diff[more] = 1
+            diff[less] = -1
+
+            # paste diff array at right location according to box coordinates
+            self.difference = self.modify_to_box_coordinates(diff)
+
+            # plot
+            self.plot.ax.pcolormesh(self.difference, cmap=self.cmap_difference, alpha=self.transparency_difference)
+
+        else:
+            print('No topography to show difference')
+
+    def show_widgets(self):
+        self._create_widgets()
+        widgets = pn.WidgetBox('<b>Modify box size </b>',
+                               self._widget_move_box_horizontal,
+                               self._widget_move_box_vertical,
+                               self._widget_box_width,
+                               self._widget_box_height,
+                               '<b>Take snapshot</b>',
+                               self._widget_snapshot,
+                               '<b>Show snapshot in sandbox</b>',
+                               self._widget_show_snapshot,
+                               '<b>Show difference plot</b>',
+                               self._widget_show_difference
+                               )
 
 
 
+        panel = pn.Column("### Interaction widgets", widgets)
+        self.widget = panel
 
+        return panel
+
+    def _create_widgets(self):
+        self._widget_move_box_horizontal = pn.widgets.IntSlider(name='x box origin',
+                                                           value=self.box_origin[0],
+                                                           start=0,
+                                                           end=self.calib.s_frame_width)
+        self._widget_move_box_horizontal.param.watch(self._callback_move_box_horizontal, 'value', onlychanged=False)
+
+        self._widget_move_box_vertical = pn.widgets.IntSlider(name='y box origin',
+                                                                value=self.box_origin[1],
+                                                                start=0,
+                                                                end=self.calib.s_frame_height)
+        self._widget_move_box_vertical.param.watch(self._callback_move_box_vertical, 'value', onlychanged=False)
+
+        self._widget_box_width = pn.widgets.IntSlider(name='box width',
+                                                              value=self.box_width,
+                                                              start=0,
+                                                              end=self.calib.s_frame_width)
+        self._widget_box_width.param.watch(self._callback_box_width, 'value', onlychanged=False)
+
+        self._widget_box_height = pn.widgets.IntSlider(name='box height',
+                                                      value=self.box_height,
+                                                      start=0,
+                                                      end=self.calib.s_frame_height)
+        self._widget_box_height.param.watch(self._callback_box_height, 'value', onlychanged=False)
+
+        self._widget_snapshot = pn.widgets.Button(name="Snapshot", button_type="success")
+        self._widget_snapshot.param.watch(self._callback_snapshot, 'clicks',
+                                                         onlychanged=False)
+
+        self._widget_show_snapshot = pn.widgets.Checkbox(name='Show', value=False)
+        self._widget_show_snapshot.param.watch(self._callback_show_snapshot, 'value',
+                                                           onlychanged=False)
+
+        self._widget_show_difference = pn.widgets.Checkbox(name='Show', value=False)
+        self._widget_show_difference.param.watch(self._callback_show_difference, 'value',
+                                               onlychanged=False)
+
+        return True
+
+    def _callback_move_box_horizontal(self, event):
+        self.box_origin[0] = event.new
+
+    def _callback_move_box_vertical(self, event):
+        self.box_origin[1] = event.new
+
+    def _callback_box_width(self, event):
+        #self.pause()
+        self.box_width = event.new
+        #self.resume()
+
+    def _callback_box_height(self, event):
+        #self.pause()
+        self.box_height = event.new
+        #self.resume()
+
+    def _callback_snapshot(self, event):
+        #self.pause()
+        self.extractTopo()
+        #then plot next to the panel the screenshot taken
+        #self.resume()
+
+    def _callback_show_snapshot(self, event):
+        self.show_loaded = event.new
+
+    def _callback_show_difference(self, event):
+        self.show_difference = event.new
 
     def saveTopoVector(self):
         """
         saves a vector graphic of the contour map to disk
         """
         pass
+
 
 class LandslideSimulation(Module):
 
