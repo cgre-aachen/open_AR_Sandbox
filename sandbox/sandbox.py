@@ -1624,6 +1624,7 @@ class TopoModule(Module):
         self.height = 2000
         self.fig = None
         self.ax = None
+
         super().__init__(*args, contours=True,
                          cmap='gist_earth',
                          over='k',
@@ -1642,7 +1643,7 @@ class TopoModule(Module):
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
             frame = self.calib.s_max - frame
-        if self.norm:
+        if self.norm: # TODO: include RangeSlider
             frame = frame * (self.height / frame.max())
             self.plot.vmin = 0
             self.plot.vmax = self.height
@@ -2999,10 +3000,14 @@ class LoadSaveTopoModule(Module):
         self.difference = None
         self.loaded = None
 
-        self.transparency_difference = 0.5
-        self.cmap_difference = matplotlib.colors.ListedColormap(['Red', 'Blue'])
+        self.transparency_difference = 1
+        #self.cmap_difference = matplotlib.colors.ListedColormap(['Red', 'Blue'])
+        self.cmap_difference = None
+        self.norm_difference = None
 
         self.npz_filename = None
+
+        self.shape_frame = None
 
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
@@ -3032,6 +3037,19 @@ class LoadSaveTopoModule(Module):
         self.showBox(self.box_origin, self.box_width, self.box_height)
 
         self.projector.trigger()
+
+    def moveBox_possible(self, x, y, width, height):
+        if (x+width) >= self.calib.s_frame_width:
+            self.box_width = self.calib.s_frame_width - x
+        else:
+            self.box_width = width
+
+        if (y+height) >= self.calib.s_frame_height:
+            self.box_height = self.calib.s_frame_height - y
+        else:
+            self.box_height = height
+
+        self.box_origin = [x, y]
 
     def showBox(self, origin, width, height):
         """
@@ -3066,6 +3084,7 @@ class LoadSaveTopoModule(Module):
     def extractTopo(self):
         self.is_loaded = True
         self.absolute_topo, self.relative_topo = self.getBoxFrame()
+        self.shape_frame = self.absolute_topo.shape
         return self.absolute_topo, self.relative_topo
 
     def saveTopo(self, filename="savedTopography.npz"):
@@ -3087,8 +3106,10 @@ class LoadSaveTopoModule(Module):
 
     def showLoadedTopo(self): # Not working
         if self.is_loaded:
-            self.loaded = self.modify_to_box_coordinates(self.absolute_topo)
-            self.plot.ax.pcolormesh(self.loaded)
+            self.getBoxShape()
+            self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:self.shape_frame[0],
+                                                                            :self.shape_frame[1]])
+            self.plot.ax.pcolormesh(self.loaded, cmap='gist_earth_r')
         else:
             print("No Topography loaded, please load a Topography")
 
@@ -3104,27 +3125,44 @@ class LoadSaveTopoModule(Module):
         frame = numpy.insert(frame, 0, bot, axis=0)
         return frame
 
+    def set_cmap(self):
+        blues = plt.cm.RdBu(numpy.linspace(0, 0.5, 256))
+        reds = plt.cm.RdBu(numpy.linspace(0.5, 1, 256))
+        blues_reds = numpy.vstack((blues, reds))
+        self.cmap_difference = matplotlib.colors.LinearSegmentedColormap.from_list('difference_map', blues_reds)
+
+    def set_norm(self):
+        self.norm_difference = matplotlib.colors.TwoSlopeNorm(vmin=self.absolute_topo.min(),
+                                                              vcenter=0,
+                                                              vmax=self.absolute_topo.max())
+
+    def getBoxShape(self):
+        current_absolute_topo, current_relative_topo = self.getBoxFrame()
+        x_dimension, y_dimension = current_absolute_topo.shape
+        x_saved, y_saved = self.absolute_topo.shape
+        self.shape_frame = [numpy.min((x_dimension, x_saved)), numpy.min((y_dimension, y_saved))]
+
+    def extractDifference(self):
+        current_absolute_topo, current_relative_topo = self.getBoxFrame()
+        self.getBoxShape()
+        diff = self.absolute_topo[:self.shape_frame[0],
+                                  :self.shape_frame[1]] - \
+               current_absolute_topo[:self.shape_frame[0],
+                                     :self.shape_frame[1]]
+
+        # paste diff array at right location according to box coordinates
+        self.difference = self.modify_to_box_coordinates(diff)
+
     def showDifference(self):
-
         if self.is_loaded:
-            current_absolute_topo, current_relative_topo = self.getBoxFrame()
-
-            # Mask arrays
-            equal = current_absolute_topo == self.absolute_topo
-            more = current_absolute_topo > self.absolute_topo
-            less = current_absolute_topo < self.absolute_topo
-
-            # crate empty array and use the masks
-            diff = numpy.empty((self.box_height, self.box_width))
-            diff[equal] = numpy.nan
-            diff[more] = 1
-            diff[less] = -1
-
-            # paste diff array at right location according to box coordinates
-            self.difference = self.modify_to_box_coordinates(diff)
-
+            self.extractDifference()
             # plot
-            self.plot.ax.pcolormesh(self.difference, cmap=self.cmap_difference, alpha=self.transparency_difference)
+            self.set_cmap()
+            self.set_norm()
+            self.plot.ax.pcolormesh(self.difference,
+                                    cmap=self.cmap_difference,
+                                    alpha=self.transparency_difference,
+                                    norm=self.norm_difference)
 
         else:
             print('No topography to show difference')
@@ -3132,7 +3170,10 @@ class LoadSaveTopoModule(Module):
     def snapshotFrame(self):
         fig = plt.figure()
         ax = plt.gca()
-        ax.pcolormesh(self.absolute_topo)
+        ax.cla()
+        ax.pcolormesh(self.absolute_topo, cmap='gist_earth_r')
+        ax.axis('equal')
+        ax.set_axis_off()
         self.snapshot_frame.object = fig
         self.snapshot_frame.param.trigger('object')
 
@@ -3205,15 +3246,17 @@ class LoadSaveTopoModule(Module):
         self._widget_box_width.param.watch(self._callback_box_width, 'value', onlychanged=False)
 
         self._widget_box_height = pn.widgets.IntSlider(name='box height',
-                                                      value=self.box_height,
+                                                      value=self.box_width,
                                                       start=0,
                                                       end=self.calib.s_frame_height)
         self._widget_box_height.param.watch(self._callback_box_height, 'value', onlychanged=False)
 
+        # Snapshots
         self._widget_snapshot = pn.widgets.Button(name="Snapshot", button_type="success")
         self._widget_snapshot.param.watch(self._callback_snapshot, 'clicks',
                                                          onlychanged=False)
 
+        # Show snapshots
         self._widget_show_snapshot = pn.widgets.Checkbox(name='Show', value=False)
         self._widget_show_snapshot.param.watch(self._callback_show_snapshot, 'value',
                                                            onlychanged=False)
@@ -3225,7 +3268,7 @@ class LoadSaveTopoModule(Module):
         # Load save widgets
         self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename for the topography snapshot:')
         self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
-        self._widget_npz_filename.value = 'savedTopography.npz'
+        self._widget_npz_filename.value = 'saved_DEMs/savedTopography.npz'
 
         self._widget_save = pn.widgets.Button(name='Save')
         self._widget_save.param.watch(self._callback_save, 'clicks', onlychanged=False)
@@ -3248,17 +3291,28 @@ class LoadSaveTopoModule(Module):
             self.snapshotFrame()
 
     def _callback_move_box_horizontal(self, event):
-        self.box_origin[0] = event.new
+        self.moveBox_possible(x=event.new,
+                              y=self.box_origin[1],
+                              width=self.box_width,
+                              height=self.box_height)
 
     def _callback_move_box_vertical(self, event):
-        self.box_origin[1] = event.new
+        self.moveBox_possible(x=self.box_origin[0],
+                              y=event.new,
+                              width=self.box_width,
+                              height=self.box_height)
 
     def _callback_box_width(self, event):
-        self.box_width = event.new
-
+        self.moveBox_possible(x=self.box_origin[0],
+                              y=self.box_origin[1],
+                              width=event.new,
+                              height=self.box_height)
 
     def _callback_box_height(self, event):
-        self.box_height = event.new
+        self.moveBox_possible(x=self.box_origin[0],
+                              y=self.box_origin[1],
+                              width=self.box_width,
+                              height=event.new)
 
     def _callback_snapshot(self, event):
         self.extractTopo()
@@ -3266,9 +3320,11 @@ class LoadSaveTopoModule(Module):
 
     def _callback_show_snapshot(self, event):
         self.show_loaded = event.new
+        self.snapshotFrame()
 
     def _callback_show_difference(self, event):
         self.show_difference = event.new
+        self.snapshotDifference()
 
     def saveTopoVector(self):
         """
@@ -3558,7 +3614,7 @@ class NotebookConnection(Module):
                          contours_label=True,
                          **kwargs)
 
-        self.function_to_run=None
+        self.function_to_run = None
         self.active_connection = False
 
     def setup(self):
@@ -3616,7 +3672,7 @@ class NotebookConnection(Module):
             if self.crop:
                 frame = self.crop_frame(frame)
                 frame = self.clip_frame(frame)
-            func(*args, sandbox_ax = self.plot.ax, sandbox_frame = frame,**kwargs)
+            func(*args, sandbox_ax=self.plot.ax, sandbox_frame=frame, **kwargs)
         return inner1
 
 
