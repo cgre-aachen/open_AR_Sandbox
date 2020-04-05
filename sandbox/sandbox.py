@@ -3385,6 +3385,12 @@ class LandslideSimulation(Module):
 
         self.npz_filename = None
 
+        self.Load_Area = LoadSaveTopoModule(self.calib, self.sensor, self.projector)
+
+        self.plot_flow_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+        self._create_widgets()
+
     def setup(self):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
@@ -3406,7 +3412,7 @@ class LandslideSimulation(Module):
     def plot_landslide_frame(self):
         if self.running_simulation:
             self.simulation_frame+=1
-            if self.simulation_frame == 60:
+            if self.simulation_frame == (self.counter+1):
                 self.simulation_frame = 0
 
         if self.flow_selector =='Horizontal':
@@ -3415,7 +3421,9 @@ class LandslideSimulation(Module):
             else:
                 move = self.horizontal_flow[:, :, self.frame_selector]
 
+            move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
+            move = self.Load_Area.modify_to_box_coordinates(move)
             self.plot.ax.pcolormesh(move, cmap='hot')
 
         elif self.flow_selector == 'Vertical':
@@ -3424,8 +3432,32 @@ class LandslideSimulation(Module):
             else:
                 move = self.vertical_flow[:,:,self.frame_selector]
 
+            move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
+            move = self.Load_Area.modify_to_box_coordinates(move)
             self.plot.ax.pcolormesh(move, cmap='hot')
+
+    def plot_frame_panel(self):
+
+        x_move = numpy.round(self.horizontal_flow[:, :, self.frame_selector], decimals=1)
+        x_move[x_move == 0] = numpy.nan
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        hor = ax1.pcolormesh(x_move, cmap='hot')
+        ax1.axis('equal')
+        ax1.set_axis_off()
+        ax1.set_title('Horizontal Flow')
+        fig.colorbar(hor, ax=ax1)
+
+        y_move = numpy.round(self.vertical_flow[:, :, self.frame_selector], decimals=1)
+        y_move[y_move == 0] = numpy.nan
+        ver = ax2.pcolormesh(y_move, cmap='hot')
+        ax2.axis('equal')
+        ax2.set_axis_off()
+        ax2.set_title('Vertical Flow')
+        fig.colorbar(ver, ax=ax2)
+
+        self.plot_flow_frame.object = fig
+        self.plot_flow_frame.param.trigger('object')
 
     def load_data_asc(self, infile):
         f = open(infile, "r")
@@ -3496,7 +3528,6 @@ class LandslideSimulation(Module):
         self.counter = self.horizontal_flow.shape[2] - 1
 
     def show_widgets(self):
-        self._create_widgets()
         tabs = pn.Tabs(('Controllers', self.show_tools()),
                        ('Load Simulation', self.show_load())
                        )
@@ -3504,16 +3535,16 @@ class LandslideSimulation(Module):
 
     def show_tools(self):
         widgets = pn.WidgetBox('<b>Select Flow </b>',
-                               self._widget_select_h_direction,
-                               self._widget_select_v_direction,
+                               self._widget_select_direction,
                                '<b>Select Frame </b>',
                                self._widget_frame_selector,
                                '<b>Run Simulation</b>',
-                               self._widget_run_simulation,
-                               self._widget_stop_simulation
+                               self._widget_simulation,
                                )
 
-        panel = pn.Column("### Interaction widgets", widgets)
+        rows = pn.Row(widgets, self.plot_flow_frame)
+        panel = pn.Column("### Interaction widgets", rows)
+
         return panel
 
     def show_load(self):
@@ -3534,21 +3565,17 @@ class LandslideSimulation(Module):
                                                   end=self.counter)
         self._widget_frame_selector.param.watch(self._callback_select_frame, 'value', onlychanged=False)
 
-        self._widget_select_h_direction = pn.widgets.Button(name="Horizontal Flow", button_type="success")
-        self._widget_select_h_direction.param.watch(self._callback_set_h_direction, 'clicks',
-                                                      onlychanged=False)
+        self._widget_select_direction = pn.widgets.RadioButtonGroup(name='Flow direction selector',
+                                             options=['None', 'Horizontal', 'Vertical'],
+                                             value=['None'],
+                                             button_type='success')
+        self._widget_select_direction.param.watch(self._callback_set_direction, 'value', onlychanged=False)
 
-        self._widget_select_v_direction = pn.widgets.Button(name="Vertical Flow", button_type="success")
-        self._widget_select_v_direction.param.watch(self._callback_set_v_direction, 'clicks',
-                                                  onlychanged=False)
-
-        self._widget_run_simulation = pn.widgets.Button(name="Run", button_type="success")
-        self._widget_run_simulation.param.watch(self._callback_run_simulation, 'clicks',
-                                                    onlychanged=False)
-
-        self._widget_stop_simulation = pn.widgets.Button(name="Stop", button_type="success")
-        self._widget_stop_simulation.param.watch(self._callback_stop_simulation, 'clicks',
-                                                onlychanged=False)
+        self._widget_simulation = pn.widgets.RadioButtonGroup(name='Run or stop simulation',
+                                                                    options=['Run', 'Stop'],
+                                                                    value=['Stop'],
+                                                                    button_type='success')
+        self._widget_simulation.param.watch(self._callback_simulation, 'value', onlychanged=False)
 
         # Load widgets
         self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to load the simulation:')
@@ -3560,42 +3587,36 @@ class LandslideSimulation(Module):
 
         return True
 
+    def _callback_set_direction(self, event):
+        #self.pause()
+        self.flow_selector = event.new
+        self.plot_landslide_frame()
+        #self.resume()
+
     def _callback_filename(self, event):
         self.npz_filename = event.new
 
     def _callback_load(self, event):
         if self.npz_filename is not None:
             self.load_simulation_data_npz(infile=self.npz_filename)
+            self._widget_frame_selector.end = self.counter + 1
+            self.plot_frame_panel()
 
     def _callback_select_frame(self, event):
-        self.pause()
+        #self.pause()
         self.frame_selector = event.new
         self.plot_landslide_frame()
-        self.resume()
+        self.plot_frame_panel()
+        #self.resume()
 
-    def _callback_set_h_direction(self, event):
-        self.pause()
-        self.flow_selector = 'Horizontal'
+    def _callback_simulation(self,event):
+        #self.pause()
+        if event.new == 'Run':
+            self.running_simulation = True
+        else:
+            self.running_simulation = False
         self.plot_landslide_frame()
-        self.resume()
-
-    def _callback_set_v_direction(self, event):
-        self.pause()
-        self.flow_selector = 'Vertical'
-        self.plot_landslide_frame()
-        self.resume()
-
-    def _callback_run_simulation(self, event):
-        self.pause()
-        self.running_simulation = True
-        self.plot_landslide_frame()
-        self.resume()
-
-    def _callback_stop_simulation(self, event):
-        self.pause()
-        self.running_simulation = False
-        self.plot_landslide_frame()
-        self.resume()
+        #self.resume()
 
 
 class NotebookConnection(Module):
