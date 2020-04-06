@@ -1457,7 +1457,7 @@ class CalibModule(Module):
         # self._widget_json_location = pn.widgets.FileInput(name='JSON location')
         self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
         self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
-        self._widget_json_filename.value = 'calibration.json'
+        self._widget_json_filename.value = '../../calibration_files/my_calibration.json'
 
         self._widget_json_save = pn.widgets.Button(name='Save calibration')
         self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
@@ -1619,6 +1619,7 @@ class TopoModule(Module):
     Module for simple Topography visualization without computing a geological model
     """
 
+    # TODO: create widgets
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         self.height = 2000
@@ -3635,7 +3636,7 @@ class LandslideSimulation(Module):
         #self.resume()
 
 
-class NotebookConnection(Module):
+class PrototypingModule(Module):
     """
     Class for the connectivity between Notebook plotting and sandbox image in live thread
     """
