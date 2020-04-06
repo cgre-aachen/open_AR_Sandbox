@@ -1137,7 +1137,7 @@ class Module(object):
         self.thread = None
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
 
-        #connect to ArucoMarker class
+        # connect to ArucoMarker class
         if CV2_IMPORT is True:
             self.Aruco = Aruco
         self.automatic_calibration = False
@@ -1665,7 +1665,8 @@ class TopoModule(Module):
 
         self.plot.render_frame(frame)
 
-       # if aruco Module is specified:search, update, plot aruco markers
+
+        # if aruco Module is specified:search, update, plot aruco markers
         if isinstance(self.Aruco, ArucoMarkers):
             self.Aruco.search_aruco()
             self.Aruco.update_marker_dict()
@@ -3036,6 +3037,13 @@ class LoadSaveTopoModule(Module):
 
         self.showBox(self.box_origin, self.box_width, self.box_height)
 
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.plot.plot_aruco(self.Aruco.aruco_markers)
+
         self.projector.trigger()
 
     def moveBox_possible(self, x, y, width, height):
@@ -3174,6 +3182,7 @@ class LoadSaveTopoModule(Module):
         ax.pcolormesh(self.absolute_topo, cmap='gist_earth_r')
         ax.axis('equal')
         ax.set_axis_off()
+        ax.set_title('Loaded Topography')
         self.snapshot_frame.object = fig
         self.snapshot_frame.param.trigger('object')
 
@@ -3385,7 +3394,7 @@ class LandslideSimulation(Module):
 
         self.npz_filename = None
 
-        self.Load_Area = LoadSaveTopoModule(self.calib, self.sensor, self.projector)
+        self.Load_Area = LoadSaveTopoModule(*args, **kwargs)
 
         self.plot_flow_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
@@ -3407,11 +3416,18 @@ class LandslideSimulation(Module):
 
         self.plot_landslide_frame()
 
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.plot.plot_aruco(self.Aruco.aruco_markers)
+
         self.projector.trigger()
 
     def plot_landslide_frame(self):
         if self.running_simulation:
-            self.simulation_frame+=1
+            self.simulation_frame += 1
             if self.simulation_frame == (self.counter+1):
                 self.simulation_frame = 0
 
@@ -3603,11 +3619,11 @@ class LandslideSimulation(Module):
             self.plot_frame_panel()
 
     def _callback_select_frame(self, event):
-        #self.pause()
+        self.pause()
         self.frame_selector = event.new
         self.plot_landslide_frame()
         self.plot_frame_panel()
-        #self.resume()
+        self.resume()
 
     def _callback_simulation(self,event):
         #self.pause()
