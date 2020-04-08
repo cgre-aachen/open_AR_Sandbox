@@ -646,7 +646,7 @@ class Projector(object):
         return True
 
 
-class Plot:
+class Plot: # TODO: create widgets to modify map visualization and change aruco visualization
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
@@ -911,7 +911,7 @@ class Plot:
                                 extent=extent, zorder=zorder)
             c_id += len(level)
 
-    def plot_aruco(self, df_position): # Not implemented yet
+    def plot_aruco(self, df_position):
         if len(df_position) > 0:
 
             self.ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
@@ -3011,6 +3011,10 @@ class LoadSaveTopoModule(Module):
 
         self.shape_frame = None
 
+        self.release_width = 20
+        self.release_height = 10
+        self.release_area = None
+
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
 
@@ -3044,6 +3048,7 @@ class LoadSaveTopoModule(Module):
             self.Aruco.update_marker_dict()
             self.Aruco.transform_to_box_coordinates()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
+            self.plot_release_area(self.Aruco.aruco_markers, self.release_width, self.release_height)
 
         self.projector.trigger()
 
@@ -3059,6 +3064,19 @@ class LoadSaveTopoModule(Module):
             self.box_height = height
 
         self.box_origin = [x, y]
+
+    def plot_release_area(self, center, width, height):
+        if len(center) > 0:
+            x_pos = center[center['is_inside_box']]['box_x'].values[0]
+            y_pos = center[center['is_inside_box']]['box_y'].values[0]
+            x_origin = x_pos - width/2
+            y_origin = y_pos - height/2
+            self.release_area = numpy.array([[x_origin, y_origin],
+                                             [x_origin, y_origin+height],
+                                             [x_origin+width, y_origin],
+                                             [x_origin+width, y_origin+height]])
+            #for i in range(len(x_pos)):
+        self.showBox([x_origin, y_origin], width, height)
 
     def showBox(self, origin, width, height):
         """
@@ -3714,7 +3732,7 @@ class PrototypingModule(Module):
         return inner1
 
 
-class ArucoMarkers(object):
+class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
