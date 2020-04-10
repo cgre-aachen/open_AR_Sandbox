@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
 import pickle
 import scipy
@@ -993,7 +994,7 @@ class Scale(object):
         self.pixel_size[0] = float(self.calibration.box_width) / float(self.output_res[0])
         self.pixel_size[1] = float(self.calibration.box_height) / float(self.output_res[1])
 
-        # TODO: change the extrent in place!! or create a new extent object that stores the extent after that modification.
+        # TODO: change the extent in place!! or create a new extent object that stores the extent after that modification.
         if self.xy_isometric:  # model is extended in one horizontal direction to fit  into box while the scale
             # in both directions is maintained
             print("Aspect ratio of the model is fixed in XY")
@@ -2988,8 +2989,8 @@ class LoadSaveTopoModule(Module):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
         self.box_origin = [10, 10]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
-        self.box_width = 200
-        self.box_height = 150
+        self.box_width = 230
+        self.box_height = 190
         self.absolute_topo = None
         self.relative_topo = None
 
@@ -3011,9 +3012,12 @@ class LoadSaveTopoModule(Module):
 
         self.shape_frame = None
 
-        self.release_width = 20
+        self.release_width = 10
         self.release_height = 10
         self.release_area = None
+        self.release_area_origin = None
+        self.aruco_release_area_origin = None
+
 
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
@@ -3048,7 +3052,13 @@ class LoadSaveTopoModule(Module):
             self.Aruco.update_marker_dict()
             self.Aruco.transform_to_box_coordinates()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
-            self.plot_release_area(self.Aruco.aruco_markers, self.release_width, self.release_height)
+            self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[self.Aruco.aruco_markers.is_inside_box,
+                                                                    ('box_x', 'box_y')]
+
+
+        self.plot_release_area(self.release_area_origin, self.release_width, self.release_height)
+        #self.add_release_area_origin(self.release_area_origin)
+
 
         self.projector.trigger()
 
@@ -3065,18 +3075,27 @@ class LoadSaveTopoModule(Module):
 
         self.box_origin = [x, y]
 
+    def add_release_area_origin(self, x=None, y=None):
+        if self.release_area_origin is None:
+            self.release_area_origin = pd.DataFrame(columns=(('box_x','box_y')))
+        if self.aruco_release_area_origin is None:
+            self.aruco_release_area_origin = pd.DataFrame(columns=(('box_x', 'box_y')))
+        self.release_area_origin = pd.concat((self.release_area_origin, self.aruco_release_area_origin))
+        if x is not None and y is not None:
+            self.release_area_origin = self.release_area_origin.append({'box_x': x, 'box_y': y}, ignore_index=True)
+
     def plot_release_area(self, center, width, height):
-        if len(center) > 0:
-            x_pos = center[center['is_inside_box']]['box_x'].values[0]
-            y_pos = center[center['is_inside_box']]['box_y'].values[0]
-            x_origin = x_pos - width/2
-            y_origin = y_pos - height/2
-            self.release_area = numpy.array([[x_origin, y_origin],
-                                             [x_origin, y_origin+height],
-                                             [x_origin+width, y_origin],
-                                             [x_origin+width, y_origin+height]])
-            #for i in range(len(x_pos)):
-        self.showBox([x_origin, y_origin], width, height)
+        if center is not None:
+            x_pos = center.box_x
+            y_pos = center.box_y
+            x_origin = x_pos.values - width/2
+            y_origin = y_pos.values - height/2
+            self.release_area = numpy.array([[x_origin-self.box_origin[0], y_origin-self.box_origin[1]],
+                                             [x_origin - self.box_origin[0], y_origin+height-self.box_origin[1]],
+                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]],
+                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]]])
+            for i in range(len(x_pos)):
+                self.showBox([x_origin[i], y_origin[i]], width, height)
 
     def showBox(self, origin, width, height):
         """
@@ -3118,18 +3137,16 @@ class LoadSaveTopoModule(Module):
         numpy.savez(filename,
                     self.absolute_topo,
                     self.relative_topo,
-                    self.box_origin,
-                    self.box_height,
-                    self.box_width)
+                    self.release_area)
+        print('Save successful')
 
     def loadTopo(self, filename="savedTopography.npz"):
         self.is_loaded = True
         files = numpy.load(filename, allow_pickle=True)
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
-        self.box_origin = files['arr_2']
-        self.box_height = files['arr_3']
-        self.box_width = files['arr_4']
+        self.release_area = files['arr_2']
+        print('Load successful')
 
     def showLoadedTopo(self): # Not working
         if self.is_loaded:
@@ -3206,11 +3223,22 @@ class LoadSaveTopoModule(Module):
         self.snapshot_frame.param.trigger('object')
 
     def show_widgets(self):
+        self._create_widgets()
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
+                       ('Release area widgets', self.widgets_release_area()),
                        ('Save Topography', self.widgets_save()),
                        ('Load Topography', self.widgets_load())
                        )
         return tabs
+
+    def widgets_release_area(self):
+        widgets = pn.WidgetBox('<b>Modify the size and shape of the release area </b>',
+                               self._widget_release_width,
+                               self._widget_release_height,
+                               self._widget_show_release)
+        panel = pn.Column("### Shape release area", widgets)
+
+        return panel
 
     def widgets_box(self):
         widgets = pn.WidgetBox('<b>Modify box size </b>',
@@ -3274,7 +3302,7 @@ class LoadSaveTopoModule(Module):
         self._widget_box_width.param.watch(self._callback_box_width, 'value', onlychanged=False)
 
         self._widget_box_height = pn.widgets.IntSlider(name='box height',
-                                                      value=self.box_width,
+                                                      value=self.box_height,
                                                       start=0,
                                                       end=self.calib.s_frame_height)
         self._widget_box_height.param.watch(self._callback_box_height, 'value', onlychanged=False)
@@ -3304,7 +3332,38 @@ class LoadSaveTopoModule(Module):
         self._widget_load = pn.widgets.Button(name='Load')
         self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
 
+        # Release area widgets
+        self._widget_release_width = pn.widgets.IntSlider(name='Release area width',
+                                                      value=self.release_width,
+                                                      start=1,
+                                                      end=50)
+        self._widget_release_width.param.watch(self._callback_release_width, 'value', onlychanged=False)
+
+        self._widget_release_height = pn.widgets.IntSlider(name='Release area height',
+                                                          value=self.release_height,
+                                                          start=1,
+                                                          end=50)
+        self._widget_release_height.param.watch(self._callback_release_height, 'value', onlychanged=False)
+
+        self._widget_show_release = pn.widgets.RadioButtonGroup(name='Show or erase the areas',
+                                                              options=['Show', 'Erase'],
+                                                              value=['Erase'],
+                                                              button_type='success')
+        self._widget_show_release.param.watch(self._callback_show_release, 'value', onlychanged=False)
+
         return True
+
+    def _callback_show_release(self, event):
+        if event.new == 'Show':
+            self.add_release_area_origin()
+        else:
+            self.release_area_origin = None
+
+    def _callback_release_width(self, event):
+        self.release_width = event.new
+
+    def _callback_release_height(self, event):
+        self.release_height = event.new
 
     def _callback_filename(self, event):
         self.npz_filename = event.new
@@ -3494,7 +3553,7 @@ class LandslideSimulation(Module):
         self.plot_flow_frame.object = fig
         self.plot_flow_frame.param.trigger('object')
 
-    def load_data_asc(self, infile):
+    def _load_data_asc(self, infile):
         f = open(infile, "r")
         self.ncols = int(f.readline().split()[1])
         self.nrows = int(f.readline().split()[1])
@@ -3505,7 +3564,7 @@ class LandslideSimulation(Module):
         self.asc_data = numpy.reshape(numpy.array([float(i) for i in f.read().split()]), (self.nrows, self.ncols))
         return self.asc_data
 
-    def load_data_xyz(self, infile):
+    def _load_data_xyz(self, infile):
         f = open(infile, "r")
         self.ncols, self.nrows = map(int, f.readline().split())
         self.a_line = numpy.array([float(i) for i in f.readline().split()])
@@ -3513,45 +3572,45 @@ class LandslideSimulation(Module):
         self.xyz_data = numpy.reshape(numpy.array([float(i) for i in f.read().split()]), (self.nrows, self.ncols))
         return self.xyz_data
 
-    def load_release_area_rel(self, infile):
+    def _load_release_area_rel(self, infile):
         f = open(infile, "r")
         data = numpy.array([float(i) for i in f.read().split()])
         self.release_area = numpy.reshape(data[1:], (int(data[0]), 2))
         return self.release_area
 
-    def load_out_hazard_map_asc(self, infile):
+    def _load_out_hazard_map_asc(self, infile):
         f = open(infile, "r")
         data = numpy.array([float(i) for i in f.read().split()])
         self.hazard_map = numpy.reshape(data, (data.shape[0]/3, 3))
         return self.hazard_map
 
-    def load_out_maxheight_asc(self, infile):
+    def _load_out_maxheight_asc(self, infile):
         f = open(infile, "r")
         self.max_height = numpy.array([float(i) for i in f.read().split()])
         return self.max_height
 
-    def load_out_maxvelocity_asc(self, infile):
+    def _load_out_maxvelocity_asc(self, infile):
         f = open(infile, "r")
         self.max_velocity = numpy.array([float(i) for i in f.read().split()])
         return self.max_velocity
 
-    def load_domain_dom(self, infile):
+    def _load_domain_dom(self, infile):
         f = open(infile, "r")
         self.domain = numpy.array([float(i) for i in f.read().split()])
         return self.domain
 
-    def load_npz(self, infile):
+    def _load_npz(self, infile):
         files = numpy.load(infile)
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
         return self.absolute_topo, self.relative_topo
 
-    def load_vertical_npy(self, infile):
+    def _load_vertical_npy(self, infile):
         self.vertical_flow = numpy.load(infile)
         self.counter = self.vertical_flow.shape[2]-1
         return self.vertical_flow
 
-    def load_horizontal_npy(self, infile):
+    def _load_horizontal_npy(self, infile):
         self.horizontal_flow = numpy.load(infile)
         self.counter = self.horizontal_flow.shape[2] - 1
         return self.horizontal_flow
@@ -3560,6 +3619,7 @@ class LandslideSimulation(Module):
         files = numpy.load(infile)
         self.vertical_flow = files['arr_0']
         self.horizontal_flow = files['arr_1']
+        self.release_area = files['arr_2']
         self.counter = self.horizontal_flow.shape[2] - 1
 
     def show_widgets(self):
@@ -3615,7 +3675,7 @@ class LandslideSimulation(Module):
         # Load widgets
         self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to load the simulation:')
         self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
-        self._widget_npz_filename.value = 'simulation_results_for_sandbox.npz'
+        self._widget_npz_filename.value = 'simulation_data/simulation_results_for_sandbox.npz'
 
         self._widget_load = pn.widgets.Button(name='Load')
         self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
