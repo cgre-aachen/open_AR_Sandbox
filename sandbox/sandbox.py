@@ -931,6 +931,11 @@ class Plot: # TODO: create widgets to modify map visualization and change aruco 
 
             self.ax.set_axis_off()
 
+    def widgets_aruco(self):
+        pass
+
+    def widgets_plot(self):
+        pass
 
 class Scale(object):
     """
@@ -2384,7 +2389,7 @@ class BlockModule(Module):
 class GemPyModule(Module):
 
     #def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
-    def __init__(self,geo_model, *args, ** kwargs):
+    def __init__(self, geo_model, *args, ** kwargs):
         super().__init__(*args, **kwargs)  # call parent init
 
 
@@ -2421,6 +2426,11 @@ class GemPyModule(Module):
 
         self.plot_topography = True
         self.plot_faults = True
+        self.cross_section = None
+        self.section_dict = None
+        self.resolution_section = [30, 30]
+        self.fig_cross_section = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
 
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos=pd.DataFrame()
@@ -2479,10 +2489,24 @@ class GemPyModule(Module):
             self.Aruco.transform_to_box_coordinates()
             self.compute_modelspace_arucos()
             self.plot.plot_aruco(self.modelspace_arucos)
+            self.get_section_dict()
 
         self.projector.trigger()
 
         return True
+
+    def get_section_dict(self):
+        df = self.modelspace_arucos.loc[self.modelspace_arucos.is_inside_box, ('box_x', 'box_y')]
+        x = df.box_x.values
+        y = df.box_y.values
+        self.section_dict = {'section1': ([x[0], y[0]], [x[1], y[1]],self.resolution_section)}
+
+    def set_section_grid(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.geo_model.grid.active_grids
+
+    def calculate_cross_section(self):
+        self.cross_section = gempy._plot.plot_2d(self.geo_model, section_names=['section1'])
 
     def compute_modelspace_arucos(self):
         df = self.Aruco.aruco_markers.copy()
@@ -2535,10 +2559,30 @@ class GemPyModule(Module):
         :return:
         """
         # used to be with self.lock:
-        self.stop()
+        self.pause()
         self.geo_model = self.model_dict[event.new]
         self.setup()
         self.run()
+
+    def widget_cross_section(self):
+        self._create_widgets()
+        widgets = pn.WidgetBox('<b>Create a cross section</b>',
+                               self._widget_show_CrossSection)
+        rows = pn.Row(widgets, self.fig_cross_section)
+        panel = pn.Column('### Creation of Cross Section', rows)
+
+        return panel
+
+    def _create_widgets(self):
+        self._widget_show_CrossSection = pn.widgets.Button(name="Show", button_type="success")
+        self._widget_show_CrossSection.param.watch(self._callback_show_cross_section, 'clicks',
+                                                         onlychanged=False)
+
+    def _callback_show_cross_section(self, event):
+        self.set_section_grid()
+        self.calculate_cross_section()
+        self.fig_cross_section.object = self.cross_section.fig
+        self.fig_cross_section.object.param.trigger('object')
 
 
 class GeoMapModule:
