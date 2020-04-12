@@ -2429,8 +2429,16 @@ class GemPyModule(Module):
         self.cross_section = None
         self.section_dict = None
         self.resolution_section = [30, 30]
-        self.fig_cross_section = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        self.section_traces = None
+        self.geological_map = None
+        self.section_actual_model = None
+        self.fig_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
+        self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+        #self.fig_section_traces = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        #plt.close()
+        #self.fig_geological_map =
 
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos=pd.DataFrame()
@@ -2489,24 +2497,53 @@ class GemPyModule(Module):
             self.Aruco.transform_to_box_coordinates()
             self.compute_modelspace_arucos()
             self.plot.plot_aruco(self.modelspace_arucos)
-            self.get_section_dict()
+            self.get_section_dict(self.modelspace_arucos)
 
         self.projector.trigger()
 
         return True
 
-    def get_section_dict(self):
-        df = self.modelspace_arucos.loc[self.modelspace_arucos.is_inside_box, ('box_x', 'box_y')]
-        x = df.box_x.values
-        y = df.box_y.values
-        self.section_dict = {'section1': ([x[0], y[0]], [x[1], y[1]],self.resolution_section)}
+    def get_section_dict(self, df):
+        df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
+        if len(df) > 0:
+            x = df.box_x.values
+            y = df.box_y.values
+            self.section_dict = {'section1': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
 
-    def set_section_grid(self):
+    def _plot_section_traces(self):
         self.geo_model.set_section_grid(self.section_dict)
-        self.geo_model.grid.active_grids
+        self.section_traces = gempy._plot.plot_section_traces(self.geo_model)
 
-    def calculate_cross_section(self):
-        self.cross_section = gempy._plot.plot_2d(self.geo_model, section_names=['section1'])
+    def plot_section_traces(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.section_traces = gempy.plot.plot_section_traces(self.geo_model)
+
+    def plot_cross_section(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.cross_section = gempy.plot.plot_section_by_name(self.geo_model, 'section1')
+
+    def _plot_cross_section(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.cross_section = gempy._plot.plot_2d(self.geo_model, section_names=['section1'], figsize=(8,8))
+
+    def _plot_geological_map(self):
+        self.geological_map = gempy._plot.plot_2d(self.geo_model, section_names=['topography'], show_data=False)
+
+    def _plot_geological_map(self):
+        self.geological_map = gempy._plot.plot_2d(self.geo_model, section_names=['topography'], show_data=False)
+
+    def plot_geological_map(self):
+        self.geological_map = gempy.plot.plot_map(self.geo_model)
+
+    def plot_actual_model(self, name):
+        self.geo_model.set_section_grid({'section' + ' ' + name: ([0, 500], [1000, 500], [30, 30])})
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        self.section_actual_model = gempy.plot.plot_section_by_name(self.geo_model, 'section' + ' ' + name,
+                                                                    show_data=False)
+    def _plot_actual_model(self, name):
+        self.geo_model.set_section_grid({'section' + ' ' + name: ([0, 500], [1000, 500], [30, 30])})
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        self.section_actual_model = gempy._plot.plot_2d(self.geo_model, section_names=['section' + ' ' + name], show_data=False)
 
     def compute_modelspace_arucos(self):
         df = self.Aruco.aruco_markers.copy()
@@ -2523,66 +2560,71 @@ class GemPyModule(Module):
         self.original_sensor_min = self.calib.s_min  # store original sensor values on start
         self.original_sensor_max = self.calib.s_max
 
-        widgets = pn.WidgetBox(self._widget_model_selector(Model_dict)
-                              # self._widget_sensor_top_slider(),
-                              # self._widget_sensor_bottom_slider(),
-                              # self._widget_sensor_position_slider(),
-                              # self._widget_show_reservoir_topography(),
-                              # self._widget_reservoir_contours_num(),
-                              # self._widget_contours_num()
-                               )
+        tabs = pn.Tabs(('Select Model', self.widget_model_selector(Model_dict)),
+                       ('Plot 2D', self.widget_plot2d())
+                       )
 
-        panel = pn.Column("### Interaction widgets", widgets)
-        self.widget = panel
-        return panel
+        return tabs
 
-    def _widget_model_selector(self, Model_dict):
-        """
-        displays a widget to toggle between the currently active dataset while the sandbox is running
-        Returns:
-
-        """
+    def widget_model_selector(self, Model_dict):
         self.model_dict = Model_dict
         pn.extension()
-        widget = pn.widgets.RadioButtonGroup(name='Model selector',
-                                             options=list(Model_dict.keys()),
-                                             value=list(Model_dict.keys())[0],
+        self._widget_model_selector = pn.widgets.RadioButtonGroup(name='Model selector',
+                                                                  options=list(self.model_dict.keys()),
+                                                                  value=list(self.model_dict.keys())[0],
+                                                                  button_type='success')
+
+        self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
+        widgets = pn.WidgetBox(self._widget_model_selector,
+                               self.fig_actual_model
+                               )
+
+        panel = pn.Column("### Model Selector widgets", widgets)
+        return panel
+
+    def widget_plot2d(self):
+        self._create_widgets()
+        widgets = pn.WidgetBox('<b>Create a cross section</b>',
+                               self._widget_select_plot2d,
+                               self.fig_plot_2d
+                               )
+        panel = pn.Column('### Creation of 2D Plots', widgets)
+        return panel
+
+    def _create_widgets(self):
+        pn.extension()
+        self._widget_select_plot2d = pn.widgets.RadioButtonGroup(name='Plot 2D',
+                                             options=['Geological_map', 'Section_traces', 'Cross_Section'],
+                                             value=['Geological_map'],
                                              button_type='success')
-
-        widget.param.watch(self._callback_selection, 'value', onlychanged=False)
-
-        return widget
+        self._widget_select_plot2d.param.watch(self._callback_selection_plot2d, 'value', onlychanged=False)
 
     def _callback_selection(self, event):
         """
         callback function for the widget to update the self.
         :return:
         """
-        # used to be with self.lock:
         self.pause()
         self.geo_model = self.model_dict[event.new]
         self.setup()
+        self._plot_actual_model(event.new)
+        self.fig_actual_model.object = self.section_actual_model.fig
+        self.fig_actual_model.object.param.trigger('object')
         self.run()
 
-    def widget_cross_section(self):
-        self._create_widgets()
-        widgets = pn.WidgetBox('<b>Create a cross section</b>',
-                               self._widget_show_CrossSection)
-        rows = pn.Row(widgets, self.fig_cross_section)
-        panel = pn.Column('### Creation of Cross Section', rows)
-
-        return panel
-
-    def _create_widgets(self):
-        self._widget_show_CrossSection = pn.widgets.Button(name="Show", button_type="success")
-        self._widget_show_CrossSection.param.watch(self._callback_show_cross_section, 'clicks',
-                                                         onlychanged=False)
-
-    def _callback_show_cross_section(self, event):
-        self.set_section_grid()
-        self.calculate_cross_section()
-        self.fig_cross_section.object = self.cross_section.fig
-        self.fig_cross_section.object.param.trigger('object')
+    def _callback_selection_plot2d(self, event):
+        if event.new == 'Geological_map':
+            self._plot_geological_map()
+            self.fig_plot_2d.object = self.geological_map.fig
+            self.fig_plot_2d.object.param.trigger('object')
+        elif event.new == 'Section_traces':
+            self._plot_section_traces()
+            self.fig_plot_2d.object = self.section_traces.fig
+            self.fig_plot_2d.object.param.trigger('object')
+        elif event.new == 'Cross_Section':
+            self._plot_cross_section()
+            self.fig_plot_2d.object = self.cross_section.fig
+            self.fig_plot_2d.object.param.trigger('object')
 
 
 class GeoMapModule:
