@@ -903,11 +903,11 @@ class Plot: # TODO: create widgets to modify map visualization and change aruco 
             zorder = zorder - (f_id + len(level))
 
             if f_id >= len(faults):
-                self.ax.contourf(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self.cmap.colors[c_id:c_id2][::-1],
+                self.ax.contourf(block, 0, levels=numpy.sort(levels), colors=self.cmap.colors[c_id:c_id2][::-1],
                                  linestyles='solid', origin='lower',
                                  extent=extent, zorder=zorder)
             else:
-                self.ax.contour(numpy.fliplr(block.T), 0, levels=numpy.sort(levels), colors=self.cmap.colors[c_id:c_id2][0],
+                self.ax.contour(block, 0, levels=numpy.sort(levels), colors=self.cmap.colors[c_id:c_id2][0],
                                 linestyles='solid', origin='lower',
                                 extent=extent, zorder=zorder)
             c_id += len(level)
@@ -1061,21 +1061,9 @@ class Grid(object):
         Returns:
 
         """
-
-        """compare:
-        grid_list = []
-        for x in range(self.output_res[1]):
-            for y in range(self.output_res[0]):
-                grid_list.append([y * self.scale.pixel_scale[1] + self.scale.extent[2], x * self.scale.pixel_scale[0] + 
-                self.scale.extent[0]])
-        """
-
-        x_mirrored = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
-        # above: old way to create the depth grid resulted in a mirrored model! it works but is flipped towards the model in gempy
-
-        x = numpy.linspace(self.scale.extent[1], self.scale.extent[0], self.scale.output_res[0])
-        y = numpy.linspace(self.scale.extent[2], self.scale.extent[3], self.scale.output_res[1])
-        xx, yy = numpy.meshgrid(x, y, indexing='ij')
+        width = numpy.linspace(self.scale.extent[0], self.scale.extent[1], self.scale.output_res[0])
+        height = numpy.linspace(self.scale.extent[2], self.scale.extent[3], self.scale.output_res[1])
+        xx, yy = numpy.meshgrid(width, height)
         self.empty_depth_grid = numpy.vstack([xx.ravel(), yy.ravel()]).T
 
         print("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
@@ -1084,39 +1072,25 @@ class Grid(object):
               str(self.empty_depth_grid[-1, 1]) + "] "
               )
 
-        # return self.empty_depth_grid
-
-    def update_grid(self, depth): #TODO: Can all this be shortened using the cropped depth image?
+    def update_grid(self, cropped_frame):
         """
+        The frame that is passed here is cropped and clipped
         Appends the z (depth) coordinate to the empty depth grid.
         this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed.
         For performance reasons these steps are therefore separated.
 
         Args:
-            depth:
+            cropped_frame: The frame that is passed here is cropped and clipped
 
         Returns:
 
         """
+        scaled_frame = self.scale.extent[5] - \
+                       ((cropped_frame - self.calibration.s_min) /
+                        (self.calibration.s_max - self.calibration.s_min) *
+                        (self.scale.extent[5] - self.scale.extent[4]))
 
-       # filtered_depth = numpy.ma.masked_outside(depth, self.calibration.s_min,
-       #                                          self.calibration.s_max)
-        filtered_depth = depth
-        scaled_depth = self.scale.extent[5] - (
-                (filtered_depth - self.calibration.s_min) / (
-                self.calibration.s_max -
-                self.calibration.s_min) * (self.scale.extent[5] - self.scale.extent[4]))
-     #  rotated_depth = scipy.ndimage.rotate(scaled_depth, self.calibration.calibration_data.rot_angle,
-     #                                      reshape=False)
-        #cropped_depth = rotated_depth[self.calibration.calibration_data.y_lim[0]:
-        if self.crop == True:
-            cropped_depth = numpy.rot90(scaled_depth[self.calibration.s_bottom:(self.calibration.s_bottom+self.calibration.s_frame_height),
-                                         self.calibration.s_left:(self.calibration.s_left+self.calibration.s_frame_width)])
-        else:
-            cropped_depth = numpy.rot90(scaled_depth)
-
-        #flattened_depth = numpy.reshape(cropped_depth, (numpy.shape(self.empty_depth_grid)[0], 1))
-        flattened_depth = cropped_depth.ravel().reshape(self.scale.output_res).ravel()
+        flattened_depth = scaled_frame.ravel()
         depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
 
         self.depth_grid = depth_grid
@@ -2412,23 +2386,13 @@ class GemPyModule(Module):
         self.grid = None
         self.scale = None
         self.plot = None
-        self.widget = None
         self.model_dict = None
-
-       # self.fault_line = self.create_fault_line(0, self.geo_model.geo_data_res.n_faults + 0.5001)
-       # self.main_contours = self.create_main_contours(self.kinect_grid.scale.extent[4],
-       #                                                self.kinect_grid.scale.extent[5])
-       # self.sub_contours = self.create_sub_contours(self.kinect_grid.scale.extent[4],
-       #                                              self.kinect_grid.scale.extent[5])
-
-       #self.x_grid = range(self.kinect_grid.scale.output_res[0])
-       # self.y_grid = range(self.kinect_grid.scale.output_res[1])
-
         self.plot_topography = True
         self.plot_faults = True
         self.cross_section = None
         self.section_dict = None
-        self.resolution_section = [30, 30]
+        self.resolution_section = [150, 100]
+        self.figsize = (10, 10)
         self.section_traces = None
         self.geological_map = None
         self.section_actual_model = None
@@ -2436,9 +2400,6 @@ class GemPyModule(Module):
         plt.close()
         self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
-        #self.fig_section_traces = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
-        #plt.close()
-        #self.fig_geological_map =
 
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos=pd.DataFrame()
@@ -2454,38 +2415,50 @@ class GemPyModule(Module):
         self.init_topography()
        # self.grid.update_grid() #update the grid object for the first time
 
-        self.plot = Plot(self.calib, self.geo_model, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
+        self.plot = Plot(self.calib, model=self.geo_model, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
 
         self.projector.frame.object = self.plot.figure  # Link figure to projector
 
     def init_topography(self):
-        self.grid.update_grid(self.sensor.get_filtered_frame())
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+            frame = self.clip_frame(frame)
+
+        self.grid.update_grid(frame)
         self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
         self.geo_model.grid.topography.extent = self.scale.extent[:4]
-        self.geo_model.grid.topography.resolution = self.scale.output_res
+        self.geo_model.grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
         self.geo_model.grid.topography.values = self.grid.depth_grid
-        self.geo_model.grid.topography.values_3D = numpy.dstack([self.grid.depth_grid[:, 0].reshape(self.scale.output_res),
-                                                         self.grid.depth_grid[:, 1].reshape(self.scale.output_res),
-                                                         self.grid.depth_grid[:, 2].reshape(self.scale.output_res)])
+        self.geo_model.grid.topography.values_3D = numpy.dstack(
+            [self.grid.depth_grid[:, 0].reshape(self.scale.output_res[1], self.scale.output_res[0]),
+             self.grid.depth_grid[:, 1].reshape(self.scale.output_res[1], self.scale.output_res[0]),
+             self.grid.depth_grid[:, 2].reshape(self.scale.output_res[1], self.scale.output_res[0])])
+
         self.geo_model.grid.set_active('topography')
         self.geo_model.update_from_grid()
 
-
     def update(self):
-        self.grid.update_grid(self.sensor.get_filtered_frame())
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+            frame = self.clip_frame(frame)
+
+        self.grid.update_grid(frame)
         self.geo_model.grid.topography.values = self.grid.depth_grid
         self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
                                                 self.geo_model.grid.topography.resolution)
         self.geo_model.grid.update_grid_values()
         self.geo_model.update_from_grid()
         gempy.compute_model(self.geo_model, compute_mesh=False)
+
         self.plot.update_model(self.geo_model)
         # update the self.plot.figure with new axes
 
         #prepare the plot object
         self.plot.ax.cla()
 
-        self.plot.add_contours(data=numpy.fliplr(self.geo_model.grid.topography.values_3D[:, :, 2].T),
+        self.plot.add_contours(data=self.geo_model.grid.topography.values_3D[:, :, 2],
                                extent=self.geo_model.grid.topography.extent)
         self.plot.add_faults()
         self.plot.add_lith()
@@ -2503,12 +2476,18 @@ class GemPyModule(Module):
 
         return True
 
+    def change_model(self, geo_model):
+        self.stop()
+        self.geo_model = geo_model
+        self.setup()
+        self.run()
+
     def get_section_dict(self, df):
-        df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
         if len(df) > 0:
+            df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
             x = df.box_x.values
             y = df.box_y.values
-            self.section_dict = {'section1': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
+            self.section_dict = {'aruco_section': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
 
     def _plot_section_traces(self):
         self.geo_model.set_section_grid(self.section_dict)
@@ -2520,30 +2499,25 @@ class GemPyModule(Module):
 
     def plot_cross_section(self):
         self.geo_model.set_section_grid(self.section_dict)
-        self.cross_section = gempy.plot.plot_section_by_name(self.geo_model, 'section1')
-
-    def _plot_cross_section(self):
-        self.geo_model.set_section_grid(self.section_dict)
-        self.cross_section = gempy._plot.plot_2d(self.geo_model, section_names=['section1'], figsize=(8,8))
-
-    def _plot_geological_map(self):
-        self.geological_map = gempy._plot.plot_2d(self.geo_model, section_names=['topography'], show_data=False)
-
-    def _plot_geological_map(self):
-        self.geological_map = gempy._plot.plot_2d(self.geo_model, section_names=['topography'], show_data=False)
+        self.cross_section = gempy._plot.plot_2d(self.geo_model,
+                                                 section_names=['aruco_section'],
+                                                 figsize=self.figsize,
+                                                 show_topography=True,
+                                                 show_data=False)
 
     def plot_geological_map(self):
-        self.geological_map = gempy.plot.plot_map(self.geo_model)
+        self.geological_map = gempy._plot.plot_2d(self.geo_model,
+                                                  section_names=['topography'],
+                                                  show_data=False,
+                                                  figsize=self.figsize)
 
     def plot_actual_model(self, name):
-        self.geo_model.set_section_grid({'section' + ' ' + name: ([0, 500], [1000, 500], [30, 30])})
+        self.geo_model.set_section_grid({'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)})
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
-        self.section_actual_model = gempy.plot.plot_section_by_name(self.geo_model, 'section' + ' ' + name,
-                                                                    show_data=False)
-    def _plot_actual_model(self, name):
-        self.geo_model.set_section_grid({'section' + ' ' + name: ([0, 500], [1000, 500], [30, 30])})
-        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
-        self.section_actual_model = gempy._plot.plot_2d(self.geo_model, section_names=['section' + ' ' + name], show_data=False)
+        self.section_actual_model = gempy._plot.plot_2d(self.geo_model,
+                                                        section_names=['section:' + ' ' + name],
+                                                        show_data=False,
+                                                        figsize=self.figsize)
 
     def compute_modelspace_arucos(self):
         df = self.Aruco.aruco_markers.copy()
@@ -2576,7 +2550,8 @@ class GemPyModule(Module):
 
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
         widgets = pn.WidgetBox(self._widget_model_selector,
-                               self.fig_actual_model
+                               self.fig_actual_model,
+                               width=550
                                )
 
         panel = pn.Column("### Model Selector widgets", widgets)
@@ -2605,24 +2580,23 @@ class GemPyModule(Module):
         :return:
         """
         self.pause()
-        self.geo_model = self.model_dict[event.new]
-        self.setup()
-        self._plot_actual_model(event.new)
+        geo_model = self.model_dict[event.new]
+        self.change_model(geo_model)
+        self.plot_actual_model(event.new)
         self.fig_actual_model.object = self.section_actual_model.fig
         self.fig_actual_model.object.param.trigger('object')
-        self.run()
 
     def _callback_selection_plot2d(self, event):
         if event.new == 'Geological_map':
-            self._plot_geological_map()
+            self.plot_geological_map()
             self.fig_plot_2d.object = self.geological_map.fig
             self.fig_plot_2d.object.param.trigger('object')
         elif event.new == 'Section_traces':
-            self._plot_section_traces()
+            self.plot_section_traces()
             self.fig_plot_2d.object = self.section_traces.fig
             self.fig_plot_2d.object.param.trigger('object')
         elif event.new == 'Cross_Section':
-            self._plot_cross_section()
+            self.plot_cross_section()
             self.fig_plot_2d.object = self.cross_section.fig
             self.fig_plot_2d.object.param.trigger('object')
 
