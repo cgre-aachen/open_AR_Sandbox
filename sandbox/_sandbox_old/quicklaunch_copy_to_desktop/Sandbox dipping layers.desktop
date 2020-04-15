@@ -1,0 +1,11 @@
+#!/usr/bin/env xdg-open
+
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Icon=bash
+Icon[en_AU]=bash
+Name[en_AU]=Sandbox dipping layers
+Exec=mate-terminal -e "/bin/bash -c /home/sarndbox/Desktop/Sandbox_runscripts/runscript_model_3.bash;/bin/bash"
+Name=Sandbox dipping layers
