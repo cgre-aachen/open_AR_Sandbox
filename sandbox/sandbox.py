@@ -1025,7 +1025,7 @@ class Grid(object):
     TODO:  The cropping should be done in the kinect class, with calibration_data passed explicitly to the method! Do this for all the cases where calibration data is needed!
     """
 
-    def __init__(self, calibration=None, scale=None, crop_to_resolution=True):
+    def __init__(self, calibration=None, scale=None):
         """
 
         Args:
@@ -1051,8 +1051,6 @@ class Grid(object):
             print("no scale provided or scale invalid. A default scale instance is used")
         self.depth_grid = None
         self.empty_depth_grid = None
-        self.create_empty_depth_grid()
-        self.crop = crop_to_resolution
 
     def create_empty_depth_grid(self):
         """
@@ -2485,6 +2483,7 @@ class GemPyModule(Module):
     def get_section_dict(self, df):
         if len(df) > 0:
             df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
+            df.sort_values('box_x', ascending=True)
             x = df.box_x.values
             y = df.box_y.values
             self.section_dict = {'aruco_section': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
@@ -3679,7 +3678,7 @@ class LandslideSimulation(Module):
         files = numpy.load(infile)
         self.vertical_flow = files['arr_0']
         self.horizontal_flow = files['arr_1']
-        self.release_area = files['arr_2']
+        #self.release_area = files['arr_2']
         self.counter = self.horizontal_flow.shape[2] - 1
 
     def show_widgets(self):
