@@ -26,12 +26,17 @@ import matplotlib
 #import gempy.hackathon as hackathon
 import IPython
 import threading
-
+import warnings
 # TODO: When we move GeoMapModule import gempy just there
 import gempy as gp
 
 warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
      'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
+
+
+warnings.filterwarnings("ignore",
+                        message='.*No contour levels were found*.',
+                        append=True)
 
 
 class Kinect:  # add dummy
@@ -485,6 +490,8 @@ class Projector:
 
         assert self.calibration is not None, 'Calibration is not set yet. See set_calibration.'
 
+
+
         if input is None:
             input = os.path.join(self.work_directory, self.input_filename)
         if legend_filename is None:
@@ -820,6 +827,8 @@ class GeoMapModule:
         self.__class__._instances.append(weakref.proxy(self))
 
         self.geo_model = geo_model
+        self.geo_model.grid.set_active('topography')
+
         self.kinect_grid = grid
         self.geol_map = geol_map
         self.work_directory = work_directory
@@ -834,17 +843,46 @@ class GeoMapModule:
         self.y_grid = range(self.kinect_grid.scale.output_res[1])
 
         self.plot_topography = True
+<<<<<<< HEAD:sandbox/sandbox.py~Stashed changes
         self.plot_faults = True
+=======
+
+        # TODO Re implement
+        self.plot_faults = False
+
+        if self.geo_model.grid.topography.values.shape[0] is 0:
+            self.geo_model.set_topography('random')
+
+        # self.legend = True
+        # self.model = model
+        # gempy.compute_model(self.model)
+        # self.empty_depth_grid = None
+        # self.depth_grid = None
+        #
+        # self.stop_threat = False
+        # self.lock = lock
+>>>>>>> gempy2-dev:sandbox/sandbox.py
 
     def compute_model(self, kinect_array):
         self.kinect_grid.update_grid(kinect_array)
-        sol = gp.compute_model_at(self.kinect_grid.depth_grid, self.geo_model)
-        lith_block = sol[0][0]
-        fault_blocks = sol[1][0::2]
+        self.geo_model.grid.topography.values = self.kinect_grid.depth_grid
+        self.geo_model.grid.update_grid_values()
+        self.geo_model.rescaling.set_rescaled_grid()
+
+        # TODO IMP!!! This has to be only called the first time
+        self.geo_model.update_to_interpolator()
+
+
+        gp.compute_model(self.geo_model, compute_mesh=False, sort_surfaces=False)
+        # lith_block = sol[0][0, :self.kinect_grid.depth_grid.shape[0]]
+        # block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
+        #                             self.kinect_grid.scale.output_res[0]))
+        # faults = sol[-1][:, :self.kinect_grid.depth_grid.shape[0]].astype('float')
+        lith_block = self.geo_model.solutions.geological_map
         block = lith_block.reshape((self.kinect_grid.scale.output_res[1],
                                     self.kinect_grid.scale.output_res[0]))
-
-        return block, fault_blocks
+        faults = numpy.empty((0, 0))#self.geo_model.solutions.[:, :self.kinect_grid.depth_grid.shape[0]].astype('float')
+        return block, faults
 
     # TODO: Miguel: outfile folder should follow by default whatever is set in ptojection!
     # TODO: Temporal fix. Eventually we need a container class or metaclass with this data
@@ -871,7 +909,11 @@ class GeoMapModule:
 
     def create_fault_line(self,
                           start=0.5,
+<<<<<<< HEAD:sandbox/sandbox.py~Stashed changes
                           end=50.5, #TODO Miguel:increase?
+=======
+                          end=1, #TODO Miguel:increase?
+>>>>>>> gempy2-dev:sandbox/sandbox.py
                           step=1.0,
                           linewidth=3.0,
                           colors=[(1.0, 1.0, 1.0, 1.0)]):
