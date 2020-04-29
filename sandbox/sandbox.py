@@ -3,10 +3,21 @@ import os
 from warnings import warn
 try:
     import freenect
+    warn('Two kernels cannot access the kinect at the same time. This will lead to a sudden death of the kernel. ' \
+         'Be sure no other kernel is running before initialize a kinect object.', RuntimeWarning)
 except ImportError:
-    warn('Freenect is not installed. Sandbox wont work. Good luck')
+    warn('Freenect is not installed. if you are using the Kinect Version 2 on a windows machine, use the KinectV2 class!')
+
+try:
+    from pykinect2 import PyKinectV2 #try to import Wrapper for KinectV2 Windows SDK
+    from pykinect2 import PyKinectRuntime
+
+except ImportError:
+    pass
+
 try:
     import cv2
+
 except ImportError:
    # warn('opencv is not installed. Object detection will not work')
     pass
@@ -27,6 +38,11 @@ import matplotlib
 import IPython
 import threading
 
+<<<<<<< HEAD
+=======
+# TODO: When we move GeoMapModule import gempy just there
+import gempy as gp
+>>>>>>> KinectV2
 
 class Kinect:  # add dummy
     '''
@@ -39,9 +55,9 @@ class Kinect:  # add dummy
     def __init__(self, dummy=False, mirror=True):
         self.__class__._instances.append(weakref.proxy(self))
         self.id = next(self._ids)
-        self.resolution = (640, 480)
+        self.resolution = (640, 480)  #TODO: check if this is used anywhere: this is the resolution of the camera! The depth image resolution is 320x240
         self.dummy = dummy
-        self.mirror = mirror
+        self.mirror = mirror # TODO: check if this is used anywhere, then delete
         self.rgb_frame = None
 
         #TODO: include filter self.-filter parameters as function defaults
@@ -67,7 +83,20 @@ class Kinect:  # add dummy
             self.depth = self.get_frame()
             print("dummy mode. get_frame() will return a synthetic depth frame, other functions may not work")
 
+<<<<<<< HEAD
     def set_angle(self, angle):
+=======
+    def set_angle(self, angle): #TODO: throw out
+        """
+
+        Args:
+            angle:
+
+        Returns:
+            None
+
+        """
+>>>>>>> KinectV2
         self.angle = angle
         freenect.set_tilt_degs(self.dev, self.angle)
 
@@ -106,8 +135,18 @@ class Kinect:  # add dummy
             self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, sigma_gauss)
             return self.depth
 
+<<<<<<< HEAD
     def get_rgb_frame(self):
         if self.dummy == False:
+=======
+    def get_rgb_frame(self):  # TODO: check if this can be thrown out
+        """
+
+        Returns:
+
+        """
+        if self.dummy is False:
+>>>>>>> KinectV2
             self.rgb_frame = freenect.sync_get_video(index=self.id)[0]
             self.rgb_frame = numpy.fliplr(self.rgb_frame)
 
@@ -115,7 +154,20 @@ class Kinect:  # add dummy
         else:
             pass
 
+<<<<<<< HEAD
     def calibrate_frame(self, frame, calibration=None):
+=======
+    def calibrate_frame(self, frame, calibration=None):  # TODO: check if this can be thrown out
+        """
+
+        Args:
+            frame:
+            calibration:
+
+        Returns:
+
+        """
+>>>>>>> KinectV2
         if calibration is None:
             try:
                 calibration = Calibration._instances[-1]
@@ -128,6 +180,87 @@ class Kinect:  # add dummy
         cropped = numpy.flipud(cropped)
         return cropped
 
+<<<<<<< HEAD
+=======
+
+class KinectV2:
+    """
+    control class for the KinectV2 based on the Python wrappers of the official Microsoft SDK
+    Init the kinect and provides a method that returns the scanned depth image as numpy array. Also we do gaussian
+    blurring to get smoother lines.
+    """
+
+    def __init__(self):
+        """
+
+        Args:
+
+
+        Returns:
+
+        """
+
+        #TODO: include filter self.-filter parameters as function defaults
+        self.n_frames = 3 #filter parameters
+        self.sigma_gauss = 3
+        self.filter = 'gaussian'
+        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Depth| PyKinectV2.FrameSourceTypes_Infrared)
+        self.depth = self.get_frame()
+        self.ir_frame = self.get_ir_frame()
+
+    def get_frame(self):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
+
+        """
+        depth_flattened = self.kinect.get_last_depth_frame()
+        self.depth = depth_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.depth
+
+    def get_ir_frame(self):
+        """
+
+        Args:
+
+        Returns:
+               2D Array of the shape(424, 512) containing the infrared intensity of the last frame
+
+        """
+        ir_flattened = self.kinect.get_last_infrared_frame()
+        self.ir_frame = ir_flattened.reshape((424, 512)) #reshape the array to 2D with native resolution of the kinectV2
+        return self.ir_frame
+
+    def get_filtered_frame(self):
+        """
+
+        Args:
+
+
+        Returns:
+            2D Array of the shape(424, 512) containing the depth information of the latest frame in mm after stacking of
+             self.n_frames and gaussian blurring with a kernel of self.sigma_gauss pixels.
+        """
+
+        if self.filter == 'gaussian':
+
+            depth_array = self.get_frame()
+            for i in range(self.n_frames - 1):
+                depth_array = numpy.dstack([depth_array, self.get_frame()])
+            depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)
+            self.depth = numpy.ma.mean(depth_array_masked, axis=2)
+            self.depth = scipy.ndimage.filters.gaussian_filter(self.depth, self.sigma_gauss)
+            return self.depth
+
+
+
+
+
+
+>>>>>>> KinectV2
 def Beamer(*args, **kwargs):
     warn("'Beamer' class is deprecated due to the stupid german name. Use 'Projector' instead.")
     return Projector(*args, **kwargs)
@@ -508,7 +641,18 @@ class Projector:
         if self.calibration.calibration_data['hot_area'] is not False:
             hot = Image.open(hot_filename)
             projector_output.paste(hot, (
+<<<<<<< HEAD
             self.calibration.calibration_data['hot_x_lim'][0], self.calibration.calibration_data['hot_y_lim'][0]))
+=======
+            self.calibration.calibration_data.hot_x_lim[0], self.calibration.calibration_data.hot_y_lim[0]))
+
+        projector_output.save(os.path.join(self.work_directory, 'output_temp.png'))
+        os.replace(os.path.join(self.work_directory, 'output_temp.png'), os.path.join(self.work_directory, 'output.png')) #workaround to supress artifacts
+
+
+class CalibrationData:
+    """
+>>>>>>> KinectV2
 
         projector_output.save('output_temp.jpeg')
         os.rename('output_temp.jpeg','output.jpeg') #workaround to supress artifacts
