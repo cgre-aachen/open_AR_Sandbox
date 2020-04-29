@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Type=Application
-Terminal=false
-Icon=bash
-Icon[en_AU]=bash
-Name[en_AU]=Sandbox angular unconformity
-Exec=mate-terminal -e "/bin/bash -c /home/sarndbox/Desktop/Sandbox_runscripts/runscript_model_1.bash;/bin/bash"
-Name=Sandbox angular unconformity
