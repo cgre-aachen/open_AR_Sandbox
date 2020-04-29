@@ -16,7 +16,8 @@ class CalibModule(Module):
         self.c_under = '#DBD053'
         self.c_over = '#DB3A34'
         self.c_margin = '#084C61'
-
+        self.automatic_calibration = False
+        self.automatic_cropping = False
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, over=self.c_over, cmap='Greys_r', under=self.c_under, **kwargs)
 

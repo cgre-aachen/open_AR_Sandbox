@@ -8,6 +8,7 @@ import pandas as pd
 from .module_main_thread import Module
 from sandbox.markers.aruco import ArucoMarkers
 
+
 class LoadSaveTopoModule(Module):
     """
     Module to save the current topography in a subset of the sandbox
@@ -25,13 +26,11 @@ class LoadSaveTopoModule(Module):
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
-        self.box_origin = [10, 10]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
-        self.box_width = 230
-        self.box_height = 190
+        self.box_origin = [40, 40]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        self.box_width = 200
+        self.box_height = 150
         self.absolute_topo = None
         self.relative_topo = None
-
-        self.comparison_distance = 10 # Milimeters
 
         self.is_loaded = False  # Flag to know is a file have been loaded or not
         self.show_loaded = False  # Flag to indicate the axes to be plotted
@@ -41,7 +40,7 @@ class LoadSaveTopoModule(Module):
         self.loaded = None
 
         self.transparency_difference = 1
-        #self.cmap_difference = matplotlib.colors.ListedColormap(['Red', 'Blue'])
+
         self.cmap_difference = None
         self.norm_difference = None
 
@@ -54,7 +53,6 @@ class LoadSaveTopoModule(Module):
         self.release_area = None
         self.release_area_origin = None
         self.aruco_release_area_origin = None
-
 
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
@@ -177,12 +175,16 @@ class LoadSaveTopoModule(Module):
                     self.release_area)
         print('Save successful')
 
+    def save_release_area(self, filename="releaseArea.npz"):
+        numpy.savez(filename,
+                    self.release_area)
+        print('Save successful')
+
     def loadTopo(self, filename="savedTopography.npz"):
         self.is_loaded = True
         files = numpy.load(filename, allow_pickle=True)
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
-        self.release_area = files['arr_2']
         print('Load successful')
 
     def showLoadedTopo(self): # Not working

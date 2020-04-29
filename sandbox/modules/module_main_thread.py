@@ -10,7 +10,7 @@ class Module(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, Aruco=None, crop=True, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, Aruco=None, crop=True, clip = True, norm = False, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
@@ -18,7 +18,8 @@ class Module(object):
 
         # flags
         self.crop = crop
-        self.norm = False # for TopoModule to scale the topography
+        self.clip = clip
+        self.norm = norm # for TopoModule to scale the topography
 
         # threading
         self.lock = threading.Lock()
@@ -28,9 +29,6 @@ class Module(object):
         # connect to ArucoMarker class
         # if CV2_IMPORT is True:
         self.Aruco = Aruco
-        self.automatic_calibration = False
-        self.automatic_cropping = False
-        # self.setup()
 
     @abstractmethod
     def setup(self):

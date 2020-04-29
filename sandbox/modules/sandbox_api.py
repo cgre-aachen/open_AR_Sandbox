@@ -1,4 +1,4 @@
-# TODO: Docstring!!!
+# TODO: Load all the modules from here!!! Important for testing (?)
 
 import logging
 
@@ -11,6 +11,7 @@ if verbose:
                         level=logging.WARNING,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         )
+
 
 class Sandbox:
     # Wrapping API-class
