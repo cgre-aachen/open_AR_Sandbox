@@ -1,0 +1,19 @@
+1) Performance and bugs (threading)
+	- Default values of z-calibration, also in dummy class
+	- Block module default value in update value = last or first value of model dict instead of hard coded!
+	- Giving through keyword args with default below
+
+2) Show contours as are in the sandbox
+
+3) Show origianl top map topography contours
+
+4) Resample for regular grid
+
+5) Documentation:
+	- Module
+	- CalibModule
+	- TopoModule
+
+6) Reintroduce warnings when importing, but handle properly
+
+7) Review pause/resume scheme and substitute with proper with self.lock() statement

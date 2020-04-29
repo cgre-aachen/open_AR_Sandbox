@@ -106,3 +106,7 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+
+notebooks/panel-examples/
+
+grids_do_not_push/
