@@ -14,6 +14,15 @@ class Model:
     _instances = []
 
     def __init__(self, model, extent=None, associated_calibration=None, xy_isometric=True, lock=None):
+        """
+
+        Args:
+            model:
+            extent:
+            associated_calibration:
+            xy_isometric:
+            lock:
+        """
         self.id = next(self._ids)
         self.__class__._instances.append(weakref.proxy(self))
         self.xy_isometric = xy_isometric
