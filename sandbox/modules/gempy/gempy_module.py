@@ -1,0 +1,259 @@
+from warnings import warn
+import matplotlib.pyplot as plt
+import numpy
+import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
+import panel as pn
+
+from sandbox.modules.module_main_thread import Module
+from .scale import Scale
+from .grid import Grid
+from sandbox.plot.plot import Plot
+from sandbox.markers.aruco import ArucoMarkers
+
+try:
+    import gempy
+    from gempy.core.grid_modules.grid_types import Topography
+except ImportError:
+    warn('gempy not found, GempyModule will not work')
+
+class GemPyModule(Module):
+
+    #def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
+    def __init__(self, geo_model, *args, ** kwargs):
+        super().__init__(*args, **kwargs)  # call parent init
+
+
+        """
+
+        Args:
+            geo_model:
+            grid:
+            geol_map:
+            work_directory:
+
+        Returns:
+            None
+
+        """
+        # TODO: When we move GeoMapModule import gempy just there
+
+
+        self.geo_model = geo_model
+        self.grid = None
+        self.scale = None
+        self.plot = None
+        self.model_dict = None
+        self.plot_topography = True
+        self.plot_faults = True
+        self.cross_section = None
+        self.section_dict = None
+        self.resolution_section = [150, 100]
+        self.figsize = (10, 10)
+        self.section_traces = None
+        self.geological_map = None
+        self.section_actual_model = None
+        self.fig_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+        self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+
+        #dataframe to safe Arucos in model Space:
+        self.modelspace_arucos=pd.DataFrame()
+
+    def setup(self):
+
+        self.scale = Scale(self.calib, extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
+        self.scale.calculate_scales()
+
+        self.grid = Grid(calibration=self.calib, scale=self.scale)
+        self.grid.create_empty_depth_grid() # prepare the grid object
+
+        self.init_topography()
+       # self.grid.update_grid() #update the grid object for the first time
+
+        self.plot = Plot(self.calib, model=self.geo_model, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
+
+        self.projector.frame.object = self.plot.figure  # Link figure to projector
+
+    def init_topography(self):
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+            frame = self.clip_frame(frame)
+
+        self.grid.update_grid(frame)
+        self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
+        self.geo_model.grid.topography.extent = self.scale.extent[:4]
+        self.geo_model.grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
+        self.geo_model.grid.topography.values = self.grid.depth_grid
+        self.geo_model.grid.topography.values_3D = numpy.dstack(
+            [self.grid.depth_grid[:, 0].reshape(self.scale.output_res[1], self.scale.output_res[0]),
+             self.grid.depth_grid[:, 1].reshape(self.scale.output_res[1], self.scale.output_res[0]),
+             self.grid.depth_grid[:, 2].reshape(self.scale.output_res[1], self.scale.output_res[0])])
+
+        self.geo_model.grid.set_active('topography')
+        self.geo_model.update_from_grid()
+
+    def update(self):
+        frame = self.sensor.get_filtered_frame()
+        if self.crop:
+            frame = self.crop_frame(frame)
+            frame = self.clip_frame(frame)
+
+        self.grid.update_grid(frame)
+        self.geo_model.grid.topography.values = self.grid.depth_grid
+        self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
+                                                self.geo_model.grid.topography.resolution)
+        self.geo_model.grid.update_grid_values()
+        self.geo_model.update_from_grid()
+        gempy.compute_model(self.geo_model, compute_mesh=False)
+
+        self.plot.update_model(self.geo_model)
+        # update the self.plot.figure with new axes
+
+        #prepare the plot object
+        self.plot.ax.cla()
+
+        self.plot.add_contours(data=self.geo_model.grid.topography.values_3D[:, :, 2],
+                               extent=self.geo_model.grid.topography.extent)
+        self.plot.add_faults()
+        self.plot.add_lith()
+
+        # if aruco Module is specified:search, update, plot aruco markers
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+            self.compute_modelspace_arucos()
+            self.plot.plot_aruco(self.modelspace_arucos)
+            self.get_section_dict(self.modelspace_arucos)
+
+        self.projector.trigger()
+
+        return True
+
+    def change_model(self, geo_model):
+        self.stop()
+        self.geo_model = geo_model
+        self.setup()
+        self.run()
+
+    def get_section_dict(self, df):
+        if len(df) > 0:
+            df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
+            df.sort_values('box_x', ascending=True)
+            x = df.box_x.values
+            y = df.box_y.values
+            self.section_dict = {'aruco_section': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
+
+    def _plot_section_traces(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.section_traces = gempy._plot.plot_section_traces(self.geo_model)
+
+    def plot_section_traces(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.section_traces = gempy.plot.plot_section_traces(self.geo_model)
+
+    def plot_cross_section(self):
+        self.geo_model.set_section_grid(self.section_dict)
+        self.cross_section = gempy._plot.plot_2d(self.geo_model,
+                                                 section_names=['aruco_section'],
+                                                 figsize=self.figsize,
+                                                 show_topography=True,
+                                                 show_data=False)
+
+    def plot_geological_map(self):
+        self.geological_map = gempy._plot.plot_2d(self.geo_model,
+                                                  section_names=['topography'],
+                                                  show_data=False,
+                                                  figsize=self.figsize)
+
+    def plot_actual_model(self, name):
+        self.geo_model.set_section_grid({'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)})
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        self.section_actual_model = gempy._plot.plot_2d(self.geo_model,
+                                                        section_names=['section:' + ' ' + name],
+                                                        show_data=False,
+                                                        figsize=self.figsize)
+
+    def compute_modelspace_arucos(self):
+        df = self.Aruco.aruco_markers.copy()
+        for i in self.Aruco.aruco_markers.index:  # increment counter for not found arucos
+
+            #the combination below works though it should not! Look into scale again!!
+            #pixel scale and pixel size should be consistent!
+            df.at[i, 'box_x'] = (self.scale.pixel_size[0]*self.Aruco.aruco_markers['box_x'][i])
+            df.at[i, 'box_y'] = (self.scale.pixel_scale[1]*self.Aruco.aruco_markers['box_y'][i])
+        self.modelspace_arucos = df
+
+
+    def show_widgets(self, Model_dict):
+        self.original_sensor_min = self.calib.s_min  # store original sensor values on start
+        self.original_sensor_max = self.calib.s_max
+
+        tabs = pn.Tabs(('Select Model', self.widget_model_selector(Model_dict)),
+                       ('Plot 2D', self.widget_plot2d())
+                       )
+
+        return tabs
+
+    def widget_model_selector(self, Model_dict):
+        self.model_dict = Model_dict
+        pn.extension()
+        self._widget_model_selector = pn.widgets.RadioButtonGroup(name='Model selector',
+                                                                  options=list(self.model_dict.keys()),
+                                                                  value=list(self.model_dict.keys())[0],
+                                                                  button_type='success')
+
+        self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
+        widgets = pn.WidgetBox(self._widget_model_selector,
+                               self.fig_actual_model,
+                               width=550
+                               )
+
+        panel = pn.Column("### Model Selector widgets", widgets)
+        return panel
+
+    def widget_plot2d(self):
+        self._create_widgets()
+        widgets = pn.WidgetBox('<b>Create a cross section</b>',
+                               self._widget_select_plot2d,
+                               self.fig_plot_2d
+                               )
+        panel = pn.Column('### Creation of 2D Plots', widgets)
+        return panel
+
+    def _create_widgets(self):
+        pn.extension()
+        self._widget_select_plot2d = pn.widgets.RadioButtonGroup(name='Plot 2D',
+                                             options=['Geological_map', 'Section_traces', 'Cross_Section'],
+                                             value=['Geological_map'],
+                                             button_type='success')
+        self._widget_select_plot2d.param.watch(self._callback_selection_plot2d, 'value', onlychanged=False)
+
+    def _callback_selection(self, event):
+        """
+        callback function for the widget to update the self.
+        :return:
+        """
+        self.pause()
+        geo_model = self.model_dict[event.new]
+        self.change_model(geo_model)
+        self.plot_actual_model(event.new)
+        self.fig_actual_model.object = self.section_actual_model.fig
+        self.fig_actual_model.object.param.trigger('object')
+
+    def _callback_selection_plot2d(self, event):
+        if event.new == 'Geological_map':
+            self.plot_geological_map()
+            self.fig_plot_2d.object = self.geological_map.fig
+            self.fig_plot_2d.object.param.trigger('object')
+        elif event.new == 'Section_traces':
+            self.plot_section_traces()
+            self.fig_plot_2d.object = self.section_traces.fig
+            self.fig_plot_2d.object.param.trigger('object')
+        elif event.new == 'Cross_Section':
+            self.plot_cross_section()
+            self.fig_plot_2d.object = self.cross_section.fig
+            self.fig_plot_2d.object.param.trigger('object')

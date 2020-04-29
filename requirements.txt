@@ -1,0 +1,9 @@
+matplotlib
+numpy
+pandas
+panel 
+scipy
+scikit-image
+opencv-python
+gempy
+pykinect2
