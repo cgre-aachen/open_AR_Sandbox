@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 
-
 from .module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 
 class LoadSaveTopoModule(Module):
@@ -81,15 +79,12 @@ class LoadSaveTopoModule(Module):
 
         self.showBox(self.box_origin, self.box_width, self.box_height)
 
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
-            self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[self.Aruco.aruco_markers.is_inside_box,
-                                                                    ('box_x', 'box_y')]
-
+            self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[
+                self.Aruco.aruco_markers.is_inside_box, ('box_x', 'box_y')]
 
         self.plot_release_area(self.release_area_origin, self.release_width, self.release_height)
         #self.add_release_area_origin(self.release_area_origin)

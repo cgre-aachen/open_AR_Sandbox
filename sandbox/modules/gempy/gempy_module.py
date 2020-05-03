@@ -11,7 +11,6 @@ from sandbox.modules.module_main_thread import Module
 from .scale import Scale
 from .grid import Grid
 from sandbox.plot.plot import Plot
-from sandbox.markers.aruco import ArucoMarkers
 
 try:
     import gempy
@@ -138,11 +137,9 @@ class GemPyModule(Module):
         self.plot.add_faults()
         self.plot.add_lith()
 
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.compute_modelspace_arucos()
             self.plot.plot_aruco(self.modelspace_arucos)
             #self.get_section_dict(self.modelspace_arucos)
