@@ -104,7 +104,6 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.contours_step_minor = contours_step_minor
         self.contours_width_minor = contours_width_minor
 
-
         # margin patches setup
         self.margin_color = margin_color
         self.margin_alpha = margin_alpha
