@@ -12,16 +12,9 @@ from .scale import Scale
 from .grid import Grid
 from sandbox.plot.plot import Plot
 
-try:
-    import gempy
-    from gempy.core.grid_modules.grid_types import Topography
-    from gempy.utils import section_utils
-except ImportError:
-    warn('gempy not found, GempyModule will not work')
 
 class GemPyModule(Module):
 
-    #def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
     def __init__(self, geo_model, *args, ** kwargs):
         super().__init__(*args, **kwargs)  # call parent init
 
@@ -38,8 +31,13 @@ class GemPyModule(Module):
             None
 
         """
-        # TODO: When we move GeoMapModule import gempy just there
-
+        # TODO: include save elevation map and export geologic map --self.geo_map
+        try:
+            import gempy
+            from gempy.core.grid_modules.grid_types import Topography
+            from gempy.utils import section_utils
+        except ImportError:
+            warn('gempy not found, GempyModule will not work')
 
         self.geo_model = geo_model
         self.grid = None
