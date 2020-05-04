@@ -108,5 +108,13 @@ venv.bak/
 .idea/
 
 notebooks/panel-examples/
+notebooks/prototypes/
+notebooks/examples/
+notebooks/shortcut_modules/
+
+notebooks/tutorials/Deprecated/
+notebooks/tutorials/temp
+
+
 
 grids_do_not_push/
