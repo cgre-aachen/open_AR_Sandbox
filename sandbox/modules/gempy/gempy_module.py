@@ -6,19 +6,24 @@ pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithC
 import panel as pn
 import threading
 import pyvista as pv
+import time
 
 from sandbox.modules.module_main_thread import Module
 from .scale import Scale
 from .grid import Grid
 from sandbox.plot.plot import Plot
 
+try:
+    import gempy
+    from gempy.core.grid_modules.grid_types import Topography
+    from gempy.utils import section_utils
+except ImportError:
+    warn('gempy package not found, GempyModule will not work')
+
 
 class GemPyModule(Module):
-
     def __init__(self, geo_model, *args, ** kwargs):
         super().__init__(*args, **kwargs)  # call parent init
-
-
         """
 
         Args:
@@ -32,12 +37,6 @@ class GemPyModule(Module):
 
         """
         # TODO: include save elevation map and export geologic map --self.geo_map
-        try:
-            import gempy
-            from gempy.core.grid_modules.grid_types import Topography
-            from gempy.utils import section_utils
-        except ImportError:
-            warn('gempy not found, GempyModule will not work')
 
         self.geo_model = geo_model
         self.grid = None
@@ -203,6 +202,8 @@ class GemPyModule(Module):
         self.geo_model = geo_model
         self.setup()
         self.run()
+
+        return True
 
     def get_section_dict(self, df, mode): # TODO: Change here
         if len(df) > 0:
@@ -384,17 +385,17 @@ class GemPyModule(Module):
                                              button_type='success')
         self._widget_select_plot2d.param.watch(self._callback_selection_plot2d, 'value', onlychanged=False)
 
-    def _callback_selection(self, event):
+    def _callback_selection(self, event): # TODO: Not working properly, change in notebook
         """
         callback function for the widget to update the self.
         :return:
         """
-        self.pause()
+        self.stop()
         geo_model = self.model_dict[event.new]
         self.change_model(geo_model)
-        self.plot_actual_model(event.new)
-        self.fig_actual_model.object = self.section_actual_model.fig
-        self.fig_actual_model.object.param.trigger('object')
+        #self.plot_actual_model(event.new)
+        #self.fig_actual_model.object = self.section_actual_model.fig
+        #self.fig_actual_model.object.param.trigger('object')
 
     def _callback_selection_plot2d(self, event):
         if event.new == 'Geological_map':
