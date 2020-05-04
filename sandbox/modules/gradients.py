@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
 import numpy
 import panel as pn
+
 from .module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 
 class GradientModule(Module):
@@ -52,11 +52,9 @@ class GradientModule(Module):
         self.plot.ax.cla()  # clear axes to draw new ones on figure
         self.plot_grad()
 
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger() # trigger update in the projector class

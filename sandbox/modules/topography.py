@@ -1,5 +1,4 @@
 from .module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 
 class TopoModule(Module):
@@ -33,7 +32,7 @@ class TopoModule(Module):
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
             frame = self.calib.s_max - frame
-        if self.norm: # TODO: include RangeSlider
+        if self.norm:  # TODO: include RangeSlider
             frame = frame * (self.height / frame.max())
             self.plot.vmin = 0
             self.plot.vmax = self.height
@@ -55,12 +54,9 @@ class TopoModule(Module):
 
         self.plot.render_frame(frame)
 
-
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger() #triggers the update of the bokeh plot

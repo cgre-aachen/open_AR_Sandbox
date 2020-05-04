@@ -3,7 +3,6 @@ import numpy
 import matplotlib.pyplot as plt
 
 from .module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 from .load_save_topography import LoadSaveTopoModule
 
 
@@ -46,11 +45,9 @@ class LandslideSimulation(Module):
 
         self.plot_landslide_frame()
 
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger()

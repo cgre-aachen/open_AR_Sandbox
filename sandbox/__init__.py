@@ -18,6 +18,7 @@ from .modules.load_save_topography import LoadSaveTopoModule
 from .modules.gradients import GradientModule
 from .modules.landslides import LandslideSimulation
 from .modules.prototyping import PrototypingModule
+from .calibration.calibration_module import CalibModule
 
 #gempy connection
 from .modules.gempy.gempy_module import GemPyModule

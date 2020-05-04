@@ -39,7 +39,7 @@ The open_AR_Sandbox as well as GemPy are currently under heavy development and w
 
 ## Requirements
 You will need: 
-* Microsoft Kinect (we tested the first and second generation kinect with a usb adapter, but every kinect compatible with the freenect drivers will likely work)
+* Microsoft Kinect (we tested the first and second generation kinect with a usb adapter, but every kinect compatible with the pykinect drivers will likely work)
 * Projector
 * A box of Sand
 
@@ -60,13 +60,9 @@ The standard packages
 
 Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
-### Kinect V1
-
-To make open_AR_Sandbox talk to the first generation kinect you will need the [Libfreenect Drivers](https://github.com/OpenKinect/libfreenect) with [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). The installation is kind of straight forward for Linux and MacOS but challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
-
 ### Kinect V2
 
-If you are instead working with the second generation of the kinect sensor, you will need a different setup (Tested on Windows 10). First, install the current [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) including drivers. You can use the software bundle to test the connection to your kinect, before you continue.
+(Tested on Windows 10). First, install the current [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) including drivers. You can use the software bundle to test the connection to your kinect, before you continue.
 
 To make Python and the Kinect SDK communicate, install the related [PyKinect2](https://github.com/Kinect/PyKinect2) wrappers which can be easily installed via:
 

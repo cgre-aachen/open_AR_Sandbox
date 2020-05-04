@@ -4,22 +4,17 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
+import threading
+import pyvista as pv
 
 from sandbox.modules.module_main_thread import Module
 from .scale import Scale
 from .grid import Grid
 from sandbox.plot.plot import Plot
-from sandbox.markers.aruco import ArucoMarkers
 
-try:
-    import gempy
-    from gempy.core.grid_modules.grid_types import Topography
-except ImportError:
-    warn('gempy not found, GempyModule will not work')
 
 class GemPyModule(Module):
 
-    #def __init__(self,  geo_model, calibrationdata, sensor, projector, crop=True, **kwarg):
     def __init__(self, geo_model, *args, ** kwargs):
         super().__init__(*args, **kwargs)  # call parent init
 
@@ -36,8 +31,13 @@ class GemPyModule(Module):
             None
 
         """
-        # TODO: When we move GeoMapModule import gempy just there
-
+        # TODO: include save elevation map and export geologic map --self.geo_map
+        try:
+            import gempy
+            from gempy.core.grid_modules.grid_types import Topography
+            from gempy.utils import section_utils
+        except ImportError:
+            warn('gempy not found, GempyModule will not work')
 
         self.geo_model = geo_model
         self.grid = None
@@ -58,8 +58,23 @@ class GemPyModule(Module):
         self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
 
+        self.section_dict_boreholes = {}
+        self.borehole_tube = []
+        self.colors_bh = []
+        self.radius_borehole = 20
+
         #dataframe to safe Arucos in model Space:
-        self.modelspace_arucos=pd.DataFrame()
+        self.modelspace_arucos = pd.DataFrame()
+
+        # Thread for cross-section
+        self.cs_lock = threading.Lock()
+        self.cs_thread = None
+        self.cs_thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
+
+        # Thread for boreholes
+        self.bh_lock = threading.Lock()
+        self.bh_thread = None
+        self.bh_thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
 
     def setup(self):
 
@@ -120,18 +135,68 @@ class GemPyModule(Module):
         self.plot.add_faults()
         self.plot.add_lith()
 
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.compute_modelspace_arucos()
             self.plot.plot_aruco(self.modelspace_arucos)
-            self.get_section_dict(self.modelspace_arucos)
+            #self.get_section_dict(self.modelspace_arucos)
 
         self.projector.trigger()
 
         return True
+
+    def cross_section(self):
+        self.get_section_dict(self.modelspace_arucos, "cross_section")
+
+    def boreholes(self):
+        pass
+
+    def cs_thread_loop(self):
+        while self.cs_thread_status == 'running':
+            self.cs_lock.acquire()
+            self.cross_section()
+            self.cs_lock.release()
+
+    def run_cs(self):
+        if self.cs_thread_status != 'running':
+            self.cs_thread_status = 'running'
+            self.cs_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
+            self.cs_thread.start()
+            print('Thread started or resumed...')
+        else:
+            print('Thread already running.')
+
+    def stop_cs(self):
+        if self.cs_thread_status is not 'stopped':
+            self.cs_thread_status = 'stopped'  # set flag to end thread loop
+            self.cs_thread.join()  # wait for the thread to finish
+            print('Thread stopped.')
+        else:
+            print('thread was not running.')
+
+    def bh_thread_loop(self):
+        while self.bh_thread_status == 'running':
+            self.bh_lock.acquire()
+            self.boreholes()
+            self.bh_lock.release()
+
+    def run_bh(self):
+        if self.bh_thread_status != 'running':
+            self.bh_thread_status = 'running'
+            self.bh_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
+            self.bh_thread.start()
+            print('Thread started or resumed...')
+        else:
+            print('Thread already running.')
+
+    def stop_bh(self):
+        if self.bh_thread_status is not 'stopped':
+            self.bh_thread_status = 'stopped'  # set flag to end thread loop
+            self.bh_thread.join()  # wait for the thread to finish
+            print('Thread stopped.')
+        else:
+            print('thread was not running.')
 
     def change_model(self, geo_model):
         self.stop()
@@ -139,9 +204,8 @@ class GemPyModule(Module):
         self.setup()
         self.run()
 
-    def get_section_dict(self, df):
+    def get_section_dict(self, df, mode): # TODO: Change here
         if len(df) > 0:
-            df = df.loc[df.is_inside_box, ('box_x', 'box_y')]
             df.sort_values('box_x', ascending=True)
             x = df.box_x.values
             y = df.box_y.values
@@ -179,13 +243,101 @@ class GemPyModule(Module):
 
     def compute_modelspace_arucos(self):
         df = self.Aruco.aruco_markers.copy()
-        for i in self.Aruco.aruco_markers.index:  # increment counter for not found arucos
+        if len(df) > 0:
 
-            #the combination below works though it should not! Look into scale again!!
-            #pixel scale and pixel size should be consistent!
-            df.at[i, 'box_x'] = (self.scale.pixel_size[0]*self.Aruco.aruco_markers['box_x'][i])
-            df.at[i, 'box_y'] = (self.scale.pixel_scale[1]*self.Aruco.aruco_markers['box_y'][i])
+            df = df.loc[df.is_inside_box, ('box_x', 'box_y', 'is_inside_box')]
+            #df['box_z'] = self.Aruco.aruco_markers.loc[self.Aruco.aruco_markers.is_inside_box, ['Depth_Z(mm)']]
+            df['box_z'] = numpy.nan
+            # depth is changing all the time so the coordinate map method becomes old.
+            # Workaround: just replace the value from the actual frame
+            frame = self.crop_frame(self.sensor.depth)
+
+
+            for i in df.index:
+                df.at[i, 'box_z'] = (self.scale.extent[5] -
+                                     ((frame[df.at[i, 'box_y']][df.at[i, 'box_x']] - self.calib.s_min) /
+                                      (self.calib.s_max - self.calib.s_min) *
+                                      (self.scale.extent[5] - self.scale.extent[4])))
+                #the combination below works though it should not! Look into scale again!!
+                #pixel scale and pixel size should be consistent!
+                df.at[i, 'box_x'] = (self.scale.pixel_size[0]*self.Aruco.aruco_markers['box_x'][i])
+                df.at[i, 'box_y'] = (self.scale.pixel_scale[1]*self.Aruco.aruco_markers['box_y'][i])
+
         self.modelspace_arucos = df
+
+    def borehole_cross_section(self, df):
+        if len(df) > 0:
+            bh = {}
+            for i in df.index:
+                point1 = numpy.array([df.loc[i, 'box_x'], df.loc[i, 'box_y']])
+                point2 = numpy.array([df.loc[i, 'box_x']+1, df.loc[i, 'box_y']])
+                bh.update({'id_'+str(i): ([point1[0], point1[1]], [point2[0], point2[1]], [5,5])})
+
+            self.section_dict_boreholes = bh
+
+    def get_polygon_data(self):
+        self.borehole_tube = []
+        self.colors_bh = []
+        _ = self.geo_model.set_section_grid(self.section_dict_boreholes)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        for index_id in self.modelspace_arucos.index:
+            polygondict, cdict, extent = section_utils.get_polygon_dictionary(self.geo_model,
+                                                                              section_name="id_"+str(index_id))
+            plt.close()  # avoid inline display
+
+            point_bh = numpy.array([self.modelspace_arucos.loc[index_id, 'box_z'], self.scale.extent[4]]) #top and bottom of model
+            colors_bh = numpy.array([])  # to save the colors of the model
+            for form in cdict.keys():
+                pointslist = numpy.array(polygondict[form])
+                start_point = pointslist[0][0][0]
+                c = cdict[form]
+                colors_bh = numpy.append(colors_bh, c)
+                if pointslist.shape != ():
+                    for points in pointslist:
+                        x = points[:, 0]
+                        y = points[:, 1]
+                        val = y[x == start_point].min()
+                        point_bh = numpy.append(point_bh, val)
+
+            point_bh[::-1].sort()
+
+            closed = point_bh[point_bh > self.modelspace_arucos.loc[index_id, 'box_z']]
+            point_bh = point_bh[point_bh <= self.modelspace_arucos.loc[index_id, 'box_z']]
+            print(closed, colors_bh)
+            colors_bh = colors_bh[:len(point_bh)-1][::-1]
+
+            x_val = numpy.ones(len(point_bh)) * self.modelspace_arucos.loc[index_id, 'box_x']
+            y_val = numpy.ones(len(point_bh)) * self.modelspace_arucos.loc[index_id, 'box_y']
+            z_val = point_bh
+
+            borehole_points = numpy.vstack((x_val, y_val, z_val)).T
+
+            line = self.lines_from_points(borehole_points)
+            print(borehole_points, colors_bh)
+            line["scalars"] = numpy.arange(len(colors_bh)+1)
+
+            self.borehole_tube.append(line.tube(radius=self.radius_borehole))
+            self.colors_bh.append(colors_bh)
+
+    def plot_boreholes(self):
+        p = pv.Plotter(notebook=False)
+        for i in range(len(self.borehole_tube)):
+            cmap = self.colors_bh[i]
+            p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap))])
+        extent = numpy.copy(self.scale.extent)
+        extent[-1] = numpy.ceil(self.modelspace_arucos.box_z.max()/100)*100
+        p.show_bounds(bounds=extent)
+        p.show()
+
+    def lines_from_points(self, points):
+        """Given an array of points, make a line set"""
+        poly = pv.PolyData()
+        poly.points = points
+        cells = numpy.full((len(points) - 1, 3), 2, dtype=numpy.int)
+        cells[:, 1] = numpy.arange(0, len(points) - 1, dtype=numpy.int)
+        cells[:, 2] = numpy.arange(1, len(points), dtype=numpy.int)
+        poly.lines = cells
+        return poly
 
 
     def show_widgets(self, Model_dict):

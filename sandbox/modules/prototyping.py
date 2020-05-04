@@ -1,6 +1,5 @@
 import traceback
 from .module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 
 class PrototypingModule(Module):
@@ -9,15 +8,7 @@ class PrototypingModule(Module):
     """
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        self.height = 2000
-        super().__init__(*args, contours=True,
-                         cmap='gist_earth',
-                         over='k',
-                         under='k',
-                         vmin=0,
-                         vmax=500,
-                         contours_label=True,
-                         **kwargs)
+        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
 
         self.function_to_run = None
         self.active_connection = False
@@ -25,30 +16,17 @@ class PrototypingModule(Module):
     def setup(self):
         frame = self.sensor.get_filtered_frame()
         if self.crop:
-            self.norm = True
-            self.plot.minor_contours = True
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
-            frame = self.calib.s_max - frame
-        if self.norm:
-            frame = frame * (self.height / frame.max())
-            self.plot.vmin = 0
-            self.plot.vmax = self.height
 
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        # with self.lock:
         frame = self.sensor.get_filtered_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
-            frame = self.calib.s_max - frame
-        if self.norm:
-            frame = frame * (self.height / frame.max())
-            self.plot.vmin = 0
-            self.plot.vmax = self.height
 
         if self.active_connection:
             self.plot.ax.cla()
@@ -61,17 +39,22 @@ class PrototypingModule(Module):
         else:
             self.plot.render_frame(frame)
 
-
-        # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        # if aruco Module is specified: update, plot aruco markers
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger()  # triggers the update of the bokeh plot
 
     def plot_sandbox(self, func):
+        """
+        Pass as an argument the function to run in the thread
+        Args:
+            func: see notebook in tutorials fro example
+
+        Returns:
+
+        """
         def inner1(*args, **kwargs):
             frame = self.sensor.get_filtered_frame()
             if self.crop:

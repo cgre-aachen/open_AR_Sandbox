@@ -3,6 +3,7 @@ from abc import abstractmethod
 import numpy
 import threading
 from sandbox.plot.plot import Plot
+from sandbox.markers.aruco import ArucoMarkers
 
 class Module(object):
     """
@@ -10,7 +11,7 @@ class Module(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, calibrationdata, sensor, projector, Aruco=None, crop=True, clip = True, norm = False, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, Aruco=None, crop=True, clip=True, norm=False, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
@@ -29,6 +30,9 @@ class Module(object):
         # connect to ArucoMarker class
         # if CV2_IMPORT is True:
         self.Aruco = Aruco
+        self.ARUCO_ACTIVE = False
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.ARUCO_ACTIVE = True
 
     @abstractmethod
     def setup(self):
@@ -115,3 +119,16 @@ class Module(object):
 
         clip = numpy.clip(frame, self.calib.s_min, self.calib.s_max)
         return clip
+
+    def update_aruco(self):
+        """
+        If aruco Module is specified: search, update, aruco markers
+        Returns:
+        """
+        if isinstance(self.Aruco, ArucoMarkers):
+            self.Aruco.search_aruco()
+            self.Aruco.update_marker_dict()
+            self.Aruco.transform_to_box_coordinates()
+        else:
+            self.ARUCO_ACTIVE = False
+            print("aruco object not valid, please initiate Aruco class")
