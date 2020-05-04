@@ -83,8 +83,9 @@ class LoadSaveTopoModule(Module):
         if self.ARUCO_ACTIVE:
             self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
-            self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[
-                self.Aruco.aruco_markers.is_inside_box, ('box_x', 'box_y')]
+            if len(self.Aruco.aruco_markers)> 0:
+                self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[
+                    self.Aruco.aruco_markers.is_inside_box, ('box_x', 'box_y')]
 
         self.plot_release_area(self.release_area_origin, self.release_width, self.release_height)
         #self.add_release_area_origin(self.release_area_origin)
