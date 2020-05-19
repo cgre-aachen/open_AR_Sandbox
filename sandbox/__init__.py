@@ -26,5 +26,8 @@ from .modules.gempy.gempy_module import GemPyModule
 # Block model connection
 from .modules.block_module.block_module import BlockModule
 
+# or all can be sumarized with
+from .modules.sandbox_api import *
+
 if __name__ == '__main__':
     pass

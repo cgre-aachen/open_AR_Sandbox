@@ -256,7 +256,7 @@ class GemPyModule(Module):
 
             for i in df.index:
                 df.at[i, 'box_z'] = (self.scale.extent[5] -
-                                     ((frame[df.at[i, 'box_y']][df.at[i, 'box_x']] - self.calib.s_min) /
+                                     ((frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))] - self.calib.s_min) /
                                       (self.calib.s_max - self.calib.s_min) *
                                       (self.scale.extent[5] - self.scale.extent[4])))
                 #the combination below works though it should not! Look into scale again!!

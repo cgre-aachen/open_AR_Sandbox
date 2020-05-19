@@ -60,3 +60,6 @@ class TopoModule(Module):
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger() #triggers the update of the bokeh plot
+
+    def show_widgets(self):
+        pass

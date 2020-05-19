@@ -58,7 +58,7 @@ class LandslideSimulation(Module):
             if self.simulation_frame == (self.counter+1):
                 self.simulation_frame = 0
 
-        if self.flow_selector == 'Horizontal':
+        if self.flow_selector == 'Height':
             if self.running_simulation:
                 move = self.horizontal_flow[:, :, self.simulation_frame]
             else:
@@ -69,7 +69,7 @@ class LandslideSimulation(Module):
             move = self.Load_Area.modify_to_box_coordinates(move)
             self.plot.ax.pcolormesh(move, cmap='hot')
 
-        elif self.flow_selector == 'Vertical':
+        elif self.flow_selector == 'Velocity':
             if self.running_simulation:
                 move = self.vertical_flow[:, :, self.simulation_frame]
             else:
@@ -87,16 +87,16 @@ class LandslideSimulation(Module):
         hor = ax1.pcolormesh(x_move, cmap='hot')
         ax1.axis('equal')
         ax1.set_axis_off()
-        ax1.set_title('Horizontal Flow')
-        fig.colorbar(hor, ax=ax1)
+        ax1.set_title('Flow Height')
+        fig.colorbar(hor, ax=ax1, label='meter')
 
         y_move = numpy.round(self.vertical_flow[:, :, self.frame_selector], decimals=1)
         y_move[y_move == 0] = numpy.nan
         ver = ax2.pcolormesh(y_move, cmap='hot')
         ax2.axis('equal')
         ax2.set_axis_off()
-        ax2.set_title('Vertical Flow')
-        fig.colorbar(ver, ax=ax2)
+        ax2.set_title('Flow Velocity')
+        fig.colorbar(ver, ax=ax2, label='meter/sec')
 
         self.plot_flow_frame.object = fig
         self.plot_flow_frame.param.trigger('object')
@@ -147,7 +147,7 @@ class LandslideSimulation(Module):
 
     def _create_widgets(self):
         self._widget_frame_selector = pn.widgets.IntSlider(
-            name='Frame',
+            name='5 seconds time step',
             value=self.frame_selector,
             start=0,
             end=self.counter
@@ -155,8 +155,8 @@ class LandslideSimulation(Module):
         self._widget_frame_selector.param.watch(self._callback_select_frame, 'value', onlychanged=False)
 
         self._widget_select_direction = pn.widgets.RadioButtonGroup(
-            name='Flow direction selector',
-            options=['None', 'Horizontal', 'Vertical'],
+            name='Flow history selector',
+            options=['None', 'Height', 'Velocity'],
             value=['None'],
             button_type='success'
         )

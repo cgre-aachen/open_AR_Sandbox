@@ -4,7 +4,6 @@ from time import sleep
 
 from sandbox.plot.plot import Plot
 from sandbox.modules.module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 class CalibModule(Module):
     """
@@ -53,10 +52,8 @@ class CalibModule(Module):
         self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max)
 
         # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger()

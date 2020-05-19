@@ -169,12 +169,12 @@ class LoadSaveTopoModule(Module):
                     self.absolute_topo,
                     self.relative_topo,
                     self.release_area)
-        print('Save successful')
+        print('Save topo successful')
 
-    def save_release_area(self, filename="releaseArea.npz"):
-        numpy.savez(filename,
+    def save_release_area(self, filename="releaseArea.npy"):
+        numpy.save(filename,
                     self.release_area)
-        print('Save successful')
+        print('Save area successful')
 
     def loadTopo(self, filename="savedTopography.npz"):
         self.is_loaded = True
