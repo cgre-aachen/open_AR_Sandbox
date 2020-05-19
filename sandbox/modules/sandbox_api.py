@@ -2,6 +2,7 @@
 
 import logging
 import panel as pn
+import traceback
 
 from sandbox.calibration.calibration import CalibrationData
 from sandbox.sensor.sensor_api import KinectV2
@@ -11,7 +12,8 @@ from sandbox.markers.aruco import ArucoMarkers
 
 from sandbox.calibration.calibration_module import CalibModule
 from sandbox.modules import GradientModule, LandslideSimulation, LoadSaveTopoModule, TopoModule,\
-    PrototypingModule, GemPyModule
+    PrototypingModule
+from sandbox.modules.gempy.gempy_module import GemPyModule
 
 # logging and exception handling
 verbose = False
@@ -35,7 +37,7 @@ def calibrate_sandbox(aruco_marker=True):
     module.run()
     module.calibrate().show()
 
-def start_server(calibration_file, aruco_marker=True, geo_model = None):
+def start_server(calibration_file, aruco_marker=True, geo_model=None):
 
     calib = CalibrationData(file=calibration_file)
     sensor = KinectV2(calib)
@@ -43,12 +45,12 @@ def start_server(calibration_file, aruco_marker=True, geo_model = None):
     if aruco_marker:
         aruco = ArucoMarkers(sensor, calib)
         if geo_model is not None:
-            module = Sandbox(calib, sensor, projector, aruco = aruco, model = geo_model)
+            module = Sandbox(calib, sensor, projector, aruco=aruco, geo_model=geo_model)
         else:
-            module = Sandbox(calib, sensor, projector, aruco = aruco)
+            module = Sandbox(calib, sensor, projector, aruco=aruco)
     else:
         if geo_model is not None:
-            module = Sandbox(calib, sensor, projector, model = geo_model)
+            module = Sandbox(calib, sensor, projector, geo_model=geo_model)
         else:
             module = Sandbox(calib, sensor, projector)
 
@@ -60,12 +62,12 @@ def start_server(calibration_file, aruco_marker=True, geo_model = None):
 class Sandbox:
     # Wrapping API-class
 
-    def __init__(self, calibrationdata, sensor, projector, Aruco=None, model = None, **kwargs):
+    def __init__(self, calibrationdata, sensor, projector, Aruco=None, geo_model=None, **kwargs):
         self.calib = calibrationdata
         self.sensor = sensor
         self.projector = projector
         self.aruco = Aruco
-        self.geo_model = model
+        self.geo_model = geo_model
 
         self.module = None
         self.module_active = False
@@ -80,15 +82,23 @@ class Sandbox:
         elif module == 'TopoModule':
             self.module = TopoModule(self.calib, self.sensor, self.projector, self.aruco)
         elif module == 'GempyModule':
-            self.module = GemPyModule(self.geo_model,self.calib, self.sensor, self.projector, self.aruco)
+            try:
+                if self.geo_model is not None:
+                    self.module = GemPyModule(self.geo_model, self.calib, self.sensor, self.projector, self.aruco)
+                else:
+                    print("No geo_model found. Please pass a valid gempy model"
+                          "")
+            except Exception:
+                traceback.print_exc()
         self.module_active = True
         self.module.setup()
+        self.module.update()
         self.module.run()
 
         try:
             self.module.show_widgets().show()
-        except:
-            pass
+        except Exception:
+            traceback.print_exc()
 
     def start(self):
         self.show_widgets().show()
@@ -152,6 +162,8 @@ class Sandbox:
         if self.module_active:
             self.module.stop()
         self.setup_server('GempyModule')
+        print("didi it worked?")
+        self.module.run()
 
 
 
