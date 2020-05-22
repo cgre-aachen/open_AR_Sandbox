@@ -166,9 +166,6 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         if self.margins:
             self.add_margins()
 
-        #if self.marker_position:
-        #   self.add_marker_position(df_position)
-
     def add_margins(self):
         """ Adds margin patches to the current plot object.
         This is only useful when an uncropped dataframe is passed.

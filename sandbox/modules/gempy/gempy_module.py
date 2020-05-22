@@ -358,8 +358,8 @@ class GemPyModule(Module):
                                                                   options=list(self.model_dict.keys()),
                                                                   value=list(self.model_dict.keys())[0],
                                                                   button_type='success')
-
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
+
         widgets = pn.WidgetBox(self._widget_model_selector,
                                self.fig_actual_model,
                                width=550
