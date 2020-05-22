@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy
 import matplotlib.colors as mcolors
+import panel as pn
 
 
 class Plot:  # TODO: create widgets to modify map visualization and change aruco visualization
@@ -14,8 +15,10 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
                  contours_label=False, contours_label_inline=True,
                  contours_label_fontsize=15, contours_label_format='%3.0f', #old args
                  model=None, show_faults=True, show_lith=True, #new args
-                 marker_position=None, minor_contours=False, contours_step_minor=50,
-                 contours_width_minor = 0.5):
+                 #marker_position=None,
+                 minor_contours=False, contours_step_minor=50,
+                 contours_width_minor = 0.5,
+                 aruco_connect=True, aruco_scatter = True, aruco_annotate = True, aruco_color = 'red'):
         """Creates a new plot instance.
 
         Regularly, this creates at least a raster plot (plt.pcolormesh), where contours or margin patches can be added.
@@ -61,9 +64,8 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.contours = contours
         self.show_lith = show_lith
         self.show_faults = show_faults
-        self.marker_position = marker_position
+        #self.marker_position = marker_position
         self.minor_contours = minor_contours
-
 
         # z-range handling
         if vmin is not None:
@@ -88,6 +90,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
             self.cmap.set_under(under, 1.0)
         if bad is not None:
             self.cmap.set_bad(bad, 1.0)
+
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
 
@@ -108,6 +111,12 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.margin_color = margin_color
         self.margin_alpha = margin_alpha
 
+        #aruco setup
+        self.aruco_connect = aruco_connect
+        self.aruco_scatter = aruco_scatter
+        self.aruco_annotate = aruco_annotate
+        self.aruco_color = aruco_color
+
         # TODO: save the figure's Matplotlib number to recall?
         # self.number = None
         self.figure = None
@@ -127,7 +136,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         plt.close(self.figure)  # close figure to prevent inline display
         self.ax.set_axis_off()
 
-    def render_frame(self, data, contourdata=None, vmin=None, vmax=None, df_position=None):  # ToDo: use keyword arguments
+    def render_frame(self, data, contourdata=None, vmin=None, vmax=None): #, df_position=None):  # ToDo: use keyword arguments
         """Renders a new frame according to class parameters.
 
         Resets the plot axes and redraws it with a new data frame, figure object remains untouched.
@@ -157,8 +166,8 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         if self.margins:
             self.add_margins()
 
-        if self.marker_position:
-            self.add_marker_position(df_position)
+        #if self.marker_position:
+        #   self.add_marker_position(df_position)
 
     def add_margins(self):
         """ Adds margin patches to the current plot object.
@@ -270,24 +279,139 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
     def plot_aruco(self, df_position):
         if len(df_position) > 0:
 
-            self.ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
-                            df_position[df_position['is_inside_box']]['box_y'].values,
-                            s=350, facecolors='none', edgecolors='r', linewidths=2)
-            for i in range(len(df_position[df_position['is_inside_box']])):
-                self.ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
-                                 (df_position[df_position['is_inside_box']]['box_x'].values[i],
-                                 df_position[df_position['is_inside_box']]['box_y'].values[i]),
-                                 c='r',
-                                 fontsize=20,
-                                 textcoords='offset pixels',
-                                 xytext=(20, 20))
-            self.ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
-                         df_position[df_position['is_inside_box']]['box_y'].values, '-r')
+            if self.aruco_scatter:
+                self.ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
+                                df_position[df_position['is_inside_box']]['box_y'].values,
+                                s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2)
+
+                if self.aruco_annotate:
+                    for i in range(len(df_position[df_position['is_inside_box']])):
+                        self.ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
+                                         (df_position[df_position['is_inside_box']]['box_x'].values[i],
+                                         df_position[df_position['is_inside_box']]['box_y'].values[i]),
+                                         c=self.aruco_color,
+                                         fontsize=20,
+                                         textcoords='offset pixels',
+                                         xytext=(20, 20))
+
+            if self.aruco_connect:
+                self.ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
+                             df_position[df_position['is_inside_box']]['box_y'].values,
+                             linestyle='solid',
+                             color=self.aruco_color)
 
             self.ax.set_axis_off()
 
-    def widgets_aruco(self):
-        pass
-
     def widgets_plot(self):
-        pass
+        self._create_plot_widgets()
+
+        widgets_countours = pn.WidgetBox(self._widget_plot_contours,
+                                         self._widget_plot_step_contours,
+                                         self._widget_plot_minorcontours,
+                                         self._widget_plot_step_minorcontours,
+                                         self._widget_plot_contours_label,
+                                         self._widget_plot_contours_label_fontsize
+                                         )
+
+        panel = pn.Column("#### <b> Dashboard for plot Visualization </b>",
+                          "<b> Colormap </b>",
+                          self._widget_plot_cmap,
+                          "<b> Contour lines </b>",
+                          widgets_countours)
+        return panel
+
+    def _create_plot_widgets(self):
+        # Colormap
+        self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap', options=plt.colormaps(),
+                                                   value=self.cmap.name)
+        self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)
+
+        # Countours
+        self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours)
+        self._widget_plot_contours.param.watch(self._callback_plot_contours, 'value',
+                                               onlychanged=False)
+
+        self._widget_plot_minorcontours = pn.widgets.Checkbox(name='Show minor contours', value=self.minor_contours)
+        self._widget_plot_minorcontours.param.watch(self._callback_plot_minorcontours, 'value',
+                                               onlychanged=False)
+
+        self._widget_plot_step_contours = pn.widgets.TextInput(name='Choose a contour step')
+        self._widget_plot_step_contours.param.watch(self._callback_plot_step_contours, 'value', onlychanged=False)
+        self._widget_plot_step_contours.value = str(self.contours_step)
+
+        self._widget_plot_step_minorcontours = pn.widgets.TextInput(name='Choose a minor contour step')
+        self._widget_plot_step_minorcontours.param.watch(self._callback_plot_step_minorcontours, 'value', onlychanged=False)
+        self._widget_plot_step_minorcontours.value = str(self.contours_step_minor)
+
+        self._widget_plot_contours_label = pn.widgets.Checkbox(name='Show contours label', value=self.contours_label)
+        self._widget_plot_contours_label.param.watch(self._callback_plot_contours_label, 'value',
+                                                    onlychanged=False)
+
+        self._widget_plot_contours_label_fontsize = pn.widgets.TextInput(name='set a contour label fontsize')
+        self._widget_plot_contours_label_fontsize.param.watch(self._callback_plot_contours_label_fontsize, 'value', onlychanged=False)
+        self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
+
+        # norm #TODO: normalize
+
+    def _callback_plot_contours(self, event):
+        self.contours = event.new
+
+    def _callback_plot_minorcontours(self, event):
+        self.minor_contours = event.new
+
+    def _callback_plot_cmap(self, event):
+        self.cmap = plt.cm.get_cmap(event.new)
+
+    def _callback_plot_step_contours(self, event):
+        self.contours_step = int(event.new)
+
+    def _callback_plot_step_minorcontours(self, event):
+        self.contours_step_minor = int(event.new)
+
+    def _callback_plot_contours_label(self, event):
+        self.contours_label = event.new
+
+    def _callback_plot_contours_label_fontsize(self, event):
+        self.contours_label_fontsize = int(event.new)
+
+    ##### Widgets for aruco plotting
+
+    def widgets_aruco(self):
+        self._create_aruco_widgets()
+        widgets = pn.WidgetBox(self._widget_aruco_scatter,
+                               self._widget_aruco_annotate,
+                               self._widget_aruco_connect,
+                               self._widget_aruco_color)
+
+        panel = pn.Column("<b> Dashboard for aruco Visualization </b>", widgets)
+        return panel
+
+    def _create_aruco_widgets(self):
+        self._widget_aruco_scatter = pn.widgets.Checkbox(name='Show location aruco', value=self.aruco_scatter)
+        self._widget_aruco_scatter.param.watch(self._callback_aruco_scatter, 'value',
+                                                           onlychanged=False)
+
+        self._widget_aruco_annotate = pn.widgets.Checkbox(name='Show aruco id', value=self.aruco_annotate)
+        self._widget_aruco_annotate.param.watch(self._callback_aruco_annotate, 'value',
+                                               onlychanged=False)
+
+        self._widget_aruco_connect = pn.widgets.Checkbox(name='Show line connecting arucos', value=self.aruco_connect)
+        self._widget_aruco_connect.param.watch(self._callback_aruco_connect, 'value',
+                                               onlychanged=False)
+
+        self._widget_aruco_color = pn.widgets.Select(name='Choose a color', options=[*mcolors.cnames.keys()],
+                                                   value=self.aruco_color)
+        self._widget_aruco_color.param.watch(self._callback_aruco_color, 'value', onlychanged=False)
+
+    def _callback_aruco_scatter(self, event):
+        self.aruco_scatter = event.new
+
+    def _callback_aruco_annotate(self, event):
+        self.aruco_annotate = event.new
+
+    def _callback_aruco_connect(self, event):
+        self.aruco_connect = event.new
+
+    def _callback_aruco_color(self, event):
+       self.aruco_color = event.new
+

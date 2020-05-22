@@ -1,7 +1,9 @@
+from warnings import warn
 from abc import ABCMeta
 from abc import abstractmethod
 import numpy
 import threading
+import panel as pn
 from sandbox.plot.plot import Plot
 from sandbox.markers.aruco import ArucoMarkers
 
@@ -131,4 +133,28 @@ class Module(object):
             self.Aruco.transform_to_box_coordinates()
         else:
             self.ARUCO_ACTIVE = False
-            print("aruco object not valid, please initiate Aruco class")
+            warn("aruco object not valid, please initiate Aruco class")
+
+    def widget_plot_module(self):
+        widgets = pn.WidgetBox(self.plot.widgets_plot())
+        if isinstance(self.Aruco, ArucoMarkers):
+            rows = pn.Row(widgets, self.widgets_aruco_visualization())
+        else:
+            rows = widgets
+
+        panel = pn.Column("## Plotting interaction widgets", rows)
+        return panel
+
+    def widgets_aruco_visualization(self):
+        self._create_aruco_widgets()
+        widgets = pn.WidgetBox(self._widget_aruco)
+        panel = pn.Column("## Activate aruco detetection", widgets, self.plot.widgets_aruco())
+        return panel
+
+    def _create_aruco_widgets(self):
+        self._widget_aruco = pn.widgets.Checkbox(name='Aruco Detection', value=self.ARUCO_ACTIVE)
+        self._widget_aruco.param.watch(self._callback_aruco, 'value',
+                                               onlychanged=False)
+
+    def _callback_aruco(self, event):
+        self.ARUCO_ACTIVE = event.new
