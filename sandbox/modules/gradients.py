@@ -104,6 +104,12 @@ class GradientModule(Module):
         # streamplot(X, Y, U, V, density=[0.5, 1])
 
     # Layouts
+    def show_widgets(self):
+        tabs = pn.Tabs(("Gradient Plot", self.widget_gradients()),
+                       ("Plot", self.widget_plot_module())
+                       )
+        return tabs
+
     def widget_lightsource(self):
         self._widget_azdeg = pn.widgets.FloatSlider(name='Azimuth',
 
@@ -128,14 +134,10 @@ class GradientModule(Module):
 
 
     def _callback_lightsource_azdeg(self, event):
-      #  self.pause()
         self.azdeg = event.new
-      #  self.resume()
 
     def _callback_lightsource_altdeg(self, event):
-      #  self.pause()
         self.altdeg = event.new
-      #  self.resume()
 
     def widget_gradients(self):
         widgets = pn.WidgetBox(self._widget_gradient_dx,
@@ -147,7 +149,8 @@ class GradientModule(Module):
                                self._widget_laplacian_vector,
                                self._widget_laplacian_stream)
 
-        panel = pn.Column("### Plot gradient model", widgets)
+        column = pn.Column("### Plot gradient model", widgets)
+        panel = pn.Row(column, self.widget_lightsource())
         return panel
 
     def _create_widget_gradients(self):

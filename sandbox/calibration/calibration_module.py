@@ -99,7 +99,7 @@ class CalibModule(Module):
         panel = pn.Column('### box calibration', widgets)
         return panel
 
-    def calibrate(self):
+    def show_widgets(self):
         tabs = pn.Tabs(('Projector', self.calibrate_projector()),
                        ('Sensor', self.calibrate_sensor()),
                        ('Box Dimensions', self.calibrate_box()),

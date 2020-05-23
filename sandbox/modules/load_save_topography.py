@@ -262,7 +262,8 @@ class LoadSaveTopoModule(Module):
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
                        ('Save Topography', self.widgets_save()),
-                       ('Load Topography', self.widgets_load())
+                       ('Load Topography', self.widgets_load()),
+                       ('Plot', self.widget_plot_module())
                        )
         return tabs
 

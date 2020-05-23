@@ -116,7 +116,8 @@ class LandslideSimulation(Module):
     # Widgets
     def show_widgets(self):
         tabs = pn.Tabs(('Controllers', self.show_tools()),
-                       ('Load Simulation', self.show_load())
+                       ('Load Simulation', self.show_load()),
+                       ("Plot", self.widget_plot_module())
                        )
         return tabs
 
