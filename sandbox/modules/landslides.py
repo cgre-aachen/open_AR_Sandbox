@@ -1,6 +1,8 @@
+import sys, os
 import panel as pn
 import numpy
 import matplotlib.pyplot as plt
+import matplotlib
 
 from .module_main_thread import Module
 from .load_save_topography import LoadSaveTopoModule
@@ -11,6 +13,7 @@ class LandslideSimulation(Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', ** kwargs)
         self.release_area = None
+        self.release_area_all = None
 
         self.horizontal_flow = None
         self.vertical_flow = None
@@ -21,13 +24,18 @@ class LandslideSimulation(Module):
         self.simulation_frame = 0
         self.running_simulation = False
 
-        self.npz_filename = None
+        self.simulation_folder = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/simulation_data/"
+        self.release_folder = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/saved_ReleaseAreas/"
+        self.release_options = None
+        self.release_id = None
+        self.release_id_all = ['None']
+        self.box_release_area = False
 
         self.Load_Area = LoadSaveTopoModule(*args, **kwargs)
 
         self.plot_flow_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
-        self._create_widgets()
+        #self._create_widgets()
 
     def setup(self):
         frame = self.sensor.get_filtered_frame()
@@ -42,6 +50,9 @@ class LandslideSimulation(Module):
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
+
+        if self.box_release_area:
+            self.show_box_release(self.release_area)
 
         self.plot_landslide_frame()
 
@@ -100,6 +111,7 @@ class LandslideSimulation(Module):
 
         self.plot_flow_frame.object = fig
         self.plot_flow_frame.param.trigger('object')
+        plt.close()
 
     def load_simulation_data_npz(self, infile):
         files = numpy.load(infile)
@@ -108,45 +120,98 @@ class LandslideSimulation(Module):
         self.counter = self.horizontal_flow.shape[2] - 1
         print('Load successful')
 
-    def load_release_area(self, infile):
-        files = numpy.load(infile)
-        self.release_area = files['arr_0']
-        print('Load successful')
+    def load_release_area(self, data_path):
+        self.release_options = []
+        self.release_id_all = []
+        self.release_area_all = []
+        list_files = os.listdir(data_path)
+        for i in list_files:
+            temp = [str(s) for s in i if s.isdigit()]
+            if len(temp) > 0:
+                if temp[0] == self.Load_Area.file_id:
+                    self.release_options.append(i)
+                    self.release_id_all.append(temp[-1])
+                    self.release_area_all.append(numpy.load(data_path+i))
+
+    def show_box_release(self, xy):
+        patch = matplotlib.patches.Polygon(xy, fill=False, edgecolor='white')
+        self.plot.ax.add_patch(patch)
+
+    def select_simulation_data(self, simulation_path, release_id):
+        list_files = os.listdir(simulation_path)
+        for i in list_files:
+            temp = [str(s) for s in i if s.isdigit()]
+            if len(temp) > 0:
+                if temp[0] == self.Load_Area.file_id and temp[2] == release_id:
+                    file_name = i
+        file_location = simulation_path+file_name
+        self.load_simulation_data_npz(file_location)
+
+    def modify_to_box_coordinates(self, id):
+        temp = self.release_area_all[int(id) - 1]
+        self.release_area = numpy.vstack((temp[:,0]+self.Load_Area.box_origin[0], temp[:,1]+self.Load_Area.box_origin[1])).T
 
     # Widgets
     def show_widgets(self):
-        tabs = pn.Tabs(('Controllers', self.show_tools()),
-                       ('Load Simulation', self.show_load()),
+        tabs = pn.Tabs(('Load and Save Module', self.show_loadsave_widgets()),
+                       ('Landslide simulation module', self.show_landslide_widgets()))
+        return tabs
+
+    def show_loadsave_widgets(self):
+        self.Load_Area._create_widgets()
+        self._create_widgets()
+        tabs = pn.Tabs(('Activate Module', pn.WidgetBox(self._widget_activate_LoadSaveModule)),
+                       ('Box widgets', self.Load_Area.widgets_box()),
+                       ('Release area widgets', self.Load_Area.widgets_release_area()),
+                       ('Load Topography', self.Load_Area.widgets_load()),
+                       ('Save Topography', self.Load_Area.widgets_save()),
+                       ('Plot', self.Load_Area.widget_plot_module())
+                       )
+        return tabs
+
+    def show_landslide_widgets(self):
+        tabs = pn.Tabs(("Activate Module", pn.WidgetBox(self._widget_activate_LandslideModule)),
+                       ('Controllers', self.widgets_controller_simulation()),
+                       ('Load Simulation', self.widgets_load_simulation()),
                        ("Plot", self.widget_plot_module())
                        )
         return tabs
 
-    def show_tools(self):
-        widgets = pn.WidgetBox('<b>Select Flow </b>',
-                               self._widget_select_direction,
-                               '<b>Select Frame </b>',
-                               self._widget_frame_selector,
-                               '<b>Run Simulation</b>',
-                               self._widget_simulation,
-                               )
-
-        rows = pn.Row(widgets, self.plot_flow_frame)
-        panel = pn.Column("### Interaction widgets", rows)
-
+    def widgets_controller_simulation(self):
+        widgets = pn.Column("### Interaction widgets",
+                            self._widget_show_release,
+                            '<b>Select Flow </b>',
+                            self._widget_select_direction,
+                            '<b>Select Frame </b>',
+                            self._widget_frame_selector,
+                            '<b>Run Simulation</b>',
+                            self._widget_simulation
+                            )
+        panel = pn.Row(widgets, self.plot_flow_frame)
         return panel
 
-    def show_load(self):
-        widgets = pn.WidgetBox('<b>Filename</b>',
-                               self._widget_npz_filename,
-                               '<b>Load Simulation</b>',
-                               self._widget_load
-                               )
-
-        panel = pn.Column("### Load widget", widgets)
-
+    def widgets_load_simulation(self):
+        col1 = pn.Column("## Load widget",
+                            '<b>File path</b>',
+                            self._widget_simulation_folder,
+                            '<b> Load possible release areas</b>',
+                            self._widget_load)
+        col2 = pn.Column('<b>Load Simulation</b>',
+                          self._widget_load_release_area,
+                          '<b>Select a release area</b>',
+                          pn.WidgetBox(self._widget_available_release_areas))
+        panel = pn.Row(col1, col2)
         return panel
 
     def _create_widgets(self):
+        self._widget_activate_LoadSaveModule = pn.widgets.Button(name='Activate Load Save Module', button_type="success")
+        self._widget_activate_LoadSaveModule.param.watch(self._callback_activate_LoadSaveModule, 'clicks', onlychanged=False)
+
+        self._widget_activate_LandslideModule = pn.widgets.Button(name='Activate Landslide Module',
+                                                                 button_type="success")
+        self._widget_activate_LandslideModule.param.watch(self._callback_activate_LandslideModule, 'clicks',
+                                                         onlychanged=False)
+
         self._widget_frame_selector = pn.widgets.IntSlider(
             name='5 seconds time step',
             value=self.frame_selector,
@@ -172,12 +237,28 @@ class LandslideSimulation(Module):
         self._widget_simulation.param.watch(self._callback_simulation, 'value', onlychanged=False)
 
         # Load widgets
-        self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to load the simulation:')
-        self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
-        self._widget_npz_filename.value = 'simulation_data/simulation_results_for_sandbox.npz'
+        self._widget_simulation_folder = pn.widgets.TextInput(name='Specify the folder path to load the simulation:')
+        self._widget_simulation_folder.param.watch(self._callback_filename, 'value', onlychanged=False)
+        self._widget_simulation_folder.value = self.simulation_folder
 
-        self._widget_load = pn.widgets.Button(name='Load')
-        self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
+        self._widget_load = pn.widgets.Button(name='Refresh list', button_type='warning')
+        self._widget_load.param.watch(self._callback_load_files_folder, 'clicks', onlychanged=False)
+
+        self._widget_available_release_areas = pn.widgets.RadioBoxGroup(name='Available release areas',
+                                                                     options=self.release_id_all,
+                                                                     inline=False,
+                                                                        value=None)
+        self._widget_available_release_areas.param.watch(self._callback_available_release_areas, 'value',
+                                                      onlychanged=False)
+
+        self._widget_load_release_area = pn.widgets.Button(name='Load selected release area',
+                                                                 button_type="success")
+        self._widget_load_release_area.param.watch(self._callback_load_release_area, 'clicks',
+                                                         onlychanged=False)
+
+        self._widget_show_release = pn.widgets.Checkbox(name='Show release area', value=self.box_release_area, disabled=True)
+        self._widget_show_release.param.watch(self._callback_show_release, 'value',
+                                                    onlychanged=False)
 
         return True
 
@@ -186,13 +267,13 @@ class LandslideSimulation(Module):
         self.plot_landslide_frame()
 
     def _callback_filename(self, event):
-        self.npz_filename = event.new
+        self.simulation_folder = event.new
 
-    def _callback_load(self, event):
-        if self.npz_filename is not None:
-            self.load_simulation_data_npz(infile=self.npz_filename)
-            self._widget_frame_selector.end = self.counter + 1
-            self.plot_frame_panel()
+    def _callback_load_files_folder(self, event):
+        if self.simulation_folder is not None:
+            self.load_release_area(self.release_folder)
+            self._widget_available_release_areas.options = self.release_id_all
+            self._widget_available_release_areas.sizing_mode = "scale_both"
 
     def _callback_select_frame(self, event):
         self.pause()
@@ -207,3 +288,30 @@ class LandslideSimulation(Module):
         else:
             self.running_simulation = False
         self.plot_landslide_frame()
+
+    def _callback_activate_LoadSaveModule(self, event):
+        self.stop()
+        self.Load_Area.setup()
+        self.Load_Area.run()
+
+    def _callback_activate_LandslideModule(self, event):
+        self.Load_Area.stop()
+        self.setup()
+        self.run()
+
+    def _callback_available_release_areas(self, event):
+        if event.new is not None:
+            self.release_id = event.new
+            self.modify_to_box_coordinates(self.release_id)
+            self.box_release_area = True
+            self._widget_show_release.disabled = False
+            self._widget_show_release.value = self.box_release_area
+
+    def _callback_load_release_area(self, event):
+        if self.simulation_folder is not None:
+            self.select_simulation_data(self.simulation_folder, self.release_id)
+            self._widget_frame_selector.end = self.counter + 1
+            self.plot_frame_panel()
+
+    def _callback_show_release(self, event):
+        self.box_release_area = event.new

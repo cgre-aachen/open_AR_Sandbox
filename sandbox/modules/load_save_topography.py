@@ -130,8 +130,8 @@ class LoadSaveTopoModule(Module):
             y_origin = y_pos.values - height/2
             self.release_area = numpy.array([[x_origin-self.box_origin[0], y_origin-self.box_origin[1]],
                                              [x_origin - self.box_origin[0], y_origin+height-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]]])
+                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]],
+                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]]])
             for i in range(len(x_pos)):
                 self.showBox([x_origin[i], y_origin[i]], width, height)
 
@@ -269,6 +269,7 @@ class LoadSaveTopoModule(Module):
         ax.set_title('Loaded Topography')
         self.snapshot_frame.object = fig
         self.snapshot_frame.param.trigger('object')
+        plt.close()
 
     def search_all_data(self, data_path):
         self.data_filenames = os.listdir(data_path)
@@ -280,8 +281,8 @@ class LoadSaveTopoModule(Module):
         self._create_widgets()
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
-                       ('Save Topography', self.widgets_save()),
                        ('Load Topography', self.widgets_load()),
+                       ('Save Topography', self.widgets_save()),
                        ('Plot', self.widget_plot_module())
                        )
         return tabs
@@ -424,9 +425,6 @@ class LoadSaveTopoModule(Module):
                                                               value=['Erase'],
                                                               button_type='success')
         self._widget_show_release.param.watch(self._callback_show_release, 'value', onlychanged=False)
-
-
-
         return True
 
     def _callback_show_release(self, event):
