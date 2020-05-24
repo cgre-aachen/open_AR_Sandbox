@@ -124,7 +124,7 @@ class GradientModule(Module):
                                                     end=90.0)
         self._widget_altdeg.param.watch(self._callback_lightsource_altdeg, 'value')
 
-        widgets=pn.WidgetBox('<b>Azimuth</b>',
+        widgets = pn.WidgetBox('<b>Azimuth</b>',
                              self._widget_azdeg,
                              '<b>Altitude</b>',
                              self._widget_altdeg)

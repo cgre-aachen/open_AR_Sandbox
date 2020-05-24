@@ -136,7 +136,7 @@ class Sandbox:
         self._widget_gempy.param.watch(self._callback_gempy, 'clicks',
                                            onlychanged=False)
 
-        self._widget_calibration = pn.widgets.FileInput(name="Load calibration")
+        self._widget_calibration = pn.widgets.FileInput(name="Load calibration", accept=".json")
         self._widget_calibration.param.watch(self._callback_calibration, 'value')
 
         self._widget_create_calibration = pn.widgets.Button(name="CalibModule", button_type="success")
@@ -201,7 +201,8 @@ class Sandbox:
     def _callback_landslide(self, event):
         if self.module_active:
             self.module.stop()
-        self.setup_server('LandslideSimulation')
+        #self.setup_server('LandslideSimulation')
+        self.setup_server(event.new)
 
     def _callback_gempy(self, event):
         if self.module_active:
