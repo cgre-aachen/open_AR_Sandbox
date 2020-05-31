@@ -6,7 +6,7 @@ import traceback
 import json
 
 from sandbox.calibration.calibration import CalibrationData
-from sandbox.sensor.sensor_api import KinectV2
+from sandbox.sensor.sensor_api import Sensor
 from sandbox.projector.projector import Projector
 
 from sandbox.markers.aruco import ArucoMarkers
