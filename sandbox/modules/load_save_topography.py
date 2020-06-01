@@ -65,7 +65,7 @@ class LoadSaveTopoModule(Module):
         #self._create_widgets()
 
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
@@ -73,7 +73,7 @@ class LoadSaveTopoModule(Module):
 
     def update(self):
         # with self.lock:
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
@@ -152,7 +152,7 @@ class LoadSaveTopoModule(Module):
         Returns:
 
         """
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
 

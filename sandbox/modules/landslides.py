@@ -38,7 +38,7 @@ class LandslideSimulation(Module):
         #self._create_widgets()
 
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
@@ -46,7 +46,7 @@ class LandslideSimulation(Module):
 
     def update(self):
         # with self.lock:
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
@@ -153,6 +153,7 @@ class LandslideSimulation(Module):
 
     # Widgets
     def show_widgets(self):
+        self._create_widgets()
         tabs = pn.Tabs(('Load and Save Module', self.show_loadsave_widgets()),
                        ('Landslide simulation module', self.show_landslide_widgets()))
         return tabs

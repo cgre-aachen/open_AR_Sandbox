@@ -35,7 +35,7 @@ class TopoModule(Module):
     def setup(self):
         self.norm = True
         self.plot.minor_contours = True
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
@@ -57,7 +57,7 @@ class TopoModule(Module):
 
     def update(self):
         # with self.lock:
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)

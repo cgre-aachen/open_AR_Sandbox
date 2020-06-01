@@ -24,9 +24,9 @@ if verbose:
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         )
 
-def calibrate_sandbox(aruco_marker=True):
+def calibrate_sandbox(sensor_name='kinect_v2', aruco_marker=True):
     calib = CalibrationData(p_width=1280, p_height=800)
-    sensor = KinectV2(calib)
+    sensor = Sensor(calib, sensor_name)
     projector = Projector(calib)
     if aruco_marker:
         aruco = ArucoMarkers(sensor, calib)
@@ -37,13 +37,13 @@ def calibrate_sandbox(aruco_marker=True):
     module.run()
     module.calibrate().show()
 
-def start_server(calibration_file=None, aruco_marker=True, geo_model=None):
+def start_server(calibration_file=None, sensor_name='kinect_v2', aruco_marker=True, geo_model=None):
     if calibrate_sandbox is None:
         calib = CalibrationData(p_width=1280, p_height=800)
     else:
         calib = CalibrationData(file=calibration_file)
 
-    sensor = KinectV2(calib)
+    sensor = Sensor(calib, sensor_name)
     projector = Projector(calib)
     if aruco_marker:
         aruco = ArucoMarkers(sensor, calib)
@@ -201,8 +201,7 @@ class Sandbox:
     def _callback_landslide(self, event):
         if self.module_active:
             self.module.stop()
-        #self.setup_server('LandslideSimulation')
-        self.setup_server(event.new)
+        self.setup_server('LandslideSimulation')
 
     def _callback_gempy(self, event):
         if self.module_active:

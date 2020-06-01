@@ -2,7 +2,7 @@ import logging
 import numpy
 import scipy
 import scipy.ndimage
-import warnings as warn
+from warnings import warn
 
 from .kinectV1 import KinectV1
 from .kinectV2 import KinectV2
@@ -36,14 +36,17 @@ class Sensor:
             warn("Unrecognized sensor name. Activating dummy sensor")
             self.Sensor = DummySensor(**kwargs)
 
-        self.filter = gauss_filter  # TODO: deprecate get_filtered_frame, make it switchable in runtime
-        self.n_frames = n_frames  # filter parameters
+        # filter parameters
+        self.filter = gauss_filter
+        self.n_frames = n_frames
         self.sigma_gauss = gauss_sigma
 
         self.calib.s_name = self.Sensor.name
         self.calib.s_width = self.Sensor.depth_width
         self.calib.s_width = self.Sensor.depth_width
         self.calib.s_height = self.Sensor.depth_height
+
+        self.depth = None
 
     def get_frame(self):
         # collect last n frames in a stack

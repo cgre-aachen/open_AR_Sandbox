@@ -91,7 +91,7 @@ class GemPyModule(Module):
         self.projector.frame.object = self.plot.figure  # Link figure to projector
 
     def init_topography(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
@@ -110,7 +110,7 @@ class GemPyModule(Module):
         self.geo_model.update_from_grid()
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)

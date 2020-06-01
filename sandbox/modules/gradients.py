@@ -28,23 +28,15 @@ class GradientModule(Module):
         self._create_widget_gradients()
 
     def setup(self):
-        self.frame = self.sensor.get_filtered_frame()
+        self.frame = self.sensor.get_frame()
         if self.crop:
             self.frame = self.crop_frame(self.frame)
         self.plot.render_frame(self.frame)
         self.projector.frame.object = self.plot.figure
 
-    def set_gradient(self, i):
-        self.grad_type = i
-
-    def set_lightsource(self, azdeg=315, altdeg=4, ve=0.25):
-        self.azdeg = azdeg
-        self.altdeg = altdeg
-        self.ve = ve
-
     def update(self):
         # with self.lock:
-        self.frame = self.sensor.get_filtered_frame()
+        self.frame = self.sensor.get_frame()
         if self.crop:
             self.frame = self.crop_frame(self.frame) #crops the extent of the kinect image to the sandbox dimensions
             self.frame = self.clip_frame(self.frame) #clips the z values abopve and below the set vertical extent
@@ -57,7 +49,31 @@ class GradientModule(Module):
             self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
-        self.projector.trigger() # trigger update in the projector class
+        self.projector.trigger()  # trigger update in the projector class
+
+    def set_gradient(self, i):
+        """
+        Change implicit between all gradient types.
+        Args:
+            i: int indicating the number to run. Future: string
+        Returns:
+
+        """
+        self.grad_type = i
+
+    def set_lightsource(self, azdeg=315, altdeg=4, ve=0.25):
+        """
+        modify the azimuth, altitude and vertical exageration for the lightsource mode
+        Args:
+            azdeg: 0 - North, 90- East, 180 - south, 270 - West, 360 - North
+            altdeg: degree of the sun . 0 - 180 - being 90 the vertical position of the sun
+            ve: float, vertical exageration
+
+        Returns:
+        """
+        self.azdeg = azdeg
+        self.altdeg = altdeg
+        self.ve = ve
 
     def plot_grad(self):
         """Create gradient plot and visualize in sandbox"""
@@ -90,7 +106,7 @@ class GradientModule(Module):
             self.plot.ax.get_yaxis().set_visible(False)
         if self.grad_type == 6:
             self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
-                                dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
+                                dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10])
         if self.grad_type == 7:
             self.plot.ax.pcolormesh(laplacian, cmap='RdBu_r', vmin=-1, vmax=1)
             self.plot.ax.quiver(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
@@ -101,10 +117,13 @@ class GradientModule(Module):
             self.plot.ax.streamplot(numpy.arange(10, yy-10, 10), numpy.arange(10, xx-10, 10),
                                 dy[10:-10:10,10:-10:10], dx[10:-10:10,10:-10:10])
 
-        # streamplot(X, Y, U, V, density=[0.5, 1])
-
     # Layouts
     def show_widgets(self):
+        """
+        Create and show the widgets associated to this module
+        Returns:
+            widget
+        """
         tabs = pn.Tabs(("Gradient Plot", self.widget_gradients()),
                        ("Plot", self.widget_plot_module())
                        )
@@ -182,41 +201,41 @@ class GradientModule(Module):
         return True
 
     def _callback_gradient_dx (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(1)
-        self.resume()
+        #self.resume()
 
     def _callback_gradient_dy (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(2)
-        self.resume()
+        #self.resume()
 
     def _callback_gradient_sqrt (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(3)
-        self.resume()
+        #self.resume()
 
     def _callback_laplacian (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(4)
-        self.resume()
+        #self.resume()
 
     def _callback_lightsource (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(5)
-        self.resume()
+        #self.resume()
 
     def _callback_vector_field (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(6)
-        self.resume()
+        #self.resume()
 
     def _callback_laplacian_vector (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(7)
-        self.resume()
+        #self.resume()
 
     def _callback_laplacian_stream (self, event):
-        self.pause()
+        #self.pause()
         self.set_gradient(8)
-        self.resume()
+        #self.resume()

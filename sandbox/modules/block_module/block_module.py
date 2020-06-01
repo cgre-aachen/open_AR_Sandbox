@@ -53,7 +53,7 @@ class BlockModule(Module):
 
     def update(self):
         # with self.lock:
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
 
         if self.crop is True:
             frame = self.crop_frame(frame)

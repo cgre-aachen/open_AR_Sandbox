@@ -1,11 +1,11 @@
-import warnings as warn
+from warnings import warn
 import numpy
 import scipy
 
 try:
     import freenect  # wrapper for KinectV1
 except ImportError:
-    print('Freenect module not found, KinectV1 will not work.')
+    warn('Freenect module not found, KinectV1 will not work')
 
 
 class KinectV1:
