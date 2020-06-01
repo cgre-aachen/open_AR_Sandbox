@@ -83,7 +83,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         # pcolormesh setup
             self.cmap = plt.cm.get_cmap(cmap)
         if over is not None:
-            self.cmap.set_over(over, 1.0)
+            self.calib.s_min
         if under is not None:
             self.cmap.set_under(under, 1.0)
         if bad is not None:
