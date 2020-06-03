@@ -18,9 +18,8 @@ class KinectV1:
         self.color_width = 640
         self.color_height = 480
 
-        self.id = None
+        self.id = 0
         self.device = None
-        self.angle = None
         self.depth = None
         self.color = None
         self.setup()
@@ -39,23 +38,12 @@ class KinectV1:
         self.depth = self.get_frame()
         print("KinectV1 initialized.")
 
-    def set_angle(self, angle):  # TODO: throw out
-        """
-        Args:
-            angle:
-
-        Returns:
-            None
-        """
-        self.angle = angle
-        freenect.set_tilt_degs(self.device, self.angle)
-
     def get_frame(self):
         self.depth = freenect.sync_get_depth(index=self.id, format=freenect.DEPTH_MM)[0]
         self.depth = numpy.fliplr(self.depth)
         return self.depth
 
-    def get_rgb_frame(self):  # TODO: check if this can be thrown out
+    def get_color(self):
         """
 
         Returns:
@@ -64,21 +52,3 @@ class KinectV1:
         self.color = freenect.sync_get_video(index=self.id)[0]
         self.color = numpy.fliplr(self.color)
         return self.color
-
-    def calibrate_frame(self, frame, calibration=None):  # TODO: check if this can be thrown out
-        """
-
-        Args:
-            frame:
-            calibration:
-
-        Returns:
-
-        """
-        if calibration is None:
-            print("no calibration provided!")
-        rotated = scipy.ndimage.rotate(frame, calibration.calibration_data.rot_angle, reshape=False)
-        cropped = rotated[calibration.calibration_data.y_lim[0]: calibration.calibration_data.y_lim[1],
-                  calibration.calibration_data.x_lim[0]: calibration.calibration_data.x_lim[1]]
-        cropped = numpy.flipud(cropped)
-        return cropped

@@ -34,19 +34,19 @@ class CalibModule(Module):
 
     # standard methods
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
         # sensor calibration visualization
-        self.calib_frame = self.sensor.get_filtered_frame()
+        self.calib_frame = self.sensor.get_frame()
         self.calib_plot.render_frame(self.calib_frame)
         self.calib_panel_frame.object = self.calib_plot.figure
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max)
@@ -315,7 +315,7 @@ class CalibModule(Module):
         self.pause()
         sleep(3)
         # only here, get a new frame before updating the plot
-        self.calib_frame = self.sensor.get_filtered_frame()
+        self.calib_frame = self.sensor.get_frame()
         self.update_calib_plot()
         self.resume()
 
