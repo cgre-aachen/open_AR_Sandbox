@@ -19,6 +19,7 @@ from .modules.gradients import GradientModule
 from .modules.landslides import LandslideSimulation
 from .modules.prototyping import PrototypingModule
 from .calibration.calibration_module import CalibModule
+from .modules.search_methods import SearchMethodsModule
 
 #gempy connection
 from .modules.gempy.gempy_module import GemPyModule

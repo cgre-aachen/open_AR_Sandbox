@@ -68,18 +68,12 @@ class PrototypingModule(Module):
 
         """
         def inner1(*args, **kwargs):
-<<<<<<< HEAD
+
             frame = self.sensor.get_frame()
-            if self.crop:
-                frame = self.crop_frame(frame)
-                frame = self.clip_frame(frame)
-            func(*args, sandbox_ax=self.plot.ax, sandbox_frame=frame,  **kwargs)
-=======
-            frame = self.sensor.get_filtered_frame()
 
             if self.crop:
                 frame = self.crop_frame(frame)
                 frame = self.clip_frame(frame)
             func(*args, sandbox_ax=self.plot.ax, sandbox_frame=frame, xy=self.aruco_inside(), **kwargs)
->>>>>>> dev_gradient_descent
+
         return inner1

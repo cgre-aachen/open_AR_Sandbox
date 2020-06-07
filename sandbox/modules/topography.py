@@ -11,7 +11,6 @@ class TopoModule(Module):
     Module for simple Topography visualization without computing a geological model
     """
 
-    # TODO: create widgets
     def __init__(self, *args, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         self.max_height = 2000
