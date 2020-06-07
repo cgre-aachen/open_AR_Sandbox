@@ -1,3 +1,4 @@
+from warnings import warn
 import matplotlib.pyplot as plt
 import numpy
 import pandas as pd
@@ -9,9 +10,8 @@ try:
     from pykinect2 import PyKinectRuntime
     PYKINECT_INSTALLED = True
 except ImportError:
-    print('pykinect2 module not found, Coordinate Mapping will not work.')
+    warn('pykinect2 module not found, Coordinate Mapping will not work.')
     PYKINECT_INSTALLED = False
-
 
 try:
     import cv2
@@ -19,8 +19,8 @@ try:
     CV2_IMPORT = True
 except ImportError:
     CV2_IMPORT = False
-    # warn('opencv is not installed. Object detection will not work')
-    pass
+    warn('opencv is not installed. Object detection will not work')
+
 
 class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     """
@@ -34,7 +34,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         else:
             self.aruco_dict = aruco_dict
         self.area = area  # set a square Area of interest here (Hot-Area)
-        self.kinect = sensor
+        self.kinect = sensor.Sensor
         self.calib = calibration
         self.ir_markers = None
         if self.calib.aruco_corners is not None:

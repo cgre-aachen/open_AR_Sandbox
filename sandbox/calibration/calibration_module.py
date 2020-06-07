@@ -4,7 +4,6 @@ from time import sleep
 
 from sandbox.plot.plot import Plot
 from sandbox.modules.module_main_thread import Module
-from sandbox.markers.aruco import ArucoMarkers
 
 class CalibModule(Module):
     """
@@ -35,28 +34,26 @@ class CalibModule(Module):
 
     # standard methods
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
 
         # sensor calibration visualization
-        self.calib_frame = self.sensor.get_filtered_frame()
+        self.calib_frame = self.sensor.get_frame()
         self.calib_plot.render_frame(self.calib_frame)
         self.calib_panel_frame.object = self.calib_plot.figure
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame, vmin=self.calib.s_min, vmax=self.calib.s_max)
 
         # if aruco Module is specified:search, update, plot aruco markers
-        if isinstance(self.Aruco, ArucoMarkers):
-            self.Aruco.search_aruco()
-            self.Aruco.update_marker_dict()
-            self.Aruco.transform_to_box_coordinates()
+        if self.ARUCO_ACTIVE:
+            self.update_aruco()
             self.plot.plot_aruco(self.Aruco.aruco_markers)
 
         self.projector.trigger()
@@ -102,7 +99,7 @@ class CalibModule(Module):
         panel = pn.Column('### box calibration', widgets)
         return panel
 
-    def calibrate(self):
+    def show_widgets(self):
         tabs = pn.Tabs(('Projector', self.calibrate_projector()),
                        ('Sensor', self.calibrate_sensor()),
                        ('Box Dimensions', self.calibrate_box()),
@@ -318,7 +315,7 @@ class CalibModule(Module):
         self.pause()
         sleep(3)
         # only here, get a new frame before updating the plot
-        self.calib_frame = self.sensor.get_filtered_frame()
+        self.calib_frame = self.sensor.get_frame()
         self.update_calib_plot()
         self.resume()
 

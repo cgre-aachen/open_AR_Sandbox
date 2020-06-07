@@ -14,7 +14,7 @@ class PrototypingModule(Module):
         self.active_connection = False
 
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
@@ -23,7 +23,7 @@ class PrototypingModule(Module):
         self.projector.frame.object = self.plot.figure
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
@@ -56,9 +56,9 @@ class PrototypingModule(Module):
 
         """
         def inner1(*args, **kwargs):
-            frame = self.sensor.get_filtered_frame()
+            frame = self.sensor.get_frame()
             if self.crop:
                 frame = self.crop_frame(frame)
                 frame = self.clip_frame(frame)
-            func(*args, sandbox_ax=self.plot.ax, sandbox_frame=frame, **kwargs)
+            func(*args, sandbox_ax=self.plot.ax, sandbox_frame=frame,  **kwargs)
         return inner1

@@ -1,7 +1,9 @@
+from warnings import warn
 from abc import ABCMeta
 from abc import abstractmethod
 import numpy
 import threading
+import panel as pn
 from sandbox.plot.plot import Plot
 from sandbox.markers.aruco import ArucoMarkers
 
@@ -131,4 +133,40 @@ class Module(object):
             self.Aruco.transform_to_box_coordinates()
         else:
             self.ARUCO_ACTIVE = False
-            print("aruco object not valid, please initiate Aruco class")
+            warn("aruco object not valid, please initiate Aruco class")
+
+    def widget_plot_module(self):
+        if isinstance(self.Aruco, ArucoMarkers):
+            widgets = pn.Column(self.widget_thread_controller(), self.widgets_aruco_visualization())
+            rows = pn.Row(self.plot.widgets_plot(), widgets)
+        else:
+            rows = pn.Row(self.plot.widgets_plot(), self.widget_thread_controller())
+
+        panel = pn.Column("## Plotting interaction widgets", rows)
+        return panel
+
+    def widget_thread_controller(self):
+        self._widget_thread_selector = pn.widgets.RadioButtonGroup(name='Thread controller',
+                                                                  options=["Start", "Stop"],
+                                                                  value="Start",
+                                                                  button_type='success')
+        self._widget_thread_selector.param.watch(self._callback_thread_selector, 'value', onlychanged=False)
+
+        panel = pn.Column("##<b>Thread Controller</b>", self._widget_thread_selector)
+        return panel
+
+    def _callback_thread_selector(self, event):
+        if event.new == "Start":
+            self.run()
+        elif event.new == "Stop":
+            self.stop()
+
+    def widgets_aruco_visualization(self):
+        self._widget_aruco = pn.widgets.Checkbox(name='Aruco Detection', value=self.ARUCO_ACTIVE)
+        self._widget_aruco.param.watch(self._callback_aruco, 'value',
+                                       onlychanged=False)
+        panel = pn.Column("## Activate aruco detetection", self._widget_aruco, self.plot.widgets_aruco())
+        return panel
+
+    def _callback_aruco(self, event):
+        self.ARUCO_ACTIVE = event.new

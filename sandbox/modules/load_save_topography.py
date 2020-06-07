@@ -1,3 +1,4 @@
+import sys, os
 import panel as pn
 import numpy
 import matplotlib.pyplot as plt
@@ -52,21 +53,27 @@ class LoadSaveTopoModule(Module):
         self.release_area_origin = None
         self.aruco_release_area_origin = None
 
+        self.data_filenames = ['None']
+        self.file_id = None
+        #TODO: need to find a better way to do this
+        self.data_path = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/saved_DEMs/"
+        #self.search_all_data()
+
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
 
-        self._create_widgets()
 
     def setup(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
+        self._create_widgets()
 
     def update(self):
         # with self.lock:
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
@@ -123,8 +130,8 @@ class LoadSaveTopoModule(Module):
             y_origin = y_pos.values - height/2
             self.release_area = numpy.array([[x_origin-self.box_origin[0], y_origin-self.box_origin[1]],
                                              [x_origin - self.box_origin[0], y_origin+height-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]]])
+                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]],
+                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]]])
             for i in range(len(x_pos)):
                 self.showBox([x_origin[i], y_origin[i]], width, height)
 
@@ -145,7 +152,7 @@ class LoadSaveTopoModule(Module):
         Returns:
 
         """
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
 
@@ -167,14 +174,13 @@ class LoadSaveTopoModule(Module):
     def saveTopo(self, filename="savedTopography.npz"):
         numpy.savez(filename,
                     self.absolute_topo,
-                    self.relative_topo,
-                    self.release_area)
-        print('Save successful')
+                    self.relative_topo)
+        print('Save topo successful')
 
-    def save_release_area(self, filename="releaseArea.npz"):
-        numpy.savez(filename,
+    def save_release_area(self, filename="releaseArea.npy"):
+        numpy.save(filename,
                     self.release_area)
-        print('Save successful')
+        print('Save area successful')
 
     def loadTopo(self, filename="savedTopography.npz"):
         self.is_loaded = True
@@ -182,6 +188,7 @@ class LoadSaveTopoModule(Module):
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
         print('Load successful')
+        self.get_id(filename)
 
     def showLoadedTopo(self): # Not working
         if self.is_loaded:
@@ -203,6 +210,12 @@ class LoadSaveTopoModule(Module):
         bot[bot == 1] = numpy.nan
         frame = numpy.insert(frame, 0, bot, axis=0)
         return frame
+
+    def saveTopoVector(self):  # TODO:
+        """
+        saves a vector graphic of the contour map to disk
+        """
+        pass
 
     def set_cmap(self):
         blues = plt.cm.RdBu(numpy.linspace(0, 0.5, 256))
@@ -256,13 +269,21 @@ class LoadSaveTopoModule(Module):
         ax.set_title('Loaded Topography')
         self.snapshot_frame.object = fig
         self.snapshot_frame.param.trigger('object')
+        plt.close()
+
+    def search_all_data(self, data_path):
+        self.data_filenames = os.listdir(data_path)
+
+    def get_id(self, filename):
+        self.file_id = [str(s) for s in filename if s.isdigit()][0]
 
     def show_widgets(self):
         self._create_widgets()
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
+                       ('Load Topography', self.widgets_load()),
                        ('Save Topography', self.widgets_save()),
-                       ('Load Topography', self.widgets_load())
+                       ('Plot', self.widget_plot_module())
                        )
         return tabs
 
@@ -276,7 +297,7 @@ class LoadSaveTopoModule(Module):
         return panel
 
     def widgets_box(self):
-        widgets = pn.WidgetBox('<b>Modify box size </b>',
+        widgets = pn.Column('<b>Modify box size </b>',
                                self._widget_move_box_horizontal,
                                self._widget_move_box_vertical,
                                self._widget_box_width,
@@ -295,24 +316,26 @@ class LoadSaveTopoModule(Module):
         return panel
 
     def widgets_save(self):
-        widgets = pn.WidgetBox('<b>Filename</b>',
-                               self._widget_npz_filename,
-                               '<b>Safe Topography</b>',
-                               self._widget_save,
-                               )
-
-        panel = pn.Column("### Save widget", widgets)
-
+        panel = pn.Column("### Save widget",
+                          '<b>Filename</b>',
+                          self._widget_npz_filename,
+                          '<b>Safe Topography</b>',
+                          self._widget_save
+                          )
         return panel
 
     def widgets_load(self):
-        widgets = pn.WidgetBox('<b>Filename</b>',
-                               self._widget_npz_filename,
-                               '<b>Load Topography</b>',
-                               self._widget_load
-                               )
-
-        panel = pn.Column("### Load widget", widgets)
+        panel = pn.Column("### Load widget",
+                          '<b>Directory path</b>',
+                          self._widget_data_path,
+                          '<b>Load Topography</b>',
+                          self._widget_load,
+                          '<b>Load available Topography</b>',
+                          pn.WidgetBox(self._widget_available_topography),
+                          '<b>Select another Topography file</b>',
+                          self._widget_other_topography,
+                          self._widget_load_other
+                          )
 
         return panel
 
@@ -357,15 +380,32 @@ class LoadSaveTopoModule(Module):
                                                onlychanged=False)
 
         # Load save widgets
-        self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename for the topography snapshot:')
-        self._widget_npz_filename.param.watch(self._callback_filename, 'value', onlychanged=False)
+        self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to save the current topography snapshot:')
+        self._widget_npz_filename.param.watch(self._callback_filename_npz, 'value', onlychanged=False)
         self._widget_npz_filename.value = 'saved_DEMs/savedTopography.npz'
+
+        self._widget_data_path = pn.widgets.TextInput(name='Choose a folder to load the available topography snapshots:')
+        self._widget_data_path.param.watch(self._callback_filename, 'value', onlychanged=False)
+        #self._widget_npz_filename.value = 'saved_DEMs/savedTopography.npz'
+        self._widget_data_path.value = self.data_path
 
         self._widget_save = pn.widgets.Button(name='Save')
         self._widget_save.param.watch(self._callback_save, 'clicks', onlychanged=False)
 
-        self._widget_load = pn.widgets.Button(name='Load')
+        self._widget_load = pn.widgets.Button(name='Load Files in folder')
         self._widget_load.param.watch(self._callback_load, 'clicks', onlychanged=False)
+
+        self._widget_available_topography = pn.widgets.RadioBoxGroup(name='Available Topographies',
+                                                                     options=self.data_filenames,
+                                                                     inline=False)
+        self._widget_available_topography.param.watch(self._callback_available_topography, 'value',
+                                                      onlychanged= False)
+
+        #self._widget_other_topography = pn.widgets.FileInput(name="Load calibration (Note yet working)")
+        self._widget_other_topography = pn.widgets.FileSelector('~')
+        #self._widget_other_topography.param.watch(self._callback_other_topography, 'value')
+        self._widget_load_other = pn.widgets.Button(name='Load other', button_type='success')
+        self._widget_load_other.param.watch(self._callback_load_other, 'clicks', onlychanged=False)
 
         # Release area widgets
         self._widget_release_width = pn.widgets.IntSlider(name='Release area width',
@@ -385,7 +425,6 @@ class LoadSaveTopoModule(Module):
                                                               value=['Erase'],
                                                               button_type='success')
         self._widget_show_release.param.watch(self._callback_show_release, 'value', onlychanged=False)
-
         return True
 
     def _callback_show_release(self, event):
@@ -400,17 +439,23 @@ class LoadSaveTopoModule(Module):
     def _callback_release_height(self, event):
         self.release_height = event.new
 
-    def _callback_filename(self, event):
+    def _callback_filename_npz(self, event):
         self.npz_filename = event.new
+
+    def _callback_filename(self, event):
+        self.data_path = event.new
 
     def _callback_save(self, event):
         if self.npz_filename is not None:
             self.saveTopo(filename=self.npz_filename)
 
     def _callback_load(self, event):
-        if self.npz_filename is not None:
-            self.loadTopo(filename=self.npz_filename)
-            self.snapshotFrame()
+        if self.data_path is not None:
+            #self.loadTopo(filename=self.npz_filename)
+            #self.snapshotFrame()
+            self.search_all_data(data_path=self.data_path)
+            self._widget_available_topography.options = self.data_filenames
+            self._widget_available_topography.sizing_mode = "scale_both"
 
     def _callback_move_box_horizontal(self, event):
         self.moveBox_possible(x=event.new,
@@ -448,8 +493,12 @@ class LoadSaveTopoModule(Module):
         self.show_difference = event.new
         self.snapshotDifference()
 
-    def saveTopoVector(self):
-        """
-        saves a vector graphic of the contour map to disk
-        """
-        pass
+    def _callback_available_topography(self, event):
+        if event.new is not None:
+            self.loadTopo(filename=self.data_path+event.new)
+            self.snapshotFrame()
+
+
+    def _callback_load_other(self, event):
+        self.loadTopo(filename=self._widget_other_topography.value[0])
+        self.snapshotFrame()

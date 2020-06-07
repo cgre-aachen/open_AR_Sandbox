@@ -15,8 +15,8 @@ from sandbox.plot.plot import Plot
 
 try:
     import gempy
-    from gempy.core.grid_modules.grid_types import Topography
-    from gempy.utils import section_utils
+    from gempy.core.grid_modules.topography import Topography
+    from gempy.core.grid_modules import section_utils
 except ImportError:
     warn('gempy package not found, GempyModule will not work')
 
@@ -77,7 +77,7 @@ class GemPyModule(Module):
 
     def setup(self):
 
-        self.scale = Scale(self.calib, extent=self.geo_model.grid.regular_grid.extent)        #prepare the scale object
+        self.scale = Scale(self.calib, extent=self.geo_model._grid.regular_grid.extent)        #prepare the scale object
         self.scale.calculate_scales()
 
         self.grid = Grid(calibration=self.calib, scale=self.scale)
@@ -91,35 +91,35 @@ class GemPyModule(Module):
         self.projector.frame.object = self.plot.figure  # Link figure to projector
 
     def init_topography(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
 
         self.grid.update_grid(frame)
-        self.geo_model.grid.topography = Topography(self.geo_model.grid.regular_grid)
-        self.geo_model.grid.topography.extent = self.scale.extent[:4]
-        self.geo_model.grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
-        self.geo_model.grid.topography.values = self.grid.depth_grid
-        self.geo_model.grid.topography.values_3D = numpy.dstack(
+        self.geo_model._grid.topography = Topography(self.geo_model._grid.regular_grid)
+        self.geo_model._grid.topography.extent = self.scale.extent[:4]
+        self.geo_model._grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
+        self.geo_model._grid.topography.values = self.grid.depth_grid
+        self.geo_model._grid.topography.values_3D = numpy.dstack(
             [self.grid.depth_grid[:, 0].reshape(self.scale.output_res[1], self.scale.output_res[0]),
              self.grid.depth_grid[:, 1].reshape(self.scale.output_res[1], self.scale.output_res[0]),
              self.grid.depth_grid[:, 2].reshape(self.scale.output_res[1], self.scale.output_res[0])])
 
-        self.geo_model.grid.set_active('topography')
+        self.geo_model._grid.set_active('topography')
         self.geo_model.update_from_grid()
 
     def update(self):
-        frame = self.sensor.get_filtered_frame()
+        frame = self.sensor.get_frame()
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
 
         self.grid.update_grid(frame)
-        self.geo_model.grid.topography.values = self.grid.depth_grid
-        self.geo_model.grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
-                                                self.geo_model.grid.topography.resolution)
-        self.geo_model.grid.update_grid_values()
+        self.geo_model._grid.topography.values = self.grid.depth_grid
+        self.geo_model._grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
+                                                self.geo_model._grid.topography.resolution)
+        self.geo_model._grid.update_grid_values()
         self.geo_model.update_from_grid()
         gempy.compute_model(self.geo_model, compute_mesh=False)
 
@@ -129,8 +129,8 @@ class GemPyModule(Module):
         #prepare the plot object
         self.plot.ax.cla()
 
-        self.plot.add_contours(data=self.geo_model.grid.topography.values_3D[:, :, 2],
-                               extent=self.geo_model.grid.topography.extent)
+        self.plot.add_contours(data=self.geo_model._grid.topography.values_3D[:, :, 2],
+                               extent=self.geo_model._grid.topography.extent)
         self.plot.add_faults()
         self.plot.add_lith()
 
@@ -222,14 +222,14 @@ class GemPyModule(Module):
 
     def plot_cross_section(self):
         self.geo_model.set_section_grid(self.section_dict)
-        self.cross_section = gempy._plot.plot_2d(self.geo_model,
+        self.cross_section = gempy.plot_2d(self.geo_model,
                                                  section_names=['aruco_section'],
                                                  figsize=self.figsize,
                                                  show_topography=True,
                                                  show_data=False)
 
     def plot_geological_map(self):
-        self.geological_map = gempy._plot.plot_2d(self.geo_model,
+        self.geological_map = gempy.plot_2d(self.geo_model,
                                                   section_names=['topography'],
                                                   show_data=False,
                                                   figsize=self.figsize)
@@ -237,7 +237,7 @@ class GemPyModule(Module):
     def plot_actual_model(self, name):
         self.geo_model.set_section_grid({'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)})
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
-        self.section_actual_model = gempy._plot.plot_2d(self.geo_model,
+        self.section_actual_model = gempy.plot_2d(self.geo_model,
                                                         section_names=['section:' + ' ' + name],
                                                         show_data=False,
                                                         figsize=self.figsize)
@@ -256,7 +256,7 @@ class GemPyModule(Module):
 
             for i in df.index:
                 df.at[i, 'box_z'] = (self.scale.extent[5] -
-                                     ((frame[df.at[i, 'box_y']][df.at[i, 'box_x']] - self.calib.s_min) /
+                                     ((frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))] - self.calib.s_min) /
                                       (self.calib.s_max - self.calib.s_min) *
                                       (self.scale.extent[5] - self.scale.extent[4])))
                 #the combination below works though it should not! Look into scale again!!
@@ -341,12 +341,10 @@ class GemPyModule(Module):
         return poly
 
 
-    def show_widgets(self, Model_dict):
-        self.original_sensor_min = self.calib.s_min  # store original sensor values on start
-        self.original_sensor_max = self.calib.s_max
-
-        tabs = pn.Tabs(('Select Model', self.widget_model_selector(Model_dict)),
-                       ('Plot 2D', self.widget_plot2d())
+    def show_widgets(self):
+        tabs = pn.Tabs(('Cross_sections', self.widget_plot2d()),
+                       ("Boreholes"),
+                       ('Plot', self.widget_plot_module())
                        )
 
         return tabs
@@ -358,8 +356,8 @@ class GemPyModule(Module):
                                                                   options=list(self.model_dict.keys()),
                                                                   value=list(self.model_dict.keys())[0],
                                                                   button_type='success')
-
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
+
         widgets = pn.WidgetBox(self._widget_model_selector,
                                self.fig_actual_model,
                                width=550
