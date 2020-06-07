@@ -234,10 +234,10 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.extract_boundaries(e_faults=False, e_lith=True)
 
     def extract_boundaries(self, e_faults=False, e_lith=False):
-        faults = list(self.model.faults.df[self.model.faults.df['isFault'] == True].index)
-        shape = self.model.grid.topography.resolution
+        faults = list(self.model._faults.df[self.model._faults.df['isFault'] == True].index)
+        shape = self.model._grid.topography.resolution
         a = self.model.solutions.geological_map[1]
-        extent = self.model.grid.topography.extent
+        extent = self.model._grid.topography.extent
         zorder = 2
         counter = a.shape[0]
 

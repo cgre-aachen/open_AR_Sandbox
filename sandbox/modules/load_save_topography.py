@@ -62,7 +62,6 @@ class LoadSaveTopoModule(Module):
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
 
-        #self._create_widgets()
 
     def setup(self):
         frame = self.sensor.get_frame()
@@ -70,6 +69,7 @@ class LoadSaveTopoModule(Module):
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
+        self._create_widgets()
 
     def update(self):
         # with self.lock:
@@ -174,8 +174,7 @@ class LoadSaveTopoModule(Module):
     def saveTopo(self, filename="savedTopography.npz"):
         numpy.savez(filename,
                     self.absolute_topo,
-                    self.relative_topo,
-                    self.release_area)
+                    self.relative_topo)
         print('Save topo successful')
 
     def save_release_area(self, filename="releaseArea.npy"):
@@ -189,6 +188,7 @@ class LoadSaveTopoModule(Module):
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
         print('Load successful')
+        self.get_id(filename)
 
     def showLoadedTopo(self): # Not working
         if self.is_loaded:
@@ -497,7 +497,7 @@ class LoadSaveTopoModule(Module):
         if event.new is not None:
             self.loadTopo(filename=self.data_path+event.new)
             self.snapshotFrame()
-            self.get_id(event.new)
+
 
     def _callback_load_other(self, event):
         self.loadTopo(filename=self._widget_other_topography.value[0])

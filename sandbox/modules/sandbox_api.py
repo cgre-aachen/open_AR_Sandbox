@@ -35,7 +35,7 @@ def calibrate_sandbox(sensor_name='kinect_v2', aruco_marker=True):
         module = CalibModule(calib, sensor, projector)
     module.setup()
     module.run()
-    module.calibrate().show()
+    module.show_widgets().show()
 
 def start_server(calibration_file=None, sensor_name='kinect_v2', aruco_marker=True, geo_model=None):
     if calibrate_sandbox is None:

@@ -35,7 +35,6 @@ class LandslideSimulation(Module):
 
         self.plot_flow_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
-        #self._create_widgets()
 
     def setup(self):
         frame = self.sensor.get_frame()
@@ -43,6 +42,7 @@ class LandslideSimulation(Module):
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
+        self._create_widgets()
 
     def update(self):
         # with self.lock:
