@@ -62,6 +62,8 @@ class LoadSaveTopoModule(Module):
         self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()  # close figure to prevent inline display
 
+        self._create_widgets()
+
 
     def setup(self):
         frame = self.sensor.get_frame()
@@ -69,7 +71,7 @@ class LoadSaveTopoModule(Module):
             frame = self.crop_frame(frame)
         self.plot.render_frame(frame)
         self.projector.frame.object = self.plot.figure
-        self._create_widgets()
+
 
     def update(self):
         # with self.lock:
@@ -497,7 +499,6 @@ class LoadSaveTopoModule(Module):
         if event.new is not None:
             self.loadTopo(filename=self.data_path+event.new)
             self.snapshotFrame()
-
 
     def _callback_load_other(self, event):
         self.loadTopo(filename=self._widget_other_topography.value[0])

@@ -160,7 +160,6 @@ class LandslideSimulation(Module):
 
     def show_loadsave_widgets(self):
         self.Load_Area._create_widgets()
-        self._create_widgets()
         tabs = pn.Tabs(('Activate Module', pn.WidgetBox(self._widget_activate_LoadSaveModule)),
                        ('Box widgets', self.Load_Area.widgets_box()),
                        ('Release area widgets', self.Load_Area.widgets_release_area()),
@@ -171,6 +170,7 @@ class LandslideSimulation(Module):
         return tabs
 
     def show_landslide_widgets(self):
+        self._create_widgets()
         tabs = pn.Tabs(("Activate Module", pn.WidgetBox(self._widget_activate_LandslideModule)),
                        ('Controllers', self.widgets_controller_simulation()),
                        ('Load Simulation', self.widgets_load_simulation()),

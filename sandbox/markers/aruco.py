@@ -52,8 +52,6 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         # TODO: correction in x and y direction for the mapping between color space and depth space
         self.correction_x = 8
         self.correction_y = 65
-        if PYKINECT_INSTALLED:
-            self.CoordinateMap = self.create_CoordinateMap()
 
         self.point_markers = None
 
@@ -90,6 +88,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         #Automatic calibration
         self.load_corners_ids()
+
+        self.CoordinateMap = pd.DataFrame()
+        if PYKINECT_INSTALLED:
+            while len(self.CoordinateMap) < 5:
+                self.CoordinateMap = self.create_CoordinateMap()
 
     def load_corners_ids(self):
         if self.calib.aruco_corners is not None:
@@ -321,7 +324,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
             real world values of x,y and z in meters
         """
-        height, width = self.kinect.get_frame().shape
+        height, width = self.calib.s_height, self.calib.s_width
         x = numpy.arange(0, width)
         y = numpy.arange(0, height)
         xx, yy = numpy.meshgrid(x, y)
