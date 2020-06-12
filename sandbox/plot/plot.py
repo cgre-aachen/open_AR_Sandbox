@@ -4,7 +4,7 @@ import matplotlib.colors as mcolors
 import panel as pn
 
 
-class Plot:  # TODO: create widgets to modify map visualization and change aruco visualization
+class Plot:  # TODO: include function to take screenshot
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
@@ -66,6 +66,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.show_faults = show_faults
         #self.marker_position = marker_position
         self.minor_contours = minor_contours
+        self.colormap = True
 
         # z-range handling
         if vmin is not None:
@@ -155,7 +156,8 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         if vmax is None:
             vmax = self.vmax
 
-        self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+        if self.colormap:
+            self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
 
         if self.contours:
             if contourdata is None:
@@ -312,6 +314,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
 
         panel = pn.Column("#### <b> Dashboard for plot Visualization </b>",
                           "<b> Colormap </b>",
+                          self._widget_plot_colormap,
                           self._widget_plot_cmap,
                           "<b> Contour lines </b>",
                           widgets_countours)
@@ -322,6 +325,10 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap', options=plt.colormaps(),
                                                    value=self.cmap.name)
         self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)
+
+        self._widget_plot_colormap = pn.widgets.Checkbox(name='Show colormap', value=self.colormap)
+        self._widget_plot_colormap.param.watch(self._callback_plot_colormap, 'value',
+                                               onlychanged=False)
 
         # Countours
         self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours)
@@ -349,6 +356,9 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
 
         # norm #TODO: normalize
+
+    def _callback_plot_colormap(self, event):
+        self.colormap = event.new
 
     def _callback_plot_contours(self, event):
         self.contours = event.new

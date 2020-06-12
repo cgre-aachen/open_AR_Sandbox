@@ -170,3 +170,7 @@ class Module(object):
 
     def _callback_aruco(self, event):
         self.ARUCO_ACTIVE = event.new
+
+
+if __name__ == '__main__':
+    pass
