@@ -38,6 +38,7 @@ class TopoModule(Module):
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
+            self.frame = frame
         if self.norm:  # TODO: include RangeSlider
             frame = self.calib.s_max - frame
             self.set_norm()
@@ -60,6 +61,12 @@ class TopoModule(Module):
         if self.crop:
             frame = self.crop_frame(frame)
             frame = self.clip_frame(frame)
+        equal = numpy.allclose(self.frame, frame, atol=5, rtol=1e-1, equal_nan=True)
+        if not equal:
+            self.frame = frame
+        else:
+            frame = self.frame
+
         if self.norm:
             frame = self.calib.s_max - frame
             if self.see:
