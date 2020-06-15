@@ -338,22 +338,22 @@ class Plot:  # TODO: include function to take screenshot
         self._widget_plot_minorcontours = pn.widgets.Checkbox(name='Show minor contours', value=self.minor_contours)
         self._widget_plot_minorcontours.param.watch(self._callback_plot_minorcontours, 'value',
                                                onlychanged=False)
-
-        self._widget_plot_step_contours = pn.widgets.TextInput(name='Choose a contour step')
+        self._widget_plot_step_contours = pn.widgets.Spinner(name='Choose a contour step',value =self.contours_step )
+        #self._widget_plot_step_contours = pn.widgets.TextInput(name='Choose a contour step')
         self._widget_plot_step_contours.param.watch(self._callback_plot_step_contours, 'value', onlychanged=False)
-        self._widget_plot_step_contours.value = str(self.contours_step)
+        #self._widget_plot_step_contours.value = str(self.contours_step)
 
-        self._widget_plot_step_minorcontours = pn.widgets.TextInput(name='Choose a minor contour step')
+        self._widget_plot_step_minorcontours = pn.widgets.Spinner(name='Choose a minor contour step', value = self.contours_step_minor)
         self._widget_plot_step_minorcontours.param.watch(self._callback_plot_step_minorcontours, 'value', onlychanged=False)
-        self._widget_plot_step_minorcontours.value = str(self.contours_step_minor)
+        #self._widget_plot_step_minorcontours.value = str(self.contours_step_minor)
 
         self._widget_plot_contours_label = pn.widgets.Checkbox(name='Show contours label', value=self.contours_label)
         self._widget_plot_contours_label.param.watch(self._callback_plot_contours_label, 'value',
                                                     onlychanged=False)
 
-        self._widget_plot_contours_label_fontsize = pn.widgets.TextInput(name='set a contour label fontsize')
+        self._widget_plot_contours_label_fontsize = pn.widgets.Spinner(name='set a contour label fontsize', value=self.contours_label_fontsize)
         self._widget_plot_contours_label_fontsize.param.watch(self._callback_plot_contours_label_fontsize, 'value', onlychanged=False)
-        self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
+        #self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
 
         # norm #TODO: normalize
 
@@ -370,16 +370,16 @@ class Plot:  # TODO: include function to take screenshot
         self.cmap = plt.cm.get_cmap(event.new)
 
     def _callback_plot_step_contours(self, event):
-        self.contours_step = int(event.new)
+        self.contours_step = event.new
 
     def _callback_plot_step_minorcontours(self, event):
-        self.contours_step_minor = int(event.new)
+        self.contours_step_minor = event.new
 
     def _callback_plot_contours_label(self, event):
         self.contours_label = event.new
 
     def _callback_plot_contours_label_fontsize(self, event):
-        self.contours_label_fontsize = int(event.new)
+        self.contours_label_fontsize = event.new
 
     ##### Widgets for aruco plotting
 

@@ -105,7 +105,7 @@ class Projector(object):
     def start_server(self):
         # TODO: Add specific port? port=4242
         # Check for instances and close them?
-        self.panel.show(threaded=False)
+        self.panel.show(threaded=False)#, port = 4242, use_reloader = False)
         print('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')
         return True

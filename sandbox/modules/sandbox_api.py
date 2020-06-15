@@ -12,7 +12,7 @@ from sandbox.projector.projector import Projector
 from sandbox.markers.aruco import ArucoMarkers
 
 from sandbox.calibration.calibration_module import CalibModule
-from sandbox.modules import GradientModule, LandslideSimulation, LoadSaveTopoModule, TopoModule
+from sandbox.modules import GradientModule, LandslideSimulation, LoadSaveTopoModule, TopoModule, SearchMethodsModule
 from sandbox.modules.gempy.gempy_module import GemPyModule
 
 # logging and exception handling
@@ -91,6 +91,8 @@ class Sandbox:
             self.module = LoadSaveTopoModule(self.calib, self.sensor, self.projector, self.aruco)
         elif module == 'TopoModule':
             self.module = TopoModule(self.calib, self.sensor, self.projector, self.aruco)
+        elif module == 'SearchMethodsModule':
+            self.module = SearchMethodsModule(self.calib, self.sensor, self.projector, self.aruco)
         elif module == 'GempyModule':
             try:
                 if self.geo_model is not None:
@@ -132,6 +134,10 @@ class Sandbox:
         self._widget_landslide.param.watch(self._callback_landslide, 'clicks',
                                       onlychanged=False)
 
+        self._widget_search = pn.widgets.Button(name="SearchMethodsModule", button_type="success")
+        self._widget_search.param.watch(self._callback_search, 'clicks',
+                                      onlychanged=False)
+
         self._widget_gempy = pn.widgets.Button(name="GempyModule", button_type="success")
         self._widget_gempy.param.watch(self._callback_gempy, 'clicks',
                                            onlychanged=False)
@@ -167,6 +173,7 @@ class Sandbox:
                             self._widget_gradient,
                             self._widget_load_save_topo,
                             self._widget_landslide,
+                            self._widget_search,
                             self._widget_gempy,
                             '<b>Change the calibration file</b>',
                             self._widget_calibration,
@@ -234,6 +241,10 @@ class Sandbox:
     def _callback_aruco(self, event):
         self.module.ARUCO_ACTIVE = event.new
 
+    def _callback_search(self, event):
+        if self.module_active:
+            self.module.stop()
+        self.setup_server('SearchMethodsModule')
 
 
 
