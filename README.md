@@ -62,13 +62,15 @@ Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-
 
 ### Kinect V2
 
-(Tested on Windows 10). First, install the current [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) including drivers. You can use the software bundle to test the connection to your kinect, before you continue.
+(Tested on Windows 10). First, **install the current** [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) **including drivers**. You can use the software bundle to test the connection to your
+ kinect, before you continue.
 
 To make Python and the Kinect SDK communicate, install the related [PyKinect2](https://github.com/Kinect/PyKinect2) wrappers which can be easily installed via:
 
 ```pip install pykinect2```
 
-Unfortunately, the configuration of PyKinect2 needs to be adjusted to work on a 64 bit System. Therefore, edit the _Lib/site-packages/pykinect2/PyKinectV2.py_ file, go to line **2216** and comment it:
+Unfortunately, the configuration of PyKinect2 needs to be adjusted to work on a 64 bit System.  Therefore, edit the
+ _Lib/site-packages/pykinect2/PyKinectV2.py_ file, go to line **2216** and comment it:
 
 ```python
 # assert sizeof(tagSTATSTG) == 72, sizeof(tagSTATSTG)
