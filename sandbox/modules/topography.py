@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy
 
-from .. import ModuleTemplate
+from .template import ModuleTemplate
 
 
 class TopoModule(Module):
