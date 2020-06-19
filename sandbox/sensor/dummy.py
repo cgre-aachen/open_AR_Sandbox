@@ -7,7 +7,26 @@ class DummySensor:
 
     def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
                  corners=True, points_n=4, points_distance=0.3,
-                 alteration_strength=0.1, random_seed=None, **kwargs):
+                 alteration_strength=0.1, **kwargs):
+        """
+
+        Args:
+            *args:
+            width:
+            height:
+            depth_limits:
+            corners:
+            points_n:
+            points_distance:
+            alteration_strength:
+            **kwargs:
+               - random_seed
+
+        """
+
+        random_seed = kwargs.get('random_seed', 1234)
+        self.seed = random_seed
+        numpy.random.seed(seed=self.seed)
 
         self.name = 'dummy'
         self.depth_width = width
@@ -20,7 +39,6 @@ class DummySensor:
         self.distance = numpy.sqrt(self.depth_width ** 2 + self.depth_height ** 2) * points_distance
         # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
         self.strength = alteration_strength
-        self.seed = random_seed
 
         self.grid = None
         self.positions = None
@@ -108,14 +126,13 @@ class DummySensor:
         return True
 
     def _pick_values(self):
-        numpy.random.seed(seed=self.seed)
         n = self.positions.shape[0]
         self.os_values = numpy.random.uniform(-numpy.pi, numpy.pi, n)
         self.values = self._oscillating_depth(self.os_values)
 
     def _alter_values(self):
         # maximum range in both directions the values should be altered
-        numpy.random.seed(seed=self.seed)
+
         os_range = self.strength * (numpy.pi / 2)
         for i, value in enumerate(self.os_values):
             self.os_values[i] = value + numpy.random.uniform(-os_range, os_range)

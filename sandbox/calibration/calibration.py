@@ -1,5 +1,6 @@
 import json
 
+
 class CalibrationData(object):
     """
         changes from 0.8alpha to 0.9alpha: introduction of box_width and box_height
