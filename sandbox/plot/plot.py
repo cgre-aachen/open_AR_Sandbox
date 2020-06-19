@@ -2,9 +2,10 @@ import matplotlib.pyplot as plt
 import numpy
 import matplotlib.colors as mcolors
 import panel as pn
+from matplotlib.figure import Figure
 
 
-class Plot:  # TODO: create widgets to modify map visualization and change aruco visualization
+class Plot:  # TODO: include function to take screenshot
 
     dpi = 100  # make sure that figures can be displayed pixel-precise
 
@@ -66,6 +67,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.show_faults = show_faults
         #self.marker_position = marker_position
         self.minor_contours = minor_contours
+        self.colormap = True
 
         # z-range handling
         if vmin is not None:
@@ -128,9 +130,10 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
 
         The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
         """
-
-        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
-                                 dpi=self.dpi)
+        self.figure= Figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+                            dpi=self.dpi)
+        #self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+        #                         dpi=self.dpi)
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         plt.close(self.figure)  # close figure to prevent inline display
@@ -155,7 +158,8 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         if vmax is None:
             vmax = self.vmax
 
-        self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+        if self.colormap:
+            self.ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
 
         if self.contours:
             if contourdata is None:
@@ -312,6 +316,7 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
 
         panel = pn.Column("#### <b> Dashboard for plot Visualization </b>",
                           "<b> Colormap </b>",
+                          self._widget_plot_colormap,
                           self._widget_plot_cmap,
                           "<b> Contour lines </b>",
                           widgets_countours)
@@ -323,6 +328,10 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
                                                    value=self.cmap.name)
         self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)
 
+        self._widget_plot_colormap = pn.widgets.Checkbox(name='Show colormap', value=self.colormap)
+        self._widget_plot_colormap.param.watch(self._callback_plot_colormap, 'value',
+                                               onlychanged=False)
+
         # Countours
         self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours)
         self._widget_plot_contours.param.watch(self._callback_plot_contours, 'value',
@@ -331,24 +340,27 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self._widget_plot_minorcontours = pn.widgets.Checkbox(name='Show minor contours', value=self.minor_contours)
         self._widget_plot_minorcontours.param.watch(self._callback_plot_minorcontours, 'value',
                                                onlychanged=False)
-
-        self._widget_plot_step_contours = pn.widgets.TextInput(name='Choose a contour step')
+        self._widget_plot_step_contours = pn.widgets.Spinner(name='Choose a contour step',value =self.contours_step )
+        #self._widget_plot_step_contours = pn.widgets.TextInput(name='Choose a contour step')
         self._widget_plot_step_contours.param.watch(self._callback_plot_step_contours, 'value', onlychanged=False)
-        self._widget_plot_step_contours.value = str(self.contours_step)
+        #self._widget_plot_step_contours.value = str(self.contours_step)
 
-        self._widget_plot_step_minorcontours = pn.widgets.TextInput(name='Choose a minor contour step')
+        self._widget_plot_step_minorcontours = pn.widgets.Spinner(name='Choose a minor contour step', value = self.contours_step_minor)
         self._widget_plot_step_minorcontours.param.watch(self._callback_plot_step_minorcontours, 'value', onlychanged=False)
-        self._widget_plot_step_minorcontours.value = str(self.contours_step_minor)
+        #self._widget_plot_step_minorcontours.value = str(self.contours_step_minor)
 
         self._widget_plot_contours_label = pn.widgets.Checkbox(name='Show contours label', value=self.contours_label)
         self._widget_plot_contours_label.param.watch(self._callback_plot_contours_label, 'value',
                                                     onlychanged=False)
 
-        self._widget_plot_contours_label_fontsize = pn.widgets.TextInput(name='set a contour label fontsize')
+        self._widget_plot_contours_label_fontsize = pn.widgets.Spinner(name='set a contour label fontsize', value=self.contours_label_fontsize)
         self._widget_plot_contours_label_fontsize.param.watch(self._callback_plot_contours_label_fontsize, 'value', onlychanged=False)
-        self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
+        #self._widget_plot_contours_label_fontsize.value = str(self.contours_label_fontsize)
 
         # norm #TODO: normalize
+
+    def _callback_plot_colormap(self, event):
+        self.colormap = event.new
 
     def _callback_plot_contours(self, event):
         self.contours = event.new
@@ -360,16 +372,16 @@ class Plot:  # TODO: create widgets to modify map visualization and change aruco
         self.cmap = plt.cm.get_cmap(event.new)
 
     def _callback_plot_step_contours(self, event):
-        self.contours_step = int(event.new)
+        self.contours_step = event.new
 
     def _callback_plot_step_minorcontours(self, event):
-        self.contours_step_minor = int(event.new)
+        self.contours_step_minor = event.new
 
     def _callback_plot_contours_label(self, event):
         self.contours_label = event.new
 
     def _callback_plot_contours_label_fontsize(self, event):
-        self.contours_label_fontsize = int(event.new)
+        self.contours_label_fontsize = event.new
 
     ##### Widgets for aruco plotting
 
