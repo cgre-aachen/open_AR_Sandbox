@@ -1,4 +1,5 @@
 import panel as pn
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
 class Projector(object):
@@ -44,8 +45,8 @@ class Projector(object):
         self.hot = None
         self.profile = None
         self.sidebar = None
+        self.create_panel()
         if use_panel is True:
-            self.create_panel()
             self.start_server()
 
     def create_panel(self):
@@ -55,7 +56,9 @@ class Projector(object):
 
         # In this special case, a "tight" layout would actually add again white space to the plt canvas,
         # which was already cropped by specifying limits to the axis
-        self.frame = pn.pane.Matplotlib(plt.figure(),
+
+        fig = Figure()
+        self.frame = pn.pane.Matplotlib(fig,
                                         width=self.calib.p_frame_width,
                                         height=self.calib.p_frame_height,
                                         margin=[self.calib.p_frame_top, 0, 0, self.calib.p_frame_left],
@@ -63,6 +66,10 @@ class Projector(object):
                                         dpi=self.dpi,
                                         css_classes=['frame']
                                         )
+        # ax = fig.subplots()
+        # ax.plot([1, 2, 3])
+        # panel_fig = pn.pane.Matplotlib(fig)
+
         plt.close()  # close figure to prevent inline display
 
         if self.enable_legend:
@@ -105,9 +112,11 @@ class Projector(object):
     def start_server(self):
         # TODO: Add specific port? port=4242
         # Check for instances and close them?
-        self.panel.show(threaded=False)#, port = 4242, use_reloader = False)
+        self.panel.show(threaded=True)#, title="Sandbox frame!")#, port = 4242, use_reloader = False)
         print('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')
+        #self.server = pn.serve(self.panel, port=0, title="Sandbox frame!")
+
         return True
 
     def show(self, figure):

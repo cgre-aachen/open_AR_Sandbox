@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy
 import matplotlib.colors as mcolors
 import panel as pn
+from matplotlib.figure import Figure
 
 
 class Plot:  # TODO: include function to take screenshot
@@ -129,9 +130,10 @@ class Plot:  # TODO: include function to take screenshot
 
         The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
         """
-
-        self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
-                                 dpi=self.dpi)
+        self.figure= Figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+                            dpi=self.dpi)
+        #self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+        #                         dpi=self.dpi)
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         plt.close(self.figure)  # close figure to prevent inline display
