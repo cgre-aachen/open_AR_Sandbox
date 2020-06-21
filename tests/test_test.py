@@ -1,4 +1,4 @@
-import sandbox as sb
+#import sandbox as sb
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,3 +18,5 @@ def test_how_many_axis():
 
     fig.show()
 
+def test_load():
+    pass

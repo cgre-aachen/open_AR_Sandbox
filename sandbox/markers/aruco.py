@@ -13,6 +13,8 @@ except ImportError:
     warn('pykinect2 module not found, Coordinate Mapping will not work.')
     PYKINECT_INSTALLED = False
 
+#TODO: make arucos to work for testing
+
 try:
     import cv2
     from cv2 import aruco

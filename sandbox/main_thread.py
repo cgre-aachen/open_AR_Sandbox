@@ -1,3 +1,5 @@
+from .sensor.sensor_api import Sensor
+
 class MainThread():
     def update(self, modules: list, **kwargs):
         ax.clear()

@@ -4,7 +4,7 @@ from abc import abstractmethod
 import numpy
 import threading
 import panel as pn
-from sandbox.plot.plot import Plot
+from sandbox.projector.plot import Plot
 from sandbox.markers.aruco import ArucoMarkers
 
 class Module(object):

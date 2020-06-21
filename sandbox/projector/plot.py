@@ -1,8 +1,8 @@
-import matplotlib.pyplot as plt
 import numpy
 import matplotlib.colors as mcolors
 import panel as pn
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 
 class Plot:  # TODO: include function to take screenshot
@@ -96,7 +96,6 @@ class Plot:  # TODO: include function to take screenshot
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
 
-
         # contours setup
         self.contours_step = contours_step  # levels will be supplied via property function
         self.contours_width = contours_width
@@ -130,7 +129,7 @@ class Plot:  # TODO: include function to take screenshot
 
         The figure can be accessed by its attribute. It will be 'deactivated' to prevent random apperance in notebooks.
         """
-        self.figure= Figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
+        self.figure = Figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
                             dpi=self.dpi)
         #self.figure = plt.figure(figsize=(self.calib.p_frame_width / self.dpi, self.calib.p_frame_height / self.dpi),
         #                         dpi=self.dpi)

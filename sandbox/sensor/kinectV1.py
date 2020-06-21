@@ -1,6 +1,5 @@
 from warnings import warn
 import numpy
-import scipy
 
 try:
     import freenect  # wrapper for KinectV1
@@ -22,10 +21,6 @@ class KinectV1:
         self.device = None
         self.depth = None
         self.color = None
-        self.setup()
-
-    def setup(self):
-
         warn('Two kernels cannot access the Kinect at the same time. This will lead to a sudden death of the kernel. '
              'Be sure no other kernel is running before you initialize a KinectV1 object.')
 
@@ -45,7 +40,6 @@ class KinectV1:
 
     def get_color(self):
         """
-
         Returns:
 
         """

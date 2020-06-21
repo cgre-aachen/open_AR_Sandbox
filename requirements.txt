@@ -4,6 +4,6 @@ pandas
 panel 
 scipy
 scikit-image
-opencv-python
+opencv-contrib-python
 gempy
 pykinect2

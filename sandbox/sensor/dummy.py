@@ -45,9 +45,6 @@ class DummySensor:
         self.os_values = None
         self.values = None
 
-        self.setup()
-
-    def setup(self):
         # create grid, init values, and init interpolation
         self._create_grid()
         self._pick_positions()

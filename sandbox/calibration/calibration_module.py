@@ -2,7 +2,7 @@ import panel as pn
 import matplotlib.pyplot as plt
 from time import sleep
 
-from sandbox.plot.plot import Plot
+from sandbox.projector.plot import Plot
 from sandbox.modules.module_main_thread import Module
 
 class CalibModule(Module):

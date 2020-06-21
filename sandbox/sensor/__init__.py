@@ -1,10 +1,4 @@
-# To select between all possible sensors load from api
-
-from .sensor_api import Sensor
-from .dummy import DummySensor
-from .kinectV2 import KinectV2
-from .kinectV1 import KinectV1
-
+from .sensor_api import Sensor, DummySensor, KinectV1, KinectV2
 
 if __name__ == '__main__':
     pass
