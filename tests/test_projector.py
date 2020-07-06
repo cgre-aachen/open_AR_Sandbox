@@ -29,3 +29,6 @@ def test_delete_points():
     del line1
     projector.trigger()
 
+
+if __name__ == '__main__':
+    pass

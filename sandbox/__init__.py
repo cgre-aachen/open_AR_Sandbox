@@ -10,7 +10,7 @@ from .calibration import *
 
 from .projector.projector import Projector
 
-from .sensor import *
+from .sensor.sensor_api import Sensor
 
 # Optional functionality (aruco markers)
 from .markers.aruco import ArucoMarkers
@@ -34,6 +34,9 @@ _test_data = {'topo': os.path.dirname(__file__) +
                             '/../notebooks/tutorials/04_GempyModule/Example_Models/inputdata/'}
 
 _calibration_dir = os.path.dirname(__file__) + '/../notebooks/calibration_files/'
+
+from .main_thread import MainThread
+
 
 if __name__ == '__main__':
     pass

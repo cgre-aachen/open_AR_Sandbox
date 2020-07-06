@@ -6,12 +6,11 @@ pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithC
 import panel as pn
 import threading
 import pyvista as pv
-import time
 
 from sandbox.modules.module_main_thread import Module
 from .scale import Scale
 from .grid import Grid
-from sandbox.plot.plot import Plot
+from sandbox.projector.plot import Plot
 
 try:
     import gempy

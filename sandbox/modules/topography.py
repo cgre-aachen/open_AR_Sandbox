@@ -6,6 +6,24 @@ import numpy
 
 from .template import ModuleTemplate
 
+class SimpleTopoModule(ModuleTemplate):
+    def __init__(self, extent: list):
+        self.colormap = True
+        self.extent = extent
+        self.vmin = extent[4]
+        self.vmax = extent[5]
+        self.cmap = 'gist_earth_r'
+
+    def update(self, frame, ax, **kwargs):
+        self.plot(frame, ax)
+        return frame, ax, self.cmap
+
+
+    def plot(self, frame, ax):
+        if self.colormap:
+            self.cmap = plt.cm.get_cmap(self.cmap)
+            ax.pcolormesh(frame, vmin=self.vmin, vmax=self.vmax, cmap=self.cmap)
+
 
 class TopoModule(Module):
 
