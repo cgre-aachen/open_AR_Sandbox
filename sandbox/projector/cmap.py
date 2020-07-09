@@ -39,6 +39,7 @@ class CmapModule:
 
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
+        self.col = None
 
     def set_cmap(self, cmap, over=None, under=None, bad=None):
         """
@@ -66,6 +67,6 @@ class CmapModule:
         if vmax is None:
             vmax = self.vmax
 
-        ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+        self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
 
 

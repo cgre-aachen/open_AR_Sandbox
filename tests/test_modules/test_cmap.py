@@ -24,3 +24,35 @@ def test_change_cmap():
     module.set_cmap(cmap)
     module.render_frame(frame, ax2)
     fig2.show()
+
+#%%
+frame = sensor.get_frame()
+fig, ax = plt.subplots()
+col = ax.pcolormesh(frame)
+fig.show()
+
+#%%
+for i in range (10):
+    col.set_array(sensor.get_frame().ravel())
+    fig.show()
+#%%
+
+#%%
+fig.show()
+col.remove()
+fig.show()
+
+col.up
+#%%
+fig.canvas.draw()
+fig.canvas.flush_events()
+#%%
+fig.show()
+#%%
+cmap = plt.cm.get_cmap("hot")
+col.set_cmap(cmap)
+
+#%%
+fig.show()
+#%%
+plt.
