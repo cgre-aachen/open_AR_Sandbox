@@ -1,21 +1,27 @@
-import sandbox as sb
+from sandbox import _calibration_dir as calib_dir
+from sandbox import _test_data as test_data
+from sandbox.sensor import Sensor
+from sandbox.projector import CmapModule
+import numpy as np
+
+file = np.load(test_data['topo'] + "DEM1.npz")
+frame = file['arr_0']
+extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
+
 import matplotlib.pyplot as plt
-sensor = sb.Sensor(name='dummy')
 
 def test_init():
-    module = sb.projector.CmapModule(extent=sensor.extent)
+    module = CmapModule(extent=extent)
     print(module)
 
 def test_render_frame():
-    module = sb.projector.CmapModule(extent=sensor.extent)
-    frame = sensor.get_frame()
+    module = CmapModule(extent=extent)
     fig, ax = plt.subplots()
     module.render_frame(frame, ax)
     fig.show()
 
 def test_change_cmap():
-    module = sb.projector.CmapModule(extent=sensor.extent)
-    frame = sensor.get_frame()
+    module = CmapModule(extent=extent)
     fig1, ax1 = plt.subplots()
     module.render_frame(frame, ax1)
     fig1.show()
@@ -25,34 +31,39 @@ def test_change_cmap():
     module.render_frame(frame, ax2)
     fig2.show()
 
-#%%
-frame = sensor.get_frame()
-fig, ax = plt.subplots()
-col = ax.pcolormesh(frame)
-fig.show()
+def test_widgets():
+    module = CmapModule(extent=extent)
+    widget = module.widgets_plot()
+    widget.show()
 
-#%%
-for i in range (10):
-    col.set_array(sensor.get_frame().ravel())
+def test_change_array():
+    fig, ax = plt.subplots()
+    col = ax.pcolormesh(frame)
     fig.show()
-#%%
 
-#%%
-fig.show()
-col.remove()
-fig.show()
+    file = np.load(test_data['topo'] + "DEM2.npz")
+    frame2 = file['arr_0']
+    col.set_array(frame2)
+    fig.show()
 
-col.up
-#%%
-fig.canvas.draw()
-fig.canvas.flush_events()
-#%%
-fig.show()
-#%%
-cmap = plt.cm.get_cmap("hot")
-col.set_cmap(cmap)
+def test_change_cmap():
+    fig, ax = plt.subplots()
+    col = ax.pcolormesh(frame)
+    fig.show()
 
-#%%
-fig.show()
-#%%
-plt.
+    cmap = plt.cm.get_cmap("hot")
+    col.set_cmap(cmap)
+    fig.show()
+
+def test_delete_image():
+    module = CmapModule(extent=extent)
+    fig, ax = plt.subplots()
+    module.render_frame(frame, ax)
+    fig.show()
+
+    module.delete_image()
+    fig.show()
+
+
+
+

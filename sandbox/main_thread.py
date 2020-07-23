@@ -1,9 +1,8 @@
 from warnings import warn
-from abc import ABCMeta
-from abc import abstractmethod
 import numpy
 import threading
 import panel as pn
+import matplotlib.pyplot as plt
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -19,8 +18,8 @@ class MainThread:
 
         self.sensor = sensor
         self.projector = projector
-        self.contours = ContourLinesModule(extent = sensor.extent)
-        self.cmap_frame = CmapModule(extent = sensor.extent)
+        self.contours = ContourLinesModule(extent=sensor.extent)
+        self.cmap_frame = CmapModule(extent=sensor.extent)
 
         #start the modules
         self.modules = modules
@@ -41,24 +40,39 @@ class MainThread:
         if isinstance(self.Aruco, ArucoMarkers):
             self.ARUCO_ACTIVE = True
 
+        ax = self.projector.ax
+        frame = self.sensor.get_frame()
+        # render the frame
+        self.cmap_frame.render_frame(frame, ax, **kwargs)
+        # plot the contour lines
+        self.contours.plot_contour_lines(frame, ax, **kwargs)
+        self.projector.trigger()
+
     def update(self, **kwargs):
         ax = self.projector.ax
-        ax.cla()
+        self.delete_axes(ax):
+
+
+
         modules = self.modules
-        depth = self.sensor.get_frame()
+        frame = self.sensor.get_frame()
+        #filter
         if self.ARUCO_ACTIVE:
             points = self.aruco.get_loaction()
+        else: points = []
 
         for m in modules:
-            frame, ax, cmap = m.update(depth, ax, **kwargs)
+            frame, ax, cmap = m.update(frame, ax, points, **kwargs)
 
-        #render the frame
-        self.cmap_frame.set_cmap(cmap, 'k', 'k', 'k')
-        self.cmap_frame.render_frame(frame, ax, **kwargs)
+        self.cmap_frame.update(frame, ax)
         #plot the contour lines
         self.contours.plot_contour_lines(frame, ax, **kwargs)
 
         self.projector.trigger()
+
+    def delete_axes(self, ax):
+        self.cmap_frame.delete_image()
+
 
     def thread_loop(self):
         while self.thread_status == 'running':

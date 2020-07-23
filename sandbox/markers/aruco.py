@@ -30,7 +30,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     An Area of interest can be specified, markers outside this area will be ignored
     """
 
-    def __init__(self, sensor, calibration, aruco_dict=None, area=None):
+    def __init__(self, sensor=None, calibration=None, aruco_dict=None, area=None):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
@@ -145,7 +145,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
     def update_marker_dict(self):
         """
-        updates existing marker positions in self.aruco_markers. new found markers are auomatically added.
+        updates existing marker points in self.aruco_markers. new found markers are auomatically added.
         A marker that is not detected for more than *self.threshold* frames is removed from the list.
         call in update after self.search_aruco():
         :return:

@@ -43,7 +43,7 @@ class RMS_Grid():
         while True:  # skip to coordinates
             l = f.readline().split()
             if len(l) > 0 and l[0] == "CORP":
-                print("loading cell positions")
+                print("loading cell points")
                 self.parse_coordinates(f, self.nx, self.ny, self.nz)
                 print("coordinates loaded")
                 break

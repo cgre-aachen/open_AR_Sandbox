@@ -178,14 +178,14 @@ class Sensor:
         """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
         above and below. If you also want to use clipping, make sure to use the mask before.
         """
-
+        #TODO: depth mask is masking everything. returning empty
         mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.s_min, self.s_max))
         return mask
 
     def clip_frame(self, frame: numpy.ndarray) -> numpy.ndarray:
         """ Clips all values outside of the sensor range to the set s_min and s_max values.
         If you want to create a mask make sure to call depth_mask before performing the clip.
-        """
+        ???"""
 
         clip = numpy.clip(frame, self.s_min, self.s_max)
         return clip
@@ -195,7 +195,7 @@ class Sensor:
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            frame = self.depth_mask(frame)
+            #frame = self.depth_mask(frame) #TODO: When is this needed?
             frame = self.clip_frame(frame)
         self.depth = frame
         return self.depth
@@ -203,4 +203,4 @@ class Sensor:
     @property
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox"""
-        return [0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max]
+        return numpy.asarray([0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max])

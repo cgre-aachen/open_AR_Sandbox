@@ -1,6 +1,6 @@
-import numpy
-import matplotlib
 import matplotlib.pyplot as plt
+import panel as pn
+pn.extension()
 
 
 class CmapModule:
@@ -35,11 +35,19 @@ class CmapModule:
         else:
             self.vmax = self.extent[5]
 
-        self.cmap = self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
+        self.cmap = cmap#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
 
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
         self.col = None
+        self.active = True
+
+    def update(self, data, cmap):
+        if self.active:
+            self.set_data(data)
+            self.set_cmap(cmap, 'k', 'k', 'k')
+        else:
+            self.delete_image() #Todo
 
     def set_cmap(self, cmap, over=None, under=None, bad=None):
         """
@@ -59,14 +67,58 @@ class CmapModule:
         if bad is not None:
             cmap.set_bad(bad, 1.0)
         self.cmap = cmap
-        return self.cmap
+        self.col.set_cmap(cmap)
+        return None
+
+    def set_data(self, data):
+        """
+        Change the numpy array that is being plotted without the need to errase the arrays
+        Args:
+            data:
+        Returns:
+        """
+        self.col.set_array(data.ravel())
+        return None
 
     def render_frame(self, data, ax, vmin=None, vmax=None):
+        """Renders a new image or actualizes the current one"""
         if vmin is None:
             vmin = self.vmin
         if vmax is None:
             vmax = self.vmax
-
         self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+        return None
 
+    def delete_image(self):
+        """Method to remove the image from the frame"""
+        self.col.remove()
+        return None
+
+    def widgets_plot(self):
+        self._create_widgets()
+
+        panel = pn.Column("#### <b> Dashboard for Colormap Visualization </b>",
+                          "<b> Colormap </b>",
+                          self._widget_plot_cmap,
+                          self._widget_plot_colormap,
+                          )
+
+        return panel
+
+    def _create_widgets(self):
+        self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap', options=plt.colormaps(),
+                                                   value=self.cmap.name)
+        self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)
+
+        self._widget_plot_colormap = pn.widgets.Checkbox(name='Show colormap', value=self.active)
+        self._widget_plot_colormap.param.watch(self._callback_plot_colormap, 'value',
+                                              onlychanged=False)
+
+        return True
+
+    def _callback_plot_colormap(self, event):
+        self.active = event.new
+
+    def _callback_plot_cmap(self, event):
+        self.cmap = plt.cm.get_cmap(event.new)
 
