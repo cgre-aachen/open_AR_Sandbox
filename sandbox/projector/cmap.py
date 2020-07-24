@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy
 import panel as pn
 pn.extension()
 
@@ -35,19 +36,27 @@ class CmapModule:
         else:
             self.vmax = self.extent[5]
 
-        self.cmap = cmap#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
+        self.cmap = plt.cm.get_cmap(cmap)#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
 
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
         self.col = None
         self.active = True
 
-    def update(self, data, cmap):
+    def update(self, data, extent, ax, cmap, norm):
+        """
         if self.active:
             self.set_data(data)
             self.set_cmap(cmap, 'k', 'k', 'k')
         else:
             self.delete_image() #Todo
+        """
+        self.set_cmap(cmap, 'k', 'k', 'k')
+        self.render_frame(data, ax)
+        self.set_norm(norm)
+
+    def set_norm(self, norm):
+        self.norm = norm
 
     def set_cmap(self, cmap, over=None, under=None, bad=None):
         """
@@ -86,7 +95,8 @@ class CmapModule:
             vmin = self.vmin
         if vmax is None:
             vmax = self.vmax
-        self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm)
+        data = numpy.flipud(data)
+        self.col = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm, origin = 'lower')
         return None
 
     def delete_image(self):
@@ -97,8 +107,7 @@ class CmapModule:
     def widgets_plot(self):
         self._create_widgets()
 
-        panel = pn.Column("#### <b> Dashboard for Colormap Visualization </b>",
-                          "<b> Colormap </b>",
+        panel = pn.Column("<b> Colormap </b>",
                           self._widget_plot_cmap,
                           self._widget_plot_colormap,
                           )

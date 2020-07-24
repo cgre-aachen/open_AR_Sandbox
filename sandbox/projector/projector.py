@@ -1,7 +1,9 @@
 import panel as pn
+pn.extension()
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import json
+from sandbox import _calibration_dir
 
 
 class Projector(object):
@@ -42,6 +44,7 @@ class Projector(object):
         self.version = '2.0.p'
         self.ax = None
         self.figure = None
+        self.json_filename = calibprojector
         
         if calibprojector is None:
             self.p_width = 1280
@@ -209,4 +212,95 @@ class Projector(object):
             json.dump(data, calibration_json)
         print('JSON configuration file saved:', str(file))
 
+    def calibrate_projector(self):
+        self._create_widgets()
+        panel = pn.Column("### Projector dashboard arrangement",
+                           self._widget_p_frame_top,
+                           self._widget_p_frame_left,
+                           self._widget_p_frame_width,
+                           self._widget_p_frame_height,
+                           #self._widget_p_enable_auto_calibration,
+                           #self._widget_p_automatic_calibration,)
+                           '<b>Save file<b>',
+                           self._widget_json_filename,
+                           self._widget_json_save
+                           )
+        return panel
+
+    def _create_widgets(self):
+
+        # projector widgets and links
+
+        self._widget_p_frame_top = pn.widgets.IntSlider(name='Main frame top margin',
+                                                        value=self.p_frame_top,
+                                                        start=0,
+                                                        end=self.p_height - 20)
+        self._widget_p_frame_top.link(self.frame, callbacks={'value': self._callback_p_frame_top})
+
+        self._widget_p_frame_left = pn.widgets.IntSlider(name='Main frame left margin',
+                                                         value=self.p_frame_left,
+                                                         start=0,
+                                                         end=self.p_width - 20)
+        self._widget_p_frame_left.link(self.frame, callbacks={'value': self._callback_p_frame_left})
+
+        self._widget_p_frame_width = pn.widgets.IntSlider(name='Main frame width',
+                                                          value=self.p_frame_width,
+                                                          start=10,
+                                                          end=self.p_width)
+        self._widget_p_frame_width.link(self.frame, callbacks={'value': self._callback_p_frame_width})
+
+        self._widget_p_frame_height = pn.widgets.IntSlider(name='Main frame height',
+                                                           value=self.p_frame_height,
+                                                           start=10,
+                                                           end=self.p_height)
+        self._widget_p_frame_height.link(self.frame, callbacks={'value': self._callback_p_frame_height})
+
+        # Auto- Calibration widgets
+
+        #self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name='Enable Automatic Calibration', value=False)
+        #self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value',
+        #                                                   onlychanged=False)
+
+        #self._widget_p_automatic_calibration = pn.widgets.Button(name="Run", button_type="success")
+        #self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks',
+        #                                                 onlychanged=False)
+
+        self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
+        self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
+        self._widget_json_filename.value = _calibration_dir + 'my_projector_calibration.json'
+
+        self._widget_json_save = pn.widgets.Button(name='Save calibration')
+        self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
+
+        return True
+
+    def _callback_p_frame_top(self, target, event):
+        self.p_frame_top = event.new
+        m = target.margin
+        n = event.new
+        # just changing single indices does not trigger updating of pane
+        target.margin = [n, m[1], m[2], m[3]]
+
+    def _callback_p_frame_left(self, target, event):
+        self.p_frame_left = event.new
+        m = target.margin
+        n = event.new
+        target.margin = [m[0], m[1], m[2], n]
+
+    def _callback_p_frame_width(self, target, event):
+        self.p_frame_width = event.new
+        target.width = event.new
+        target.param.trigger('object')
+
+    def _callback_p_frame_height(self, target, event):
+        self.p_frame_height = event.new
+        target.height = event.new
+        target.param.trigger('object')
+
+    def _callback_json_filename(self, event):
+        self.json_filename = event.new
+
+    def _callback_json_save(self, event):
+        if self.json_filename is not None:
+            self.save_json(file=self.json_filename)
 

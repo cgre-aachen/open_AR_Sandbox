@@ -2,6 +2,7 @@ from warnings import warn
 import numpy
 import threading
 import panel as pn
+pn.extension()
 import matplotlib.pyplot as plt
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
@@ -18,8 +19,9 @@ class MainThread:
 
         self.sensor = sensor
         self.projector = projector
-        self.contours = ContourLinesModule(extent=sensor.extent)
-        self.cmap_frame = CmapModule(extent=sensor.extent)
+        self.extent = sensor.extent
+        self.contours = ContourLinesModule(extent=self.extent)
+        self.cmap_frame = CmapModule(extent=self.extent)
 
         #start the modules
         self.modules = modules
@@ -42,36 +44,52 @@ class MainThread:
 
         ax = self.projector.ax
         frame = self.sensor.get_frame()
+        self.previous_frame = frame
         # render the frame
         self.cmap_frame.render_frame(frame, ax, **kwargs)
+        self.cmap = self.cmap_frame.cmap
         # plot the contour lines
         self.contours.plot_contour_lines(frame, ax, **kwargs)
         self.projector.trigger()
 
     def update(self, **kwargs):
         ax = self.projector.ax
-        self.delete_axes(ax):
-
-
+        self.delete_axes(ax)
 
         modules = self.modules
         frame = self.sensor.get_frame()
+        # This is to avoid noise in the data
+        if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
+            self.previous_frame = frame
+        else:
+            frame = self.previous_frame
+
         #filter
         if self.ARUCO_ACTIVE:
             points = self.aruco.get_loaction()
         else: points = []
 
         for m in modules:
-            frame, ax, cmap = m.update(frame, ax, points, **kwargs)
+            frame, self.extent, ax, self.cmap, self.norm = m.update(frame = frame, extent = self.extent, ax = ax,
+                                                                    **kwargs)
 
-        self.cmap_frame.update(frame, ax)
+        self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)
         #plot the contour lines
         self.contours.plot_contour_lines(frame, ax, **kwargs)
 
         self.projector.trigger()
 
     def delete_axes(self, ax):
-        self.cmap_frame.delete_image()
+        """
+        #TODO: Need to find a better a way to delete the axes rather than ax.cla()
+        Args:
+            ax:
+        Returns:
+
+        """
+        #self.cmap_frame.delete_image()
+        ax.cla()
+        self.extent = self.sensor.extent
 
 
     def thread_loop(self):

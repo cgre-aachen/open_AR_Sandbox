@@ -2,7 +2,7 @@
 Module initialisation for sandbox
 Created on 15/04/2020
 
-@author: Simon Virgo, Daniel Escallon, Miguel de la Varga
+@authors: Daniel Escallon, Simon Virgo, Miguel de la Varga
 """
 # Main information for all the modules to work (calibration data, projector and sensor)
 import os

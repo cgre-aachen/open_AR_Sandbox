@@ -1,9 +1,11 @@
-#%%
 from sandbox.projector import Projector
 from sandbox import _calibration_dir as calib_dir
 from sandbox import _test_data as test_data
 import matplotlib.pyplot as plt
 import numpy as np
+
+from tests import test_calib_sensor
+
 file = np.load(test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
@@ -81,9 +83,6 @@ def test_change_betweeen_axes2():
     ax_supl.plot([10, 50, 100], [10, 50, 100], 'k.')
     fig.show()
 
-    del ax.child_axes[0]
-    fig.show()
-
 
 def test_erase_axes_figure():
     figure, ax = plt.subplots()
@@ -99,7 +98,12 @@ def test_erase_axes_figure():
     ax.plot([10,20],[10,201])
     figure.show()
 
+def test_widgets_calibration():
+    projector = Projector(use_panel=True)
+    widget = projector.calibrate_projector()
+    widget.show()
 
+    projector2 = Projector(calibprojector=calib_dir + 'my_projector_calibration.json', use_panel=True)
+    widget2 = projector2.calibrate_projector()
+    widget2.show()
 
-if __name__ == '__main__':
-    pass

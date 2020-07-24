@@ -1,6 +1,4 @@
-from sandbox import _calibration_dir as calib_dir
 from sandbox import _test_data as test_data
-from sandbox.sensor import Sensor
 from sandbox.projector import CmapModule
 import numpy as np
 
@@ -31,11 +29,6 @@ def test_change_cmap():
     module.render_frame(frame, ax2)
     fig2.show()
 
-def test_widgets():
-    module = CmapModule(extent=extent)
-    widget = module.widgets_plot()
-    widget.show()
-
 def test_change_array():
     fig, ax = plt.subplots()
     col = ax.pcolormesh(frame)
@@ -64,6 +57,7 @@ def test_delete_image():
     module.delete_image()
     fig.show()
 
-
-
-
+def test_widgets():
+    module = CmapModule(extent=extent)
+    widget = module.widgets_plot()
+    widget.show()

@@ -28,6 +28,7 @@ class Sensor:
                  clip_values: bool = False, gauss_filter: bool = True,
                  n_frames: int = 3, gauss_sigma: int = 3, **kwargs):
 
+        self.json_filename = calibsensor
         self.version = '2.0.s'
         if calibsensor is None:
             self.s_name = name
@@ -204,3 +205,4 @@ class Sensor:
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox"""
         return numpy.asarray([0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max])
+

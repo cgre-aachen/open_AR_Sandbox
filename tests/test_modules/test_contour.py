@@ -22,11 +22,6 @@ def test_generating_all():
     module.plot_contour_lines(frame, ax)
     fig.show()
 
-def test_create_widgets_plot():
-    module = ContourLinesModule(extent=extent)
-    widget = module.widgets_plot()
-    widget.show()
-
 def test_update_array():
     module = ContourLinesModule(extent=extent)
     fig, ax = plt.subplots()
@@ -45,5 +40,10 @@ def test_delete_contours():
     fig.show()
     module.delete_contourns(ax)
     fig.show()
+
+def test_create_widgets_plot():
+    module = ContourLinesModule(extent=extent)
+    widget = module.widgets_plot()
+    widget.show()
 
 

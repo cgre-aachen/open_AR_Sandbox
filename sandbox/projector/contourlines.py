@@ -125,8 +125,7 @@ class ContourLinesModule:
     def widgets_plot(self):
         self._create_widgets()
 
-        panel = pn.Column("#### <b> Dashboard for plot Visualization </b>",
-                          "<b> Contour lines </b>",
+        panel = pn.Column("<b> Contour lines </b>",
                           self._widget_plot_contours,
                           self._widget_plot_step_contours,
                           self._widget_plot_minorcontours,
