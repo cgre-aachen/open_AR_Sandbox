@@ -10,7 +10,7 @@ class ModuleTemplate(ABC):
         pass
 
     @abstractmethod
-    def update(self, frame, ax, extent):
+    def update(self, frame, ax, extent, marker):
 
         cmap = None
         norm = None

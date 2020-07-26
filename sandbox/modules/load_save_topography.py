@@ -1,5 +1,6 @@
 import os
 import panel as pn
+pn.extension()
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib
@@ -62,11 +63,20 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
 
-        self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=335)
+        self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
-    def update(self, frame, ax, extent, marker):
+    def update(self, frame, ax, extent, marker=[]):
         self.frame = frame
+        if len(marker) > 0:
+            self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
+
+        self.plot(frame, ax)
+        cmap = None
+        norm = None
+        return frame, ax, extent, cmap, norm
+
+    def plot(self, frame, ax):
         if self.show_loaded:
             self.showLoadedTopo(ax)
 
@@ -74,15 +84,7 @@ class LoadSaveTopoModule(ModuleTemplate):
             self.showDifference(ax)
 
         self.showBox(ax, self.box_origin, self.box_width, self.box_height)
-
-        if len(marker) > 0:
-            self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
-
         self.plot_release_area(ax, self.release_area_origin, self.release_width, self.release_height)
-
-        cmap = plt.cm.get_cmap("gist_earth_r")
-        norm = None
-        return frame, ax, extent, cmap, norm
 
     def moveBox_possible(self, x, y, width, height):
         """
@@ -188,20 +190,20 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.absolute_topo, self.relative_topo = self.getBoxFrame(self.frame)
         return self.absolute_topo, self.relative_topo
 
-    def saveTopo(self, filename="savedTopography.npz"):
+    def saveTopo(self, filename="00_savedTopography.npz"):
         """Save the absolute topography and relative topography in a .npz file"""
         numpy.savez(filename,
                     self.absolute_topo,
                     self.relative_topo)
         print('Save topo successful')
 
-    def save_release_area(self, filename="releaseArea.npy"):
+    def save_release_area(self, filename="00_releaseArea.npy"):
         """Save the release areas as a .npy file """
         numpy.save(filename,
                     self.release_area)
         print('Save area successful')
 
-    def loadTopo(self, filename="savedTopography.npz"):
+    def loadTopo(self, filename="00_savedTopography.npz"):
         """Load the absolute topography and relative topography from a .npz file"""
         self.is_loaded = True
         files = numpy.load(filename, allow_pickle=True)
@@ -388,25 +390,25 @@ class LoadSaveTopoModule(ModuleTemplate):
         self._widget_move_box_horizontal = pn.widgets.IntSlider(name='x box origin',
                                                            value=self.box_origin[0],
                                                            start=0,
-                                                           end=self.calib.s_frame_width)
+                                                           end=self.extent[1])
         self._widget_move_box_horizontal.param.watch(self._callback_move_box_horizontal, 'value', onlychanged=False)
 
         self._widget_move_box_vertical = pn.widgets.IntSlider(name='y box origin',
                                                                 value=self.box_origin[1],
                                                                 start=0,
-                                                                end=self.calib.s_frame_height)
+                                                                end=self.extent[3])
         self._widget_move_box_vertical.param.watch(self._callback_move_box_vertical, 'value', onlychanged=False)
 
         self._widget_box_width = pn.widgets.IntSlider(name='box width',
                                                               value=self.box_width,
                                                               start=0,
-                                                              end=self.calib.s_frame_width)
+                                                              end=self.extent[1])
         self._widget_box_width.param.watch(self._callback_box_width, 'value', onlychanged=False)
 
         self._widget_box_height = pn.widgets.IntSlider(name='box height',
                                                       value=self.box_height,
                                                       start=0,
-                                                      end=self.calib.s_frame_height)
+                                                      end=self.extent[3])
         self._widget_box_height.param.watch(self._callback_box_height, 'value', onlychanged=False)
 
         # Snapshots
@@ -426,7 +428,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         # Load save widgets
         self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to save the current topography snapshot:')
         self._widget_npz_filename.param.watch(self._callback_filename_npz, 'value', onlychanged=False)
-        self._widget_npz_filename.value = _test_data + '/savedTopography.npz'
+        self._widget_npz_filename.value = _test_data['topo'] + '/savedTopography.npz'
 
         self._widget_data_path = pn.widgets.TextInput(name='Choose a folder to load the available topography snapshots:')
         self._widget_data_path.param.watch(self._callback_filename, 'value', onlychanged=False)
