@@ -1,22 +1,30 @@
-import sys, os
+import os
 import panel as pn
+pn.extension()
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib
-
-from .module_main_thread import Module
+from matplotlib.figure import Figure
+from .template import ModuleTemplate
 from .load_save_topography import LoadSaveTopoModule
+from sandbox import _test_data
 
 
-class LandslideSimulation(Module):
+class LandslideSimulation(ModuleTemplate):
+    """
+    Module to show the results of landslides simulations
+    """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', ** kwargs)
+    def __init__(self, *args, extent: list = None, **kwargs):
+        if extent is not None:
+            self.vmin = extent[4]
+            self.vmax = extent[5]
+
         self.release_area = None
         self.release_area_all = None
 
-        self.horizontal_flow = None
-        self.vertical_flow = None
+        self.height_flow = None
+        self.velocity_flow = None
 
         self.flow_selector = None
         self.frame_selector = 0
@@ -24,46 +32,43 @@ class LandslideSimulation(Module):
         self.simulation_frame = 0
         self.running_simulation = False
 
-        self.simulation_folder = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/simulation_data/"
-        self.release_folder = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/saved_ReleaseAreas/"
+        self.simulation_folder = _test_data['landslide_simulation']
+        self.release_folder = _test_data['landslide_release']
+        self.topo_folder = _test_data['landslide_topo']
+
         self.release_options = None
         self.release_id = None
         self.release_id_all = ['None']
         self.box_release_area = False
 
-        self.Load_Area = LoadSaveTopoModule(*args, **kwargs)
+        self.Load_Area = LoadSaveTopoModule(*args, extent=extent, **kwargs)
+        self.Load_Area.data_path = self.topo_folder
 
-        self.plot_flow_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
-        plt.close()
+        self.figure = Figure()
+        self.ax1 = self.figure.add_subplot(211)
+        self.ax2 = self.figure.add_subplot(212)
+        self.plot_flow_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
+        plt.close(self.figure)  # close figure to prevent inline display
 
-    def setup(self):
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
-        self.projector.frame.object = self.plot.figure
-        self._create_widgets()
+    def update(self, frame, ax, extent, marker=[]):
+        self.Load_Area.plot(frame, ax)
+        self.plot(frame, ax)
+        cmap = plt.get_cmap('gist_earth_r')
+        norm = None
+        return frame, ax, extent, cmap, norm
 
-    def update(self):
-        # with self.lock:
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
-
+    def plot(self, frame, ax):
         if self.box_release_area:
-            self.show_box_release(self.release_area)
+            self.show_box_release(ax, self.release_area)
+        self.plot_landslide_frame(ax)
 
-        self.plot_landslide_frame()
-
-        # if aruco Module is specified: update, plot aruco markers
-        if self.ARUCO_ACTIVE:
-            self.update_aruco()
-            self.plot.plot_aruco(self.Aruco.aruco_markers)
-
-        self.projector.trigger()
-
-    def plot_landslide_frame(self):
+    def plot_landslide_frame(self, ax):
+        """
+        Plot from the current landslide frame depending of the type of flow (Height or velocity)
+        Args:
+            ax: The image to plot the frame
+        Returns:
+        """
         if self.running_simulation:
             self.simulation_frame += 1
             if self.simulation_frame == (self.counter+1):
@@ -71,56 +76,59 @@ class LandslideSimulation(Module):
 
         if self.flow_selector == 'Height':
             if self.running_simulation:
-                move = self.horizontal_flow[:, :, self.simulation_frame]
+                move = self.height_flow[:, :, self.simulation_frame]
             else:
-                move = self.horizontal_flow[:, :, self.frame_selector]
+                move = self.height_flow[:, :, self.frame_selector]
 
             move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
             move = self.Load_Area.modify_to_box_coordinates(move)
-            self.plot.ax.pcolormesh(move, cmap='hot')
+            ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
         elif self.flow_selector == 'Velocity':
             if self.running_simulation:
-                move = self.vertical_flow[:, :, self.simulation_frame]
+                move = self.velocity_flow[:, :, self.simulation_frame]
             else:
-                move = self.vertical_flow[:, :, self.frame_selector]
+                move = self.velocity_flow[:, :, self.frame_selector]
 
             move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
             move = self.Load_Area.modify_to_box_coordinates(move)
-            self.plot.ax.pcolormesh(move, cmap='hot')
+            ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
     def plot_frame_panel(self):
-        x_move = numpy.round(self.horizontal_flow[:, :, self.frame_selector], decimals=1)
+        """Update the current frame to be displayed in the panel server"""
+        self.ax1.cla()
+        self.ax2.cla()
+
+        x_move = numpy.round(self.height_flow[:, :, self.frame_selector], decimals=1)
         x_move[x_move == 0] = numpy.nan
-        fig, (ax1, ax2) = plt.subplots(2, 1)
-        hor = ax1.pcolormesh(x_move, cmap='hot')
-        ax1.axis('equal')
-        ax1.set_axis_off()
-        ax1.set_title('Flow Height')
-        fig.colorbar(hor, ax=ax1, label='meter')
+        hor = self.ax1.pcolormesh(x_move, cmap='hot')
+        self.ax1.axis('equal')
+        self.ax1.set_axis_off()
+        self.ax1.set_title('Flow Height')
+        self.figure.colorbar(hor, ax=self.ax1, label='meter')
 
-        y_move = numpy.round(self.vertical_flow[:, :, self.frame_selector], decimals=1)
+        y_move = numpy.round(self.velocity_flow[:, :, self.frame_selector], decimals=1)
         y_move[y_move == 0] = numpy.nan
-        ver = ax2.pcolormesh(y_move, cmap='hot')
-        ax2.axis('equal')
-        ax2.set_axis_off()
-        ax2.set_title('Flow Velocity')
-        fig.colorbar(ver, ax=ax2, label='meter/sec')
+        ver = self.ax2.pcolormesh(y_move, cmap='hot')
+        self.ax2.axis('equal')
+        self.ax2.set_axis_off()
+        self.ax2.set_title('Flow Velocity')
+        self.figure.colorbar(ver, ax=self.ax2, label='meter/sec')
 
-        self.plot_flow_frame.object = fig
         self.plot_flow_frame.param.trigger('object')
-        plt.close()
 
     def load_simulation_data_npz(self, infile):
+        """Load landslide simulation from a .npz file """
         files = numpy.load(infile)
-        self.vertical_flow = files['arr_0']
-        self.horizontal_flow = files['arr_1']
-        self.counter = self.horizontal_flow.shape[2] - 1
+        self.velocity_flow = files['arr_0']
+        self.height_flow = files['arr_1']
+        self.counter = self.height_flow.shape[2] - 1
         print('Load successful')
 
     def load_release_area(self, data_path):
+        """load all possible release areas from the same topography to show the simulation"""
         self.release_options = []
         self.release_id_all = []
         self.release_area_all = []
@@ -128,16 +136,18 @@ class LandslideSimulation(Module):
         for i in list_files:
             temp = [str(s) for s in i if s.isdigit()]
             if len(temp) > 0:
-                if temp[0] == self.Load_Area.file_id:
+                if temp[-2] == self.Load_Area.file_id:
                     self.release_options.append(i)
                     self.release_id_all.append(temp[-1])
                     self.release_area_all.append(numpy.load(data_path+i))
 
-    def show_box_release(self, xy):
+    def show_box_release(self, ax, xy):
+        """Show the options for painting release areas at origin xy """
         patch = matplotlib.patches.Polygon(xy, fill=False, edgecolor='white')
-        self.plot.ax.add_patch(patch)
+        ax.add_patch(patch)
 
     def select_simulation_data(self, simulation_path, release_id):
+        """Make sure that the simulation data corresponds to the loaded topography"""
         list_files = os.listdir(simulation_path)
         for i in list_files:
             temp = [str(s) for s in i if s.isdigit()]
@@ -148,33 +158,21 @@ class LandslideSimulation(Module):
         self.load_simulation_data_npz(file_location)
 
     def modify_to_box_coordinates(self, id):
+        """Move the origin of the release areas to be correctly displayed in the sandbox"""
         temp = self.release_area_all[int(id) - 1]
         self.release_area = numpy.vstack((temp[:,0]+self.Load_Area.box_origin[0], temp[:,1]+self.Load_Area.box_origin[1])).T
 
     # Widgets
     def show_widgets(self):
+        load_save = self.Load_Area.show_widgets()
         self._create_widgets()
-        tabs = pn.Tabs(('Load and Save Module', self.show_loadsave_widgets()),
+        tabs = pn.Tabs(('Load and Save Module', load_save),
                        ('Landslide simulation module', self.show_landslide_widgets()))
         return tabs
 
-    def show_loadsave_widgets(self):
-        self.Load_Area._create_widgets()
-        tabs = pn.Tabs(('Activate Module', pn.WidgetBox(self._widget_activate_LoadSaveModule)),
-                       ('Box widgets', self.Load_Area.widgets_box()),
-                       ('Release area widgets', self.Load_Area.widgets_release_area()),
-                       ('Load Topography', self.Load_Area.widgets_load()),
-                       ('Save Topography', self.Load_Area.widgets_save()),
-                       ('Plot', self.Load_Area.widget_plot_module())
-                       )
-        return tabs
-
     def show_landslide_widgets(self):
-        self._create_widgets()
-        tabs = pn.Tabs(("Activate Module", pn.WidgetBox(self._widget_activate_LandslideModule)),
-                       ('Controllers', self.widgets_controller_simulation()),
-                       ('Load Simulation', self.widgets_load_simulation()),
-                       ("Plot", self.widget_plot_module())
+        tabs = pn.Tabs(('Controllers', self.widgets_controller_simulation()),
+                       ('Load Simulation', self.widgets_load_simulation())
                        )
         return tabs
 
@@ -205,13 +203,14 @@ class LandslideSimulation(Module):
         return panel
 
     def _create_widgets(self):
-        self._widget_activate_LoadSaveModule = pn.widgets.Button(name='Activate Load Save Module', button_type="success")
-        self._widget_activate_LoadSaveModule.param.watch(self._callback_activate_LoadSaveModule, 'clicks', onlychanged=False)
-
-        self._widget_activate_LandslideModule = pn.widgets.Button(name='Activate Landslide Module',
-                                                                 button_type="success")
-        self._widget_activate_LandslideModule.param.watch(self._callback_activate_LandslideModule, 'clicks',
-                                                         onlychanged=False)
+        #self._widget_activate_LoadSaveModule = pn.widgets.Button(name='Activate Load Save Module', button_type="success")
+        #self._widget_activate_LoadSaveModule.param.watch(self._callback_activate_LoadSaveModule, 'clicks', onlychanged=False)
+#
+        #self._widget_activate_LandslideModule = pn.widgets.Button(name='Activate Landslide Module',
+        #                                                         button_type="success")
+        #self._widget_activate_LandslideModule.param.watch(self._callback_activate_LandslideModule, 'clicks',
+        #                                                 onlychanged=False)
+        self.Load_Area._widget_npz_filename.value = self.topo_folder + "Topography1.npz"
 
         self._widget_frame_selector = pn.widgets.IntSlider(
             name='5 seconds time step',
@@ -277,11 +276,9 @@ class LandslideSimulation(Module):
             self._widget_available_release_areas.sizing_mode = "scale_both"
 
     def _callback_select_frame(self, event):
-        self.pause()
         self.frame_selector = event.new
         self.plot_landslide_frame()
         self.plot_frame_panel()
-        self.resume()
 
     def _callback_simulation(self, event):
         if event.new == 'Run':
@@ -290,15 +287,16 @@ class LandslideSimulation(Module):
             self.running_simulation = False
         self.plot_landslide_frame()
 
-    def _callback_activate_LoadSaveModule(self, event):
-        self.stop()
-        self.Load_Area.setup()
-        self.Load_Area.run()
+    #def _callback_activate_LoadSaveModule(self, event):
+     #   #self.Load_Area.setup()
+     #   #self.Load_Area.run()
+     #   pass
 
-    def _callback_activate_LandslideModule(self, event):
-        self.Load_Area.stop()
-        self.setup()
-        self.run()
+    #def _callback_activate_LandslideModule(self, event):
+     #   #self.Load_Area.stop()
+     #   #self.setup()
+     #   #self.run()
+     #   pass
 
     def _callback_available_release_areas(self, event):
         if event.new is not None:

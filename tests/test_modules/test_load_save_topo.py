@@ -87,6 +87,11 @@ def test_show_difference():
     ax.imshow(frame, vmin=extent[-2], vmax=extent[-1], cmap="gist_earth_r", origin='lower')
     fig.show()
 
+def test_get_file_id():
+    module = LoadSaveTopoModule(extent=extent)
+    module._get_id(test_data['landslide_topo'] + 'Topography_1.npz')
+    assert module.file_id == '1'
+
 def test_snapshot_frame():
     module = LoadSaveTopoModule(extent=extent)
     module.box_width = 100

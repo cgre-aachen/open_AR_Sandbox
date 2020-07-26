@@ -322,7 +322,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.data_filenames = os.listdir(data_path)
 
     def _get_id(self, filename):
-        self.file_id = [str(s) for s in filename if s.isdigit()][0]
+        self.file_id = [str(s) for s in filename if s.isdigit()][-1]
 
     def show_widgets(self):
         self._create_widgets()
