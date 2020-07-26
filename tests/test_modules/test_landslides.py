@@ -72,8 +72,8 @@ def test_show_widgets():
     module.load_simulation_data_npz(test_data['landslide_simulation'] + 'Sim_Topo1_Rel13_results4sandbox.npz')
     module.flow_selector = "Velocity"
     module.frame_selector = 10
-    load_save = module.Load_Area.show_widgets()
-    module._create_widgets()
-    landslide = module.widgets_controller_simulation()
+    landslide = module.show_widgets()
     landslide.show()
+
+
 

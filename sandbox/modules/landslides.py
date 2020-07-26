@@ -98,8 +98,12 @@ class LandslideSimulation(ModuleTemplate):
 
     def plot_frame_panel(self):
         """Update the current frame to be displayed in the panel server"""
+        #self.figure.clf()
         self.ax1.cla()
         self.ax2.cla()
+        #self.ax1.images[-1].colorbar.remove()
+        #self.ax2.images[-1].colorbar.remove()
+
 
         x_move = numpy.round(self.height_flow[:, :, self.frame_selector], decimals=1)
         x_move[x_move == 0] = numpy.nan
@@ -164,10 +168,11 @@ class LandslideSimulation(ModuleTemplate):
 
     # Widgets
     def show_widgets(self):
-        load_save = self.Load_Area.show_widgets()
         self._create_widgets()
-        tabs = pn.Tabs(('Load and Save Module', load_save),
+        tabs = pn.Tabs(('Load and Save Module', self.Load_Area.show_widgets()),
                        ('Landslide simulation module', self.show_landslide_widgets()))
+        self.Load_Area._widget_npz_filename.value = self.topo_folder + "Topography1.npz"
+
         return tabs
 
     def show_landslide_widgets(self):
@@ -210,8 +215,6 @@ class LandslideSimulation(ModuleTemplate):
         #                                                         button_type="success")
         #self._widget_activate_LandslideModule.param.watch(self._callback_activate_LandslideModule, 'clicks',
         #                                                 onlychanged=False)
-        self.Load_Area._widget_npz_filename.value = self.topo_folder + "Topography1.npz"
-
         self._widget_frame_selector = pn.widgets.IntSlider(
             name='5 seconds time step',
             value=self.frame_selector,
@@ -264,7 +267,7 @@ class LandslideSimulation(ModuleTemplate):
 
     def _callback_set_direction(self, event):
         self.flow_selector = event.new
-        self.plot_landslide_frame()
+        self.plot_frame_panel()
 
     def _callback_filename(self, event):
         self.simulation_folder = event.new
@@ -277,7 +280,7 @@ class LandslideSimulation(ModuleTemplate):
 
     def _callback_select_frame(self, event):
         self.frame_selector = event.new
-        self.plot_landslide_frame()
+        #self.plot_landslide_frame()
         self.plot_frame_panel()
 
     def _callback_simulation(self, event):
@@ -285,7 +288,7 @@ class LandslideSimulation(ModuleTemplate):
             self.running_simulation = True
         else:
             self.running_simulation = False
-        self.plot_landslide_frame()
+        #self.plot_landslide_frame()
 
     #def _callback_activate_LoadSaveModule(self, event):
      #   #self.Load_Area.setup()
