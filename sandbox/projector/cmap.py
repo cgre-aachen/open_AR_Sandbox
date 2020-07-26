@@ -51,9 +51,10 @@ class CmapModule:
         else:
             self.delete_image() #Todo
         """
-        self.set_cmap(cmap, 'k', 'k', 'k')
-        self.render_frame(data, ax)
-        self.set_norm(norm)
+        if cmap is not None:
+            self.set_cmap(cmap, 'k', 'k', 'k')
+            self.set_norm(norm)
+            self.render_frame(data, ax)
 
     def set_norm(self, norm):
         self.norm = norm
@@ -97,6 +98,10 @@ class CmapModule:
             vmax = self.vmax
         data = numpy.flipud(data)
         self.col = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm, origin = 'lower')
+        ax.axis('off')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
         return None
 
     def delete_image(self):

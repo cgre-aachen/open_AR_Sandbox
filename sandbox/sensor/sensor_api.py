@@ -204,5 +204,5 @@ class Sensor:
     @property
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox"""
-        return numpy.asarray([0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max])
+        return [0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max]
 

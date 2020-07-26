@@ -53,6 +53,15 @@ class MainThread:
         self.projector.trigger()
 
     def update(self, **kwargs):
+        """
+        if frame = None -> No contour lines
+        if cmap = None -> No image
+        Args:
+            **kwargs:
+
+        Returns:
+
+        """
         ax = self.projector.ax
         self.delete_axes(ax)
 
@@ -70,12 +79,12 @@ class MainThread:
         else: points = []
 
         for m in modules:
-            frame, self.extent, ax, self.cmap, self.norm = m.update(frame = frame, extent = self.extent, ax = ax,
+            frame, ax, self.extent, self.cmap, self.norm = m.update(frame=frame, ax=ax, extent=self.extent,
                                                                     **kwargs)
 
         self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)
         #plot the contour lines
-        self.contours.plot_contour_lines(frame, ax, **kwargs)
+        self.contours.update(frame, ax, **kwargs)
 
         self.projector.trigger()
 

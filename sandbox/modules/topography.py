@@ -41,7 +41,7 @@ class TopoModule(ModuleTemplate):
             frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
         self.plot()
 
-        return frame, extent, ax, self.cmap, self.norm
+        return frame, ax, extent, self.cmap, self.norm
 
     def plot(self):
         return None

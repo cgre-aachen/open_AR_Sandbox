@@ -1,14 +1,16 @@
-import sys, os
+import os
 import panel as pn
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 
-from .module_main_thread import Module
+from .template import ModuleTemplate
+from sandbox import _test_data
+from matplotlib.figure import Figure
 
 
-class LoadSaveTopoModule(Module):
+class LoadSaveTopoModule(ModuleTemplate):
     """
     Module to save the current topography in a subset of the sandbox
     and recreate it at a later time
@@ -22,9 +24,13 @@ class LoadSaveTopoModule(Module):
     use relative height with the gempy module to get the same geologic map with different calibration settings.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        super().__init__(*args, contours=True, cmap='gist_earth_r', over='k', under='k', **kwargs)
+        if extent is not None:
+            self.vmin = extent[4]
+            self.vmax = extent[5]
+            self.extent = extent
+
         self.box_origin = [40, 40]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         self.box_width = 200
         self.box_height = 150
@@ -40,12 +46,7 @@ class LoadSaveTopoModule(Module):
 
         self.transparency_difference = 1
 
-        self.cmap_difference = None
-        self.norm_difference = None
-
         self.npz_filename = None
-
-        self.shape_frame = None
 
         self.release_width = 10
         self.release_height = 10
@@ -55,67 +56,67 @@ class LoadSaveTopoModule(Module):
 
         self.data_filenames = ['None']
         self.file_id = None
-        #TODO: need to find a better way to do this
-        self.data_path = "C:/Users/Admin/PycharmProjects/open_AR_Sandbox/notebooks/tutorials/07_LandslideSimulation/saved_DEMs/"
-        #self.search_all_data()
+        self.data_path = _test_data['topo']
 
-        self.snapshot_frame = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
-        plt.close()  # close figure to prevent inline display
+        self.figure = Figure()
+        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
+        self.figure.add_axes(self.ax)
 
-        self._create_widgets()
+        self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=335)
+        plt.close(self.figure)  # close figure to prevent inline display
 
-
-    def setup(self):
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
-        self.projector.frame.object = self.plot.figure
-
-
-    def update(self):
-        # with self.lock:
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-        self.plot.render_frame(frame)
-
+    def update(self, frame, ax, extent, marker):
+        self.frame = frame
         if self.show_loaded:
-            self.showLoadedTopo()
+            self.showLoadedTopo(ax)
 
         if self.show_difference:
-            self.showDifference()
+            self.showDifference(ax)
 
-        self.showBox(self.box_origin, self.box_width, self.box_height)
+        self.showBox(ax, self.box_origin, self.box_width, self.box_height)
 
-        # if aruco Module is specified: update, plot aruco markers
-        if self.ARUCO_ACTIVE:
-            self.update_aruco()
-            self.plot.plot_aruco(self.Aruco.aruco_markers)
-            if len(self.Aruco.aruco_markers)> 0:
-                self.aruco_release_area_origin = self.Aruco.aruco_markers.loc[
-                    self.Aruco.aruco_markers.is_inside_box, ('box_x', 'box_y')]
+        if len(marker) > 0:
+            self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
 
-        self.plot_release_area(self.release_area_origin, self.release_width, self.release_height)
-        #self.add_release_area_origin(self.release_area_origin)
+        self.plot_release_area(ax, self.release_area_origin, self.release_width, self.release_height)
 
-
-        self.projector.trigger()
+        cmap = plt.cm.get_cmap("gist_earth_r")
+        norm = None
+        return frame, ax, extent, cmap, norm
 
     def moveBox_possible(self, x, y, width, height):
-        if (x+width) >= self.calib.s_frame_width:
-            self.box_width = self.calib.s_frame_width - x
+        """
+        Dinamicaly modify the size of the box when the margins extend more than frame
+        Args:
+            x: x coordinte of the box origin
+            y: y coordinate of the box origin
+            width: of the box
+            height: of the box
+        Returns:
+        """
+
+        if (x+width) >= self.extent[1]:
+            self.box_width = self.extent[1] - x
         else:
             self.box_width = width
 
-        if (y+height) >= self.calib.s_frame_height:
-            self.box_height = self.calib.s_frame_height - y
+        if (y+height) >= self.extent[3]:
+            self.box_height = self.extent[3] - y
         else:
             self.box_height = height
 
         self.box_origin = [x, y]
 
     def add_release_area_origin(self, x=None, y=None):
+        """
+        Add a box origin [x,y] to highlight a zone on the image.
+        This method also manages the aruco release areas if detected
+        Args:
+            x: x coordinte of origin
+            y: y coordinte of origin
+        Returns:
+
+        """
         if self.release_area_origin is None:
             self.release_area_origin = pd.DataFrame(columns=(('box_x','box_y')))
         if self.aruco_release_area_origin is None:
@@ -124,10 +125,19 @@ class LoadSaveTopoModule(Module):
         if x is not None and y is not None:
             self.release_area_origin = self.release_area_origin.append({'box_x': x, 'box_y': y}, ignore_index=True)
 
-    def plot_release_area(self, center, width, height):
-        if center is not None:
-            x_pos = center.box_x
-            y_pos = center.box_y
+    def plot_release_area(self, ax, origin: pd.DataFrame, width: int, height: int):
+        """
+        Plot small boxes in the frame according to the dataframe origin and width, height specifiend.
+        Args:
+            ax: matplotlib axes to plot
+            origin: pandas dataframe indicating the x and y coordintes of the boxes to plot
+            width: width of the box to plot
+            height: height of the box to plot
+        Returns:
+        """
+        if origin is not None:
+            x_pos = origin.box_x
+            y_pos = origin.box_y
             x_origin = x_pos.values - width/2
             y_origin = y_pos.values - height/2
             self.release_area = numpy.array([[x_origin-self.box_origin[0], y_origin-self.box_origin[1]],
@@ -135,73 +145,95 @@ class LoadSaveTopoModule(Module):
                                              [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]],
                                              [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]]])
             for i in range(len(x_pos)):
-                self.showBox([x_origin[i], y_origin[i]], width, height)
+                self.showBox(ax, [x_origin[i], y_origin[i]], width, height)
 
-    def showBox(self, origin, width, height):
+    def showBox(self, ax, origin: tuple, width: int, height: int):
         """
-        draws a wide rectangle outline in the live view
-        :param origin: tuple,relative position from bottom left in sensor pixel space
-        :param width: width of box in sensor pixels
-        :param height: height of box in sensor pixels
-
+        Draws a wide rectangle outline in the live view
+        Args:
+            ax: the axes where the patch will be drawed on
+            origin: relative position from bottom left in sensor pixel space
+            width: width of box in sensor pixels
+            height: height of box in sensor pixels
+        Returns:
         """
         box = matplotlib.patches.Rectangle(origin, width, height, fill=False, edgecolor='white')
-        self.plot.ax.add_patch(box)
+        ax.add_patch(box)
+        return True
 
-    def getBoxFrame(self):
+    def getBoxFrame(self, frame: numpy.ndarray):
         """
-        Get the absolute and relative topo of the sensor readings
+        Get the absolute and relative topography of the current.
+        Crop frame image to dimensions of box
+        Args:
+            frame: frame of the actual topography
         Returns:
-
+            absolute_topo, the cropped frame minus the mean value and relative_topo, the absolute topo normalized to the extent of the sandbox
         """
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-
-        # crop sensor image to dimensions of box
         cropped_frame = frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
                         self.box_origin[0]:self.box_origin[0] + self.box_width]
 
         mean_height = cropped_frame.mean()
         absolute_topo = cropped_frame - mean_height
-        relative_topo = absolute_topo / (self.calib.s_max - self.calib.s_min)
+        relative_topo = absolute_topo / (self.vmax - self.vmin)
         return absolute_topo, relative_topo
 
     def extractTopo(self):
+        """
+        Extract the topography of the current frame and stores the value internally
+        Returns:
+            absolute topography and relative topography
+        """
         self.is_loaded = True
-        self.absolute_topo, self.relative_topo = self.getBoxFrame()
-        self.shape_frame = self.absolute_topo.shape
+        self.absolute_topo, self.relative_topo = self.getBoxFrame(self.frame)
         return self.absolute_topo, self.relative_topo
 
     def saveTopo(self, filename="savedTopography.npz"):
+        """Save the absolute topography and relative topography in a .npz file"""
         numpy.savez(filename,
                     self.absolute_topo,
                     self.relative_topo)
         print('Save topo successful')
 
     def save_release_area(self, filename="releaseArea.npy"):
+        """Save the release areas as a .npy file """
         numpy.save(filename,
                     self.release_area)
         print('Save area successful')
 
     def loadTopo(self, filename="savedTopography.npz"):
+        """Load the absolute topography and relative topography from a .npz file"""
         self.is_loaded = True
         files = numpy.load(filename, allow_pickle=True)
         self.absolute_topo = files['arr_0']
         self.relative_topo = files['arr_1']
         print('Load successful')
-        self.get_id(filename)
+        self._get_id(filename)
 
-    def showLoadedTopo(self): # Not working
+    def showLoadedTopo(self, ax):
+        """
+        If a topography is saved internally, display the saved topograhy on the sandbox
+        Args:
+            ax: axes to plot the saved topography
+        Returns:
+        """
         if self.is_loaded:
-            self.getBoxShape()
-            self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:self.shape_frame[0],
-                                                                            :self.shape_frame[1]])
-            self.plot.ax.pcolormesh(self.loaded, cmap='gist_earth_r')
+            shape_frame = self.getBoxShape()
+            self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:shape_frame[0],
+                                                                            :shape_frame[1]])
+            ax.pcolormesh(self.loaded, cmap='gist_earth_r')
         else:
             print("No Topography loaded, please load a Topography")
 
     def modify_to_box_coordinates(self, frame):
+        """
+        Since the box is not in the origin of the frame,
+        this will correctly display the loaded topography inside the box
+        Args:
+            frame: the frame that need to be modified to box coordintes
+        Returns:
+            The modified frame
+        """
         width = frame.shape[0]
         left = numpy.ones((self.box_origin[0], width))
         left[left == 1] = numpy.nan
@@ -219,41 +251,55 @@ class LoadSaveTopoModule(Module):
         """
         pass
 
-    def set_cmap(self):
+    @property
+    def cmap_difference(self):
+        """Creates a custom made color map"""
         blues = plt.cm.RdBu(numpy.linspace(0, 0.5, 256))
         reds = plt.cm.RdBu(numpy.linspace(0.5, 1, 256))
         blues_reds = numpy.vstack((blues, reds))
-        self.cmap_difference = matplotlib.colors.LinearSegmentedColormap.from_list('difference_map', blues_reds)
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('difference_map', blues_reds)
+        return cmap
 
-    def set_norm(self):
-        self.norm_difference = matplotlib.colors.TwoSlopeNorm(vmin=self.absolute_topo.min(),
-                                                              vcenter=0,
-                                                              vmax=self.absolute_topo.max())
+    @property
+    def norm_difference(self):
+        """Creates a custom made norm"""
+        norm = matplotlib.colors.TwoSlopeNorm(vmin=self.absolute_topo.min(),
+                                                         vcenter=0,
+                                                         vmax=self.absolute_topo.max())
+        return norm
 
     def getBoxShape(self):
-        current_absolute_topo, current_relative_topo = self.getBoxFrame()
+        """This will return the shape of the current saved topography"""
+        current_absolute_topo, current_relative_topo = self.getBoxFrame(self.frame)
         x_dimension, y_dimension = current_absolute_topo.shape
         x_saved, y_saved = self.absolute_topo.shape
-        self.shape_frame = [numpy.min((x_dimension, x_saved)), numpy.min((y_dimension, y_saved))]
+        shape_frame = [numpy.min((x_dimension, x_saved)), numpy.min((y_dimension, y_saved))]
+        return shape_frame
 
     def extractDifference(self):
-        current_absolute_topo, current_relative_topo = self.getBoxFrame()
-        self.getBoxShape()
-        diff = self.absolute_topo[:self.shape_frame[0],
-                                  :self.shape_frame[1]] - \
-               current_absolute_topo[:self.shape_frame[0],
-                                     :self.shape_frame[1]]
+        """This will return a numpy array comparing the difference between the current frame and the saved frame """
+        current_absolute_topo, current_relative_topo = self.getBoxFrame(self.frame)
+        shape_frame = self.getBoxShape()
+        diff = self.absolute_topo[:shape_frame[0],
+                                  :shape_frame[1]] - \
+               current_absolute_topo[:shape_frame[0],
+                                     :shape_frame[1]]
 
         # paste diff array at right location according to box coordinates
-        self.difference = self.modify_to_box_coordinates(diff)
+        difference = self.modify_to_box_coordinates(diff)
+        return difference
 
-    def showDifference(self):
+    def showDifference(self, ax):
+        """
+        Displays the calculated difference of the previous frame with the actual frame
+        Args:
+            ax: Axes to plot the difference
+        Returns:
+        """
         if self.is_loaded:
-            self.extractDifference()
+            difference = self.extractDifference()
             # plot
-            self.set_cmap()
-            self.set_norm()
-            self.plot.ax.pcolormesh(self.difference,
+            ax.pcolormesh(difference,
                                     cmap=self.cmap_difference,
                                     alpha=self.transparency_difference,
                                     norm=self.norm_difference)
@@ -262,21 +308,18 @@ class LoadSaveTopoModule(Module):
             print('No topography to show difference')
 
     def snapshotFrame(self):
-        fig = plt.figure()
-        ax = plt.gca()
-        ax.cla()
-        ax.pcolormesh(self.absolute_topo, cmap='gist_earth_r')
-        ax.axis('equal')
-        ax.set_axis_off()
-        ax.set_title('Loaded Topography')
-        self.snapshot_frame.object = fig
+        """This will display the saved topography and display it in the panel bokeh"""
+        self.ax.cla()
+        self.ax.pcolormesh(self.absolute_topo, cmap='gist_earth_r')
+        self.ax.axis('equal')
+        self.ax.set_axis_off()
+        self.ax.set_title('Loaded Topography')
         self.snapshot_frame.param.trigger('object')
-        plt.close()
 
-    def search_all_data(self, data_path):
+    def _search_all_data(self, data_path):
         self.data_filenames = os.listdir(data_path)
 
-    def get_id(self, filename):
+    def _get_id(self, filename):
         self.file_id = [str(s) for s in filename if s.isdigit()][0]
 
     def show_widgets(self):
@@ -284,8 +327,7 @@ class LoadSaveTopoModule(Module):
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
                        ('Load Topography', self.widgets_load()),
-                       ('Save Topography', self.widgets_save()),
-                       ('Plot', self.widget_plot_module())
+                       ('Save Topography', self.widgets_save())
                        )
         return tabs
 
@@ -384,7 +426,7 @@ class LoadSaveTopoModule(Module):
         # Load save widgets
         self._widget_npz_filename = pn.widgets.TextInput(name='Choose a filename to save the current topography snapshot:')
         self._widget_npz_filename.param.watch(self._callback_filename_npz, 'value', onlychanged=False)
-        self._widget_npz_filename.value = 'saved_DEMs/savedTopography.npz'
+        self._widget_npz_filename.value = _test_data + '/savedTopography.npz'
 
         self._widget_data_path = pn.widgets.TextInput(name='Choose a folder to load the available topography snapshots:')
         self._widget_data_path.param.watch(self._callback_filename, 'value', onlychanged=False)
@@ -455,7 +497,7 @@ class LoadSaveTopoModule(Module):
         if self.data_path is not None:
             #self.loadTopo(filename=self.npz_filename)
             #self.snapshotFrame()
-            self.search_all_data(data_path=self.data_path)
+            self._search_all_data(data_path=self.data_path)
             self._widget_available_topography.options = self.data_filenames
             self._widget_available_topography.sizing_mode = "scale_both"
 
@@ -493,7 +535,7 @@ class LoadSaveTopoModule(Module):
 
     def _callback_show_difference(self, event):
         self.show_difference = event.new
-        self.snapshotDifference()
+        #self.showDifference()
 
     def _callback_available_topography(self, event):
         if event.new is not None:

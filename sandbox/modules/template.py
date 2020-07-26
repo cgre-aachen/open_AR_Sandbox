@@ -2,16 +2,25 @@ from abc import ABC, abstractmethod
 
 
 class ModuleTemplate(ABC):
-    def __init__(self):
-        self.ax = None
 
-    @abstractmethod
-    def update(self):
-        ### Do all the calculations from the data
-        self.plot()
-        ### pass the data to the plot to paint in the axes, this will return the axes and a colormap
+    def __init__(self, extent: list = None):
+        if extent is not None:
+            self.vmin = extent[4]
+            self.vmax = extent[5]
         pass
 
     @abstractmethod
-    def plot(self):
+    def update(self, frame, ax, extent):
+
+        cmap = None
+        norm = None
+        ### Do all the calculations from the data
+        self.plot(frame, ax)
+        ### pass the data to the plot to paint in the axes, this will return the axes and a colormap
+
+        return frame, extent, ax, cmap, norm
+        pass
+
+    @abstractmethod
+    def plot(self, frame, ax):
         pass

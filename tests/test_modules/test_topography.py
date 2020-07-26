@@ -26,6 +26,7 @@ def test_update_no_see():
     depth, size, ax, cmap, norm = module.update(frame, ax, extent)
     ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap=cmap, norm=norm, origin='lower')
     fig.show()
+
 def test_update_no_normalized():
     module = TopoModule(extent=extent)
     fig, ax = plt.subplots()

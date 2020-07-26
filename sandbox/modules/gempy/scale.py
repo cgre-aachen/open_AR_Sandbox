@@ -1,5 +1,5 @@
 import numpy
-from sandbox.calibration.calibration import CalibrationData
+#from sandbox.calibration.calibration import CalibrationData
 
 
 class Scale(object):
