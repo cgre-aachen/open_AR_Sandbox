@@ -29,7 +29,7 @@ class TopoModule(ModuleTemplate):
         self.norm = None
         self.cmap = None
 
-    def update(self, frame, ax, extent):
+    def update(self, frame, ax, extent, **kwargs):
         if self.normalize:
             frame = extent[-1] - frame
             if self.see:

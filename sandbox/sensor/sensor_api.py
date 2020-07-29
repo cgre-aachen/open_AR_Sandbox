@@ -206,3 +206,9 @@ class Sensor:
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox"""
         return [0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max]
 
+    @property
+    def physical_dimensions(self):
+        """returns the physical extent of the sandbox in mm. Used for scaling gempy models"""
+        return [self.box_width, self.box_height]
+
+

@@ -98,12 +98,8 @@ class LandslideSimulation(ModuleTemplate):
 
     def plot_frame_panel(self):
         """Update the current frame to be displayed in the panel server"""
-        #self.figure.clf()
         self.ax1.cla()
         self.ax2.cla()
-        #self.ax1.images[-1].colorbar.remove()
-        #self.ax2.images[-1].colorbar.remove()
-
 
         x_move = numpy.round(self.height_flow[:, :, self.frame_selector], decimals=1)
         x_move[x_move == 0] = numpy.nan
@@ -111,7 +107,7 @@ class LandslideSimulation(ModuleTemplate):
         self.ax1.axis('equal')
         self.ax1.set_axis_off()
         self.ax1.set_title('Flow Height')
-        self.figure.colorbar(hor, ax=self.ax1, label='meter')
+        cb1 = self.figure.colorbar(hor, ax=self.ax1, label='meter')
 
         y_move = numpy.round(self.velocity_flow[:, :, self.frame_selector], decimals=1)
         y_move[y_move == 0] = numpy.nan
@@ -119,9 +115,12 @@ class LandslideSimulation(ModuleTemplate):
         self.ax2.axis('equal')
         self.ax2.set_axis_off()
         self.ax2.set_title('Flow Velocity')
-        self.figure.colorbar(ver, ax=self.ax2, label='meter/sec')
+        cb2 =self.figure.colorbar(ver, ax=self.ax2, label='meter/sec')
 
         self.plot_flow_frame.param.trigger('object')
+
+        cb1.remove()
+        cb2.remove()
 
     def load_simulation_data_npz(self, infile):
         """Load landslide simulation from a .npz file """

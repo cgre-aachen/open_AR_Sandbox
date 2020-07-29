@@ -10,7 +10,7 @@ class ModuleTemplate(ABC):
         pass
 
     @abstractmethod
-    def update(self, frame, ax, extent, marker):
+    def update(self, frame, ax, extent, marker, **kwargs):
 
         cmap = None
         norm = None
@@ -18,7 +18,7 @@ class ModuleTemplate(ABC):
         self.plot(frame, ax)
         ### pass the data to the plot to paint in the axes, this will return the axes and a colormap
 
-        return frame, extent, ax, cmap, norm
+        return frame, ax, extent, cmap, norm
         pass
 
     @abstractmethod

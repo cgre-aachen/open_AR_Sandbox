@@ -1,16 +1,19 @@
 from warnings import warn
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+import matplotlib.colors as mcolors
 import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
 import threading
 import pyvista as pv
-
 from sandbox.modules.module_main_thread import Module
-from .scale import Scale
-from .grid import Grid
-from sandbox.projector.plot import Plot
+
+from .utils import get_scale, Grid
+from .plot import plot_gempy
+
+#from sandbox.projector.plot import Plot
 
 try:
     import gempy
@@ -21,8 +24,8 @@ except ImportError:
 
 
 class GemPyModule(Module):
-    def __init__(self, geo_model, *args, ** kwargs):
-        super().__init__(*args, **kwargs)  # call parent init
+    def __init__(self, *args, geo_model = None, extent: list = None, box: list = None, ** kwargs):
+        # TODO: include save elevation map and export geologic map --self.geo_map
         """
 
         Args:
@@ -35,12 +38,17 @@ class GemPyModule(Module):
             None
 
         """
-        # TODO: include save elevation map and export geologic map --self.geo_map
-
         self.geo_model = geo_model
+        try:
+            self._model_extent = self.geo_model._grid.regular_grid.extent
+        except:
+            print('Geo model not valid')
+            raise AttributeError
+        self._sensor_extent = extent
+        self._box_dimensions = box
+        self.frame = None
+        self.cmap = None
         self.grid = None
-        self.scale = None
-        self.plot = None
         self.model_dict = None
         self.plot_topography = True
         self.plot_faults = True
@@ -51,8 +59,16 @@ class GemPyModule(Module):
         self.section_traces = None
         self.geological_map = None
         self.section_actual_model = None
-        self.fig_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
-        plt.close()
+
+        # Manage panel figure to show current model
+        self._figure_actual_model = Figure()
+        self.ax_actual_model = plt.Axes(self._figure_actual_model, [0., 0., 1., 1.])
+        self._figure_actual_model.add_axes(self.ax_actual_model)
+        self.ax_actual_model.set_axis_off()
+        self.fig_actual_model = pn.pane.Matplotlib(self._figure_actual_model, tight=False, height=500)
+        plt.close(self._figure_actual_model)
+
+        # Manage panel figure to show 2D plots ( Cross-sections or geological maps)
         self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
 
@@ -64,84 +80,60 @@ class GemPyModule(Module):
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos = pd.DataFrame()
 
-        # Thread for cross-section
-        self.cs_lock = threading.Lock()
-        self.cs_thread = None
-        self.cs_thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
+        dummy_frame = numpy.ones((self._sensor_extent[3], self._sensor_extent[1])) * 100
+        self.setup(dummy_frame)
 
-        # Thread for boreholes
-        self.bh_lock = threading.Lock()
-        self.bh_thread = None
-        self.bh_thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
 
-    def setup(self):
+    def setup(self, frame):
+        self.scale = get_scale(physical_extent=self._box_dimensions,
+                           sensor_extent=self._sensor_extent,
+                           model_extent=self.geo_model._grid.regular_grid.extent)  # prepare the scale object
 
-        self.scale = Scale(self.calib, extent=self.geo_model._grid.regular_grid.extent)        #prepare the scale object
-        self.scale.calculate_scales()
+        self.grid = Grid(physical_extent=self._box_dimensions,
+                           sensor_extent=self._sensor_extent,
+                         model_extent=self.geo_model._grid.regular_grid.extent,
+                         scale=self.scale)
+        self.init_topography(frame)
 
-        self.grid = Grid(calibration=self.calib, scale=self.scale)
-        self.grid.create_empty_depth_grid() # prepare the grid object
-
-        self.init_topography()
-       # self.grid.update_grid() #update the grid object for the first time
-
-        self.plot = Plot(self.calib, model=self.geo_model, vmin=float(self.scale.extent[4]), vmax=float(self.scale.extent[5])) #pass arguments for contours here?
-
-        self.projector.frame.object = self.plot.figure  # Link figure to projector
-
-    def init_topography(self):
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-            frame = self.clip_frame(frame)
-
+    def init_topography(self, frame):
         self.grid.update_grid(frame)
         self.geo_model._grid.topography = Topography(self.geo_model._grid.regular_grid)
-        self.geo_model._grid.topography.extent = self.scale.extent[:4]
-        self.geo_model._grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
+        self.geo_model._grid.topography.extent = self.grid.model_extent[:4]
+        self.geo_model._grid.topography.resolution = numpy.asarray((self.grid.sensor_extent[3], self.grid.sensor_extent[1]))
         self.geo_model._grid.topography.values = self.grid.depth_grid
         self.geo_model._grid.topography.values_3D = numpy.dstack(
-            [self.grid.depth_grid[:, 0].reshape(self.scale.output_res[1], self.scale.output_res[0]),
-             self.grid.depth_grid[:, 1].reshape(self.scale.output_res[1], self.scale.output_res[0]),
-             self.grid.depth_grid[:, 2].reshape(self.scale.output_res[1], self.scale.output_res[0])])
+            [self.grid.depth_grid[:, 0].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1]),
+             self.grid.depth_grid[:, 1].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1]),
+             self.grid.depth_grid[:, 2].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1])])
 
         self.geo_model._grid.set_active('topography')
         self.geo_model.update_from_grid()
 
-    def update(self):
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-            frame = self.clip_frame(frame)
-
+    def update(self, frame, ax, extent, marker=[], **kwargs):
+        self.frame = frame #Store the current frame
         self.grid.update_grid(frame)
         self.geo_model._grid.topography.values = self.grid.depth_grid
-        self.geo_model._grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
-                                                self.geo_model._grid.topography.resolution)
+        data = self.grid.depth_grid[:, 2].reshape(self.geo_model._grid.topography.resolution)
+        self.geo_model._grid.topography.values_3D[:, :, 2] = data
         self.geo_model._grid.update_grid_values()
         self.geo_model.update_from_grid()
+
         gempy.compute_model(self.geo_model, compute_mesh=False)
+        # if self.marker:
+        #    self.compute_modelspace_arucos()
+        #    self.plot.plot_aruco(self.modelspace_arucos)
+        # self.get_section_dict(self.modelspace_arucos)
+        ax, cmap = self.plot(ax, self.geo_model)
+        norm = None
+        return frame, ax, extent, cmap, norm
 
-        self.plot.update_model(self.geo_model)
-        # update the self.plot.figure with new axes
+    def plot(self, ax, geo_model):
+        ax, cmap = plot_gempy(ax, geo_model)
+        return ax, cmap
 
-        #prepare the plot object
-        self.plot.ax.cla()
-
-        self.plot.add_contours(data=self.geo_model._grid.topography.values_3D[:, :, 2],
-                               extent=self.geo_model._grid.topography.extent)
-        self.plot.add_faults()
-        self.plot.add_lith()
-
-        # if aruco Module is specified: update, plot aruco markers
-        if self.ARUCO_ACTIVE:
-            self.update_aruco()
-            self.compute_modelspace_arucos()
-            self.plot.plot_aruco(self.modelspace_arucos)
-            #self.get_section_dict(self.modelspace_arucos)
-
-        self.projector.trigger()
-
+    def change_model(self, geo_model):
+        self.geo_model = geo_model
+        self.setup(self.frame)
         return True
 
     def cross_section(self):
@@ -149,60 +141,6 @@ class GemPyModule(Module):
 
     def boreholes(self):
         pass
-
-    def cs_thread_loop(self):
-        while self.cs_thread_status == 'running':
-            self.cs_lock.acquire()
-            self.cross_section()
-            self.cs_lock.release()
-
-    def run_cs(self):
-        if self.cs_thread_status != 'running':
-            self.cs_thread_status = 'running'
-            self.cs_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
-            self.cs_thread.start()
-            print('Thread started or resumed...')
-        else:
-            print('Thread already running.')
-
-    def stop_cs(self):
-        if self.cs_thread_status is not 'stopped':
-            self.cs_thread_status = 'stopped'  # set flag to end thread loop
-            self.cs_thread.join()  # wait for the thread to finish
-            print('Thread stopped.')
-        else:
-            print('thread was not running.')
-
-    def bh_thread_loop(self):
-        while self.bh_thread_status == 'running':
-            self.bh_lock.acquire()
-            self.boreholes()
-            self.bh_lock.release()
-
-    def run_bh(self):
-        if self.bh_thread_status != 'running':
-            self.bh_thread_status = 'running'
-            self.bh_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
-            self.bh_thread.start()
-            print('Thread started or resumed...')
-        else:
-            print('Thread already running.')
-
-    def stop_bh(self):
-        if self.bh_thread_status is not 'stopped':
-            self.bh_thread_status = 'stopped'  # set flag to end thread loop
-            self.bh_thread.join()  # wait for the thread to finish
-            print('Thread stopped.')
-        else:
-            print('thread was not running.')
-
-    def change_model(self, geo_model):
-        self.stop()
-        self.geo_model = geo_model
-        self.setup()
-        self.run()
-
-        return True
 
     def get_section_dict(self, df, mode): # TODO: Change here
         if len(df) > 0:

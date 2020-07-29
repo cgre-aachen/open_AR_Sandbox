@@ -15,7 +15,7 @@ def test_init():
 def test_update():
     module = TopoModule(extent=extent)
     fig, ax = plt.subplots()
-    depth, size, ax, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm = module.update(frame, ax, extent, box = None)
     ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap=cmap, norm=norm, origin='lower')
     fig.show()
 
@@ -23,7 +23,7 @@ def test_update_no_see():
     module = TopoModule(extent=extent)
     fig, ax = plt.subplots()
     module.see = False
-    depth, size, ax, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
     ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap=cmap, norm=norm, origin='lower')
     fig.show()
 
@@ -31,7 +31,7 @@ def test_update_no_normalized():
     module = TopoModule(extent=extent)
     fig, ax = plt.subplots()
     module.normalize = False
-    depth, size, ax, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
     ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap=cmap, norm=norm, origin='lower')
     fig.show()
 

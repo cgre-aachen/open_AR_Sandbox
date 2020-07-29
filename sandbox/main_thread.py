@@ -20,6 +20,7 @@ class MainThread:
         self.sensor = sensor
         self.projector = projector
         self.extent = sensor.extent
+        self.box = sensor.physical_dimensions
         self.contours = ContourLinesModule(extent=self.extent)
         self.cmap_frame = CmapModule(extent=self.extent)
 
@@ -79,7 +80,10 @@ class MainThread:
         else: points = []
 
         for m in modules:
-            frame, ax, self.extent, self.cmap, self.norm = m.update(frame=frame, ax=ax, extent=self.extent,
+            frame, ax, self.extent, self.cmap, self.norm = m.update(frame=frame,
+                                                                    ax=ax,
+                                                                    extent=self.extent,
+                                                                    marker=points,
                                                                     **kwargs)
 
         self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)
@@ -99,7 +103,6 @@ class MainThread:
         #self.cmap_frame.delete_image()
         ax.cla()
         self.extent = self.sensor.extent
-
 
     def thread_loop(self):
         while self.thread_status == 'running':

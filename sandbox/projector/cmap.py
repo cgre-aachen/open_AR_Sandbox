@@ -97,7 +97,7 @@ class CmapModule:
         if vmax is None:
             vmax = self.vmax
         data = numpy.flipud(data)
-        self.col = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm, origin = 'lower')
+        self.col = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm, origin = 'lower left')
         ax.axis('off')
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)

@@ -39,7 +39,7 @@ class GradientModule(ModuleTemplate):
         self.ve = 0.25
         self.set_lightsource()
 
-    def update(self, frame, ax, extent):
+    def update(self, frame, ax, extent, **kwargs):
         frame = numpy.clip(frame, self.vmin, self.vmax)
 
         frame, ax, cmap, extent = self.plot(frame, ax, extent, self.current_grad)
