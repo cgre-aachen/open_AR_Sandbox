@@ -6,7 +6,6 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
-import threading
 import pyvista as pv
 from sandbox.modules.module_main_thread import Module
 
@@ -46,36 +45,49 @@ class GemPyModule(Module):
             raise AttributeError
         self._sensor_extent = extent
         self._box_dimensions = box
+
         self.frame = None
+        self.vmin = None
+        self.vmax = None
         self.cmap = None
         self.grid = None
         self.model_dict = None
         self.plot_topography = True
         self.plot_faults = True
         self.cross_section = None
-        self.section_dict = None
-        self.resolution_section = [150, 100]
+        self.section_dict = {}
+        self.borehole_dict = {}
+        self._resolution_section = [150, 100]
         self.figsize = (10, 10)
-        self.section_traces = None
-        self.geological_map = None
-        self.section_actual_model = None
+
+        self.im_section_traces = None
+        self.im_plot_2d = None
+        self.im_actual_model = None
+        self.im_geo_map = None
 
         # Manage panel figure to show current model
-        self._figure_actual_model = Figure()
-        self.ax_actual_model = plt.Axes(self._figure_actual_model, [0., 0., 1., 1.])
-        self._figure_actual_model.add_axes(self.ax_actual_model)
-        self.ax_actual_model.set_axis_off()
-        self.fig_actual_model = pn.pane.Matplotlib(self._figure_actual_model, tight=False, height=500)
-        plt.close(self._figure_actual_model)
-
+        #self._figure_actual_model = Figure()
+        #self.ax_actual_model = plt.Axes(self._figure_actual_model, [0., 0., 1., 1.])
+        #self._figure_actual_model.add_axes(self.ax_actual_model)
+        #self.ax_actual_model.set_axis_off()
+        #self.fig_actual_model = pn.pane.Matplotlib(self._figure_actual_model, tight=False, height=500)
+        #plt.close(self._figure_actual_model)
+        self.panel_section_traces = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
         # Manage panel figure to show 2D plots ( Cross-sections or geological maps)
-        self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        self.panel_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
 
-        self.section_dict_boreholes = {}
+        self.panel_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+
+        self.panel_geo_map = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        plt.close()
+
         self.borehole_tube = []
         self.colors_bh = []
-        self.radius_borehole = 20
+        self.faults_bh = []
+        self._radius_borehole = 20
 
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos = pd.DataFrame()
@@ -85,14 +97,17 @@ class GemPyModule(Module):
 
 
     def setup(self, frame):
-        self.scale = get_scale(physical_extent=self._box_dimensions,
+        self.frame = frame
+        self.vmin = frame.min()
+        self.vmax = frame.max()
+        self._scale, self._pixel_scale, self._pixel_size = get_scale(physical_extent=self._box_dimensions,
                            sensor_extent=self._sensor_extent,
                            model_extent=self.geo_model._grid.regular_grid.extent)  # prepare the scale object
 
         self.grid = Grid(physical_extent=self._box_dimensions,
                            sensor_extent=self._sensor_extent,
                          model_extent=self.geo_model._grid.regular_grid.extent,
-                         scale=self.scale)
+                         scale=self._scale)
         self.init_topography(frame)
 
     def init_topography(self, frame):
@@ -101,7 +116,7 @@ class GemPyModule(Module):
         self.geo_model._grid.topography.extent = self.grid.model_extent[:4]
         self.geo_model._grid.topography.resolution = numpy.asarray((self.grid.sensor_extent[3], self.grid.sensor_extent[1]))
         self.geo_model._grid.topography.values = self.grid.depth_grid
-        self.geo_model._grid.topography.values_3D = numpy.dstack(
+        self.geo_model._grid.topography.values_2d = numpy.dstack(
             [self.grid.depth_grid[:, 0].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1]),
              self.grid.depth_grid[:, 1].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1]),
              self.grid.depth_grid[:, 2].reshape(self.grid.sensor_extent[3], self.grid.sensor_extent[1])])
@@ -111,10 +126,12 @@ class GemPyModule(Module):
 
     def update(self, frame, ax, extent, marker=[], **kwargs):
         self.frame = frame #Store the current frame
+        self.vmin = frame.min()
+        self.vmax = frame.max()
         self.grid.update_grid(frame)
         self.geo_model._grid.topography.values = self.grid.depth_grid
         data = self.grid.depth_grid[:, 2].reshape(self.geo_model._grid.topography.resolution)
-        self.geo_model._grid.topography.values_3D[:, :, 2] = data
+        self.geo_model._grid.topography.values_2d[:, :, 2] = data
         self.geo_model._grid.update_grid_values()
         self.geo_model.update_from_grid()
 
@@ -132,143 +149,243 @@ class GemPyModule(Module):
         return ax, cmap
 
     def change_model(self, geo_model):
+        """
+        Change a gempy model
+        Args:
+            geo_model: New gempy model to replace
+        Returns:
+        """
+        self.remove_section_dict('Model: ' + self.geo_model.meta.project_name)
         self.geo_model = geo_model
         self.setup(self.frame)
+        print("New gempy model loaded")
         return True
 
-    def cross_section(self):
-        self.get_section_dict(self.modelspace_arucos, "cross_section")
+    @property
+    def model_sections_dict(self): #TODO: Future, so boreholes and cross sections can be plotted at the same time
+        """One time calculation to join dictionaries needed for cross_sections and boreholes"""
+        return {**self.section_dict, **self.borehole_dict}
 
-    def boreholes(self):
-        pass
-
-    def get_section_dict(self, df, mode): # TODO: Change here
+    def _compute_modelspace_arucos(self, marker):
+        """Receive a dataframe with the location of the arucos and then conver it to model coordinates.
+        Args:
+            marker: dataframe with aruco locations
+        Returns:
+            Change in place
+        """
+        df = marker.copy()
         if len(df) > 0:
-            df.sort_values('box_x', ascending=True)
-            x = df.box_x.values
-            y = df.box_y.values
-            self.section_dict = {'aruco_section': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
-
-    def _plot_section_traces(self):
-        self.geo_model.set_section_grid(self.section_dict)
-        self.section_traces = gempy._plot.plot_section_traces(self.geo_model)
-
-    def plot_section_traces(self):
-        self.geo_model.set_section_grid(self.section_dict)
-        self.section_traces = gempy.plot.plot_section_traces(self.geo_model)
-
-    def plot_cross_section(self):
-        self.geo_model.set_section_grid(self.section_dict)
-        self.cross_section = gempy.plot_2d(self.geo_model,
-                                                 section_names=['aruco_section'],
-                                                 figsize=self.figsize,
-                                                 show_topography=True,
-                                                 show_data=False)
-
-    def plot_geological_map(self):
-        self.geological_map = gempy.plot_2d(self.geo_model,
-                                                  section_names=['topography'],
-                                                  show_data=False,
-                                                  figsize=self.figsize)
-
-    def plot_actual_model(self, name):
-        self.geo_model.set_section_grid({'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)})
-        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
-        self.section_actual_model = gempy.plot_2d(self.geo_model,
-                                                        section_names=['section:' + ' ' + name],
-                                                        show_data=False,
-                                                        figsize=self.figsize)
-
-    def compute_modelspace_arucos(self):
-        df = self.Aruco.aruco_markers.copy()
-        if len(df) > 0:
-
             df = df.loc[df.is_inside_box, ('box_x', 'box_y', 'is_inside_box')]
             #df['box_z'] = self.Aruco.aruco_markers.loc[self.Aruco.aruco_markers.is_inside_box, ['Depth_Z(mm)']]
             df['box_z'] = numpy.nan
             # depth is changing all the time so the coordinate map method becomes old.
             # Workaround: just replace the value from the actual frame
-            frame = self.crop_frame(self.sensor.depth)
-
-
+            frame = self.frame
             for i in df.index:
-                df.at[i, 'box_z'] = (self.scale.extent[5] -
-                                     ((frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))] - self.calib.s_min) /
-                                      (self.calib.s_max - self.calib.s_min) *
-                                      (self.scale.extent[5] - self.scale.extent[4])))
+                df.at[i, 'box_z'] = self.grid.scale_frame(frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))])
+                    #self._model_extent[5] -
+                    #                 ((frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))] - self._sensor_extent[-2]) /
+                    #                  (self._sensor_extent[-1]- self._sensor_extent[-2]) *
+                    #                  (self._model_extent[5] - self._model_extent[4])))
                 #the combination below works though it should not! Look into scale again!!
                 #pixel scale and pixel size should be consistent!
-                df.at[i, 'box_x'] = (self.scale.pixel_size[0]*self.Aruco.aruco_markers['box_x'][i])
-                df.at[i, 'box_y'] = (self.scale.pixel_scale[1]*self.Aruco.aruco_markers['box_y'][i])
-
+                df.at[i, 'box_x'] = (self._pixel_size[0]*self.marker['box_x'][i])
+                df.at[i, 'box_y'] = (self._pixel_scale[1]*self.marker['box_y'][i])
         self.modelspace_arucos = df
 
-    def borehole_cross_section(self, df):
+    def set_section_dict(self, p1, p2, name):
+        """
+        Actualize the section dictionary to draw the cross_sections by appending he new points
+        Args:
+            p1: Point 1 (x,y) coordinates. The most left one
+            p2: To point 2 (x,y) coordinates. The most right one
+            name: Name of the section dictionary
+        Returns:
+            change in place the section dictionary
+        """
+        self.section_dict[name] = ([p1[0], p1[1]], [p2[0], p2[1]], self._resolution_section)
+        self.geo_model.set_section_grid(self.section_dict)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+
+    def remove_section_dict(self, name: str):
+        """
+        Remove a specific section
+        Args:
+            name: Key name
+        Returns:
+        """
+        if name in self.section_dict.keys():
+            self.section_dict.pop(name)
+            self.geo_model.set_section_grid(self.section_dict)
+            _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        else:
+            print("No key found with name ", name, " in section_dict")
+
+    def _get_aruco_section_dict(self, df):
+        """Obtain the position of the aruco markers (must be 2 aruco markers)
+        to draw a cross-section by updating the section dictionary"""
         if len(df) > 0:
-            bh = {}
+            df.sort_values('box_x', ascending=True)
+            x = df.box_x.values
+            y = df.box_y.values
+            p1 = (x[0], y[0])
+            p2 = (x[1], y[1])
+            self.set_section_dict(p1, p2, "Aruco_section")
+
+    def show_section_traces(self):
+        """Show the current location in the sandbox where the cross-section is painted"""
+        self.im_section_traces = gempy.plot.plot_section_traces(self.geo_model)
+        plt.close()
+        self.panel_section_traces.object = self.im_section_traces.fig
+        self.panel_section_traces.param.trigger('object')
+        return self.im_section_traces.fig
+
+    def show_geological_map(self):
+        """Show the geological map from the gmpy package"""
+        self.im_geo_map = gempy.plot_2d(self.geo_model, section_names=['topography'], show_data=False, show_topography=True)
+        plt.close()
+        self.panel_geo_map.object = self.im_geo_map.fig
+        self.panel_geo_map.param.trigger('object')
+        return self.im_geo_map.fig
+
+    def show_cross_section(self, name: str):
+        """
+        Show the 2d cross_section or geological map
+        Args:
+            name: Show the cross section of the
+        Returns:
+        """
+        if name in self.section_dict.keys():
+            self.im_plot_2d = gempy.plot_2d(self.geo_model, section_names=[name], show_data=False, show_topography=True)
+            plt.close()
+            self.im_plot_2d.axes[0].set_ylim(self.frame.min(), self.frame.max())
+            self.im_plot_2d.axes[0].set_aspect(aspect=0.5)
+            self.panel_plot_2d.object = self.im_plot_2d.fig
+            self.panel_plot_2d.param.trigger('object')
+            return self.im_plot_2d.fig
+        else: print("no key in section_dict have the name: ", name)
+
+    def show_actual_model(self):
+        """Show a cross_section of the actual gempy model"""
+        # Get a cross_section in the middle of the model
+        self.set_section_dict((self._model_extent[0], self._model_extent[3]/2),
+                              (self._model_extent[1], self._model_extent[3]/2),
+                              name='Model: ' + self.geo_model.meta.project_name)
+        self.im_actual_model = gempy.plot_2d(self.geo_model, section_names=['Model: ' + self.geo_model.meta.project_name], show_data=False)
+        plt.close()
+        #self.im_actual_model.axes[0].set_ylim(self.frame.min(), self.frame.max())
+        self.im_actual_model.axes[0].set_aspect(aspect=0.5)
+        self.panel_actual_model.object = self.im_actual_model.fig
+        self.panel_actual_model.param.trigger('object')
+        return self.im_actual_model.fig
+
+    def _get_aruco_borehole_dict(self, df):
+        """Obtain the position of the aruco markers to update the borehole dictionary"""
+        if len(df) > 0:
+            # Search in the dataframe for new markers to add or update
             for i in df.index:
                 point1 = numpy.array([df.loc[i, 'box_x'], df.loc[i, 'box_y']])
-                point2 = numpy.array([df.loc[i, 'box_x']+1, df.loc[i, 'box_y']])
-                bh.update({'id_'+str(i): ([point1[0], point1[1]], [point2[0], point2[1]], [5,5])})
+                point2 = numpy.array([df.loc[i, 'box_x'] + 1, df.loc[i, 'box_y']])
+                self.borehole_dict['id_'+str(i)] = ([point1[0], point1[1]], [point2[0], point2[1]], [5, 5])
+            # after adding the new markers, check for markers that dont exist anymore and remove them from the dictionary
+            for i in self.borehole_dict.keys():
+                temp = df.loc[df.index == int(i[-1])].index
+                if len(temp) > 0 and temp[0] == int(i[-1]):
+                    pass
+                else:
+                    self.remove_borehole_dict(name=i)
 
-            self.section_dict_boreholes = bh
+    def remove_borehole_dict(self, name: str):
+        """
+        Remove a specific borehole dict
+        Args:
+            name: Key name
+        Returns:
+        """
+        if name in self.borehole_dict.keys():
+            self.borehole_dict.pop(name)
+            self.geo_model.set_section_grid(self.borehole_dict)
+            _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+        else:
+            print("No key found with name ", name, " in borehole_dict")
 
-    def get_polygon_data(self):
+    def set_borehole_dict(self, xy, name):
+        """
+        Actualize the section dictionary to draw the cross_sections by appending he new points
+        Args:
+            p1: Point 1 (x,y) coordinates. The most left one
+            p2: To point 2 (x,y) coordinates. The most right one
+            name: Name of the section dictionary
+        Returns:
+            change in place the section dictionary
+        """
+        self.borehole_dict[name] = ([xy[0], xy[1]], [xy[0]+1, xy[1]], [5, 5])
+        self.geo_model.set_section_grid(self.borehole_dict)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
+
+    def _get_polygon_data(self):
+        """
+        Method that gets the polygondict, cdict and extent of all the borehole points and store them in lines and colors
+        """
+
         self.borehole_tube = []
         self.colors_bh = []
-        _ = self.geo_model.set_section_grid(self.section_dict_boreholes)
+        self.faults_bh = []
+        _ = self.geo_model.set_section_grid(self.borehole_dict)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
-        for index_id in self.modelspace_arucos.index:
+        faults = list(self.geo_model.surfaces.df.loc[self.geo_model.surfaces.df['isFault']]['surface'])
+        for name in self.borehole_dict.keys():
             polygondict, cdict, extent = section_utils.get_polygon_dictionary(self.geo_model,
-                                                                              section_name="id_"+str(index_id))
+                                                                              section_name=name)
             plt.close()  # avoid inline display
 
-            point_bh = numpy.array([self.modelspace_arucos.loc[index_id, 'box_z'], self.scale.extent[4]]) #top and bottom of model
-            colors_bh = numpy.array([])  # to save the colors of the model
-            for form in cdict.keys():
-                pointslist = numpy.array(polygondict[form])
-                start_point = pointslist[0][0][0]
-                c = cdict[form]
-                colors_bh = numpy.append(colors_bh, c)
-                if pointslist.shape != ():
-                    for points in pointslist:
-                        x = points[:, 0]
-                        y = points[:, 1]
-                        val = y[x == start_point].min()
-                        point_bh = numpy.append(point_bh, val)
+            #To get the top point of the model
+            x, y = self.borehole_dict[name][0][0], self.borehole_dict[name][0][1]
+            _ = self.grid.scale_frame(self.frame[int(y/self._pixel_scale[1]), int(x/self._pixel_scale[0])])
+            z = numpy.asarray([_, _])
+            color = numpy.asarray([None])
+            fault_point = numpy.asarray([])
+            for formation in list(self.geo_model.surfaces.df['surface']):
+                 for path in polygondict.get(formation):
+                    vertices = path.vertices
+                    _idx = (numpy.abs(vertices[:, 0] - extent[1]/2)).argmin()
+                    _compare = vertices[:, 0][_idx]
+                    _mask = numpy.where(vertices[:, 0] == _compare)
+                    extremes = vertices[_mask]
+                    z_val = extremes[:, 1]
+                    if formation in faults:
+                        fault_point = numpy.append(fault_point, z_val)
+                    else:
+                        z = numpy.vstack((z, z_val))
+                        color = numpy.append(color, cdict.get(formation))
 
-            point_bh[::-1].sort()
+            mask1 = z[:, 0].argsort()
+            mask2 = z[:, 0][mask1] <= z[0, 0] # This is the first value added to start counting
 
-            closed = point_bh[point_bh > self.modelspace_arucos.loc[index_id, 'box_z']]
-            point_bh = point_bh[point_bh <= self.modelspace_arucos.loc[index_id, 'box_z']]
-            print(closed, colors_bh)
-            colors_bh = colors_bh[:len(point_bh)-1][::-1]
+            z_final = z[:, 0][mask1][mask2]
+            color_final = color[mask1][mask2]
+            #color_final[-1] = color[mask1][mask2 == False][0] Not needed to replace the color since is already none
 
-            x_val = numpy.ones(len(point_bh)) * self.modelspace_arucos.loc[index_id, 'box_x']
-            y_val = numpy.ones(len(point_bh)) * self.modelspace_arucos.loc[index_id, 'box_y']
-            z_val = point_bh
+            x_final = numpy.ones(len(z_final)) * x
+            y_final = numpy.ones(len(z_final)) * y
 
-            borehole_points = numpy.vstack((x_val, y_val, z_val)).T
+            borehole_points = numpy.vstack((x_final, y_final, z_final)).T
 
-            line = self.lines_from_points(borehole_points)
-            print(borehole_points, colors_bh)
-            line["scalars"] = numpy.arange(len(colors_bh)+1)
+            line = self._lines_from_points(borehole_points)
+            line["scalars"] = numpy.arange(len(color_final))
 
-            self.borehole_tube.append(line.tube(radius=self.radius_borehole))
-            self.colors_bh.append(colors_bh)
+            #For a single borehole
+            self.borehole_tube.append(line.tube(radius=self._radius_borehole))
+            self.colors_bh.append(color_final)
+            self.faults_bh.append(fault_point)
 
-    def plot_boreholes(self):
-        p = pv.Plotter(notebook=False)
-        for i in range(len(self.borehole_tube)):
-            cmap = self.colors_bh[i]
-            p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap))])
-        extent = numpy.copy(self.scale.extent)
-        extent[-1] = numpy.ceil(self.modelspace_arucos.box_z.max()/100)*100
-        p.show_bounds(bounds=extent)
-        p.show()
-
-    def lines_from_points(self, points):
-        """Given an array of points, make a line set"""
+    def _lines_from_points(self, points):
+        """Given an array of points, make a line set.
+        See https://docs.pyvista.org/examples/00-load/create-spline.html
+        for more information
+        Args:
+            points: x,y,z coordinates of the points
+        """
         poly = pv.PolyData()
         poly.points = points
         cells = numpy.full((len(points) - 1, 3), 2, dtype=numpy.int)
@@ -277,6 +394,15 @@ class GemPyModule(Module):
         poly.lines = cells
         return poly
 
+    def plot_boreholes(self):
+        p = pv.Plotter(notebook=False)
+        for i in range(len(self.borehole_tube)):
+            cmap = self.colors_bh[i]
+            p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap)-1)])
+        extent = numpy.copy(self._model_extent)
+        #extent[-1] = numpy.ceil(self.modelspace_arucos.box_z.max()/100)*100
+        p.show_bounds(bounds=extent)
+        p.show()
 
     def show_widgets(self):
         tabs = pn.Tabs(('Cross_sections', self.widget_plot2d()),

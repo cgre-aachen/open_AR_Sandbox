@@ -13,7 +13,7 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
         sensor_extent:  [0, sensor_width, 0. sensor_height, sensor_min, sensor_max]
         xy_isometric: True
     Returns:
-        scale in model units
+        scale in model units, pixel_scale [modelunits/pixel], pixel_size [mm/pixel]
     """
     scale = [None, None, None]
     pixel_size = [None, None]
@@ -40,7 +40,7 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
     scale[1] = pixel_scale[1] / pixel_size[1]
     scale[2] = float(model_extent[5] - model_extent[4]) / (sensor_extent[1] - sensor_extent[0])
     print("scale in Model units/ mm (X,Y,Z): " + str(scale))
-    return scale
+    return scale, pixel_scale, pixel_size
 
 
 class Grid(object):
@@ -59,7 +59,7 @@ class Grid(object):
             None
         """
         if scale is None:
-            self.scale = get_scale(physical_extent, model_extent, sensor_extent)
+            self.scale, _, _ = get_scale(physical_extent, model_extent, sensor_extent)
         else:
             self.scale = scale
 
@@ -88,6 +88,14 @@ class Grid(object):
               str(self.empty_depth_grid[-1, 1]) + "] "
               )
 
+    def scale_frame(self, frame):
+        """Method to scale the frame"""
+        scaled_frame = self.model_extent[5] - \
+                       ((frame - self.sensor_extent[-2]) /
+                        (self.sensor_extent[-1] - self.sensor_extent[-2]) *
+                        (self.model_extent[5] - self.model_extent[4]))
+        return scaled_frame
+
     def update_grid(self, cropped_frame):
         """
         The frame that is passed here is cropped and clipped
@@ -99,14 +107,8 @@ class Grid(object):
             cropped_frame: The frame that is passed here is cropped and clipped
 
         Returns:
-
         """
-        scaled_frame = self.model_extent[5] - \
-                       ((cropped_frame - self.sensor_extent[-2]) /
-                        (self.sensor_extent[-1] - self.sensor_extent[-2]) *
-                        (self.model_extent[5] - self.model_extent[4]))
-
-        flattened_depth = scaled_frame.ravel()
+        flattened_depth = self.scale_frame(cropped_frame).ravel()
         depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
 
         self.depth_grid = depth_grid
