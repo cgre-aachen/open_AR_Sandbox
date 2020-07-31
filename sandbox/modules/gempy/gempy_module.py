@@ -6,6 +6,7 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
+pn.extension('vtk')
 import pyvista as pv
 from sandbox.modules.module_main_thread import Module
 
@@ -84,9 +85,13 @@ class GemPyModule(Module):
         self.panel_geo_map = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
         plt.close()
 
+        p = pv.Plotter(notebook=False)
+        self.vtk = pn.panel(p.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
+
         self.borehole_tube = []
         self.colors_bh = []
         self.faults_bh = []
+        self.faults_color_bh = []
         self._radius_borehole = 20
 
         #dataframe to safe Arucos in model Space:
@@ -331,6 +336,7 @@ class GemPyModule(Module):
         self.borehole_tube = []
         self.colors_bh = []
         self.faults_bh = []
+        self.faults_color_bh = []
         _ = self.geo_model.set_section_grid(self.borehole_dict)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         faults = list(self.geo_model.surfaces.df.loc[self.geo_model.surfaces.df['isFault']]['surface'])
@@ -345,19 +351,24 @@ class GemPyModule(Module):
             z = numpy.asarray([_, _])
             color = numpy.asarray([None])
             fault_point = numpy.asarray([])
+            fault_color = numpy.asarray([])
             for formation in list(self.geo_model.surfaces.df['surface']):
                  for path in polygondict.get(formation):
-                    vertices = path.vertices
-                    _idx = (numpy.abs(vertices[:, 0] - extent[1]/2)).argmin()
-                    _compare = vertices[:, 0][_idx]
-                    _mask = numpy.where(vertices[:, 0] == _compare)
-                    extremes = vertices[_mask]
-                    z_val = extremes[:, 1]
-                    if formation in faults:
-                        fault_point = numpy.append(fault_point, z_val)
-                    else:
-                        z = numpy.vstack((z, z_val))
-                        color = numpy.append(color, cdict.get(formation))
+                     if path != []:
+                        vertices = path.vertices
+                        _idx = (numpy.abs(vertices[:, 0] - extent[1]/2)).argmin()
+                        _compare = vertices[:, 0][_idx]
+                        _mask = numpy.where(vertices[:, 0] == _compare)
+                        extremes = vertices[_mask]
+                        z_val = extremes[:, 1]
+                        if formation in faults:
+                            #fault_point = numpy.append(fault_point, z_val)
+                            #fault_color = numpy.append(fault_color, cdict.get(formation))
+                            self.faults_bh.append(numpy.asarray([x, y, z_val[0]]))
+                            self.faults_color_bh.append(cdict.get(formation))
+                        else:
+                            z = numpy.vstack((z, z_val))
+                            color = numpy.append(color, cdict.get(formation))
 
             mask1 = z[:, 0].argsort()
             mask2 = z[:, 0][mask1] <= z[0, 0] # This is the first value added to start counting
@@ -377,7 +388,9 @@ class GemPyModule(Module):
             #For a single borehole
             self.borehole_tube.append(line.tube(radius=self._radius_borehole))
             self.colors_bh.append(color_final)
-            self.faults_bh.append(fault_point)
+            #if len(fault_point) > 0:
+            #    self.faults_bh.append(numpy.asarray([x, y, fault_point]))
+            #    self.faults_color_bh.append(fault_color)
 
     def _lines_from_points(self, points):
         """Given an array of points, make a line set.
@@ -394,15 +407,54 @@ class GemPyModule(Module):
         poly.lines = cells
         return poly
 
-    def plot_boreholes(self):
-        p = pv.Plotter(notebook=False)
+    def plot_boreholes(self, notebook=False):
+        """
+        Uses the previously calculated borehole tubes in self._get_polygon_data() when a borehole dictionary is available
+        This will generate a pyvista object that can be visualized with .show()
+        Args:
+            notebook: If using in notebook to show inline
+        Returns:
+            Pyvista object with all the boreholes
+        """
+        p = pv.Plotter(notebook=notebook)
         for i in range(len(self.borehole_tube)):
             cmap = self.colors_bh[i]
-            p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap)-1)])
+            p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap)-1)], smooth_shading=False)
+        #for i in range(len(self.faults_bh)):
+        #for plotting the faults
+        #TODO: Messing with the colors when faults
+        if len(self.faults_bh) > 0:
+            point = pv.PolyData(self.faults_bh)
+            p.add_mesh(point, render_points_as_spheres=True, point_size=self._radius_borehole)
+            #p.add_mesh(point, cmap = self.faults_color_bh[i], render_points_as_spheres=True, point_size=self._radius_borehole)
         extent = numpy.copy(self._model_extent)
         #extent[-1] = numpy.ceil(self.modelspace_arucos.box_z.max()/100)*100
         p.show_bounds(bounds=extent)
-        p.show()
+        p.show_grid()
+        #self.vtk = pn.panel(p.ren_win, sizing_mode='stretch_width', orientation_widget=True)
+        #self.vtk = pn.Row(pn.Column(pan, pan.construct_colorbars()), pn.pane.Str(type(p.ren_win), width=500))
+        return p
+
+    def show_boreholes_panel(self):
+        """This function will show the pyvista object of plot_boreholes in a panel server"""
+        pl = self.plot_boreholes(notebook = False)
+        pan = pn.panel(pl.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
+        axes = dict(
+            origin=[self._model_extent[0], self._model_extent[2], self._model_extent[4]],
+            xticker={'ticks': numpy.linspace(self._model_extent[0], self._model_extent[1], 5)},
+            yticker={'ticks': numpy.linspace(self._model_extent[2], self._model_extent[3], 5)},
+            zticker={'ticks': numpy.linspace(self._model_extent[4], self._model_extent[5], 5),
+                     'labels': [''] + [str(int(item)) for item in numpy.linspace(self._model_extent[4], self._model_extent[5], 5)[1:]]},
+            fontsize=12,
+            digits=1,
+            grid_opacity=0.5,
+            show_grid=True)
+        pan.axes = axes
+
+        self.vtk = pan
+        #self.vtk.object = pan.object
+        #self.vtk.param.trigger('object')
+        return self.vtk.show()
 
     def show_widgets(self):
         tabs = pn.Tabs(('Cross_sections', self.widget_plot2d()),

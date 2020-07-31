@@ -218,6 +218,7 @@ def test_polygon_data_boreholes():
     print(module.borehole_tube, module.colors_bh)
 
 def test_plot_boreholes():
+    #geo_model = create_example_model('Fault')
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800])
     module.setup(frame)
@@ -233,4 +234,26 @@ def test_plot_boreholes():
 
     module._get_polygon_data()
 
-    module.plot_boreholes()
+    p = module.plot_boreholes(notebook = False)
+    p.show()
+
+def test_update_borehole_panel():
+    geo_model = create_example_model('Horizontal_layers')
+    module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800])
+    module.setup(frame)
+
+    module.set_borehole_dict((10, 20), "borehole1")
+    module.set_borehole_dict((200, 500), "borehole2")
+    module.set_borehole_dict((500, 500), "borehole3")
+    module.set_borehole_dict((900, 500), "borehole4")
+    module.set_borehole_dict((100, 100), "borehole5")
+    module.set_borehole_dict((600, 700), "borehole6")
+    module.set_borehole_dict((200, 800), "borehole7")
+    module.set_borehole_dict((800, 200), "borehole8")
+
+    module._get_polygon_data()
+
+    module.show_boreholes_panel()
+
+
+
