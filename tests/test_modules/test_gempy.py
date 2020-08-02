@@ -253,7 +253,9 @@ def test_update_borehole_panel():
 
     module._get_polygon_data()
 
-    module.show_boreholes_panel()
+    vtk = module.show_boreholes_panel()
+    vtk.show()
+
 
 
 

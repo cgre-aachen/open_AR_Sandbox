@@ -8,7 +8,7 @@ pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithC
 import panel as pn
 pn.extension('vtk')
 import pyvista as pv
-from sandbox.modules.module_main_thread import Module
+from sandbox.modules.template import ModuleTemplate
 
 from .utils import get_scale, Grid
 from .plot import plot_gempy
@@ -23,7 +23,7 @@ except ImportError:
     warn('gempy package not found, GempyModule will not work')
 
 
-class GemPyModule(Module):
+class GemPyModule(ModuleTemplate):
     def __init__(self, *args, geo_model = None, extent: list = None, box: list = None, ** kwargs):
         # TODO: include save elevation map and export geologic map --self.geo_map
         """
@@ -454,12 +454,12 @@ class GemPyModule(Module):
         self.vtk = pan
         #self.vtk.object = pan.object
         #self.vtk.param.trigger('object')
-        return self.vtk.show()
+        return self.vtk
 
     def show_widgets(self):
         tabs = pn.Tabs(('Cross_sections', self.widget_plot2d()),
                        ("Boreholes"),
-                       ('Plot', self.widget_plot_module())
+
                        )
 
         return tabs
@@ -503,7 +503,6 @@ class GemPyModule(Module):
         callback function for the widget to update the self.
         :return:
         """
-        self.stop()
         geo_model = self.model_dict[event.new]
         self.change_model(geo_model)
         #self.plot_actual_model(event.new)
