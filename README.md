@@ -43,9 +43,17 @@ You will need:
 * Projector
 * A box of Sand
 
-
 Mount the kinect and projector facing down vertically in the center above of the box. The optimal distance will depend on the size of your sandbox and the optics of the projector, from our experience a distance of 150 cm is well suited for a 80 cm x 100 cm box. 
 More details on how to set up the kinect and projector can be found in the `calibrate sandbox.ipynb` notebook.
+
+Git LFS
+-------
+
+To clone and use this repository, you'll need Git Large File Storage (LFS).
+
+Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
+explains how to set up Git LFS for LSST development.
+
 
 ## Installation 
 First of all you will need a a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed installation instructions.
