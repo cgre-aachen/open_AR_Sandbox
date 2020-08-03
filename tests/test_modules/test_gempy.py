@@ -1,16 +1,17 @@
-from sandbox import _test_data as test_data
-from sandbox.modules import GemPyModule
-import matplotlib.pyplot as plt
-
-import numpy as np
-file = np.load(test_data['topo'] + "DEM1.npz")
-frame = file['arr_0'] + 500 #assuming the mean of the previous one was 1000
-extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
-
 import os
 import gempy as gp
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
+from sandbox import _test_data as test_data
+from sandbox.modules import GemPyModule
+from sandbox.modules.gempy.example_models import *
+import matplotlib.pyplot as plt
 
+import numpy as np
+#with np.load(test_data['topo'] + "DEM1.npz") as data:
+#    file = data
+file = np.load(file=test_data['topo'] + "DEM4.npz", allow_pickle=True)#, encoding='bytes', allow_pickle=False)
+frame = file['arr_0'] + 500 #assuming the mean of the previous one was 1000
+extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
 
 def test_scale():
     from sandbox.modules.gempy.utils import get_scale
@@ -18,6 +19,7 @@ def test_scale():
                 model_extent=[0, 1000, 0, 1000, 0, 2300],
                 sensor_extent=extent)
     print(sca)
+
 
 def test_grid():
     from sandbox.modules.gempy.utils import Grid
@@ -111,6 +113,15 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=F
 def test_create_model():
     geo_model = create_example_model(name = 'Horizontal_layers')
     print(geo_model)
+
+def test_create_model_predefined():
+    model_dict = create_model_dict(all_models)
+    print(model_dict)
+
+def test_init_examples():
+    module = GemPyModule(geo_model=None, extent=extent, box=[1000, 800], load_examples=True)
+    print(module)
+    print(module.model_dict.keys())
 
 def test_init():
     geo_model = create_example_model('Horizontal_layers')
@@ -255,6 +266,7 @@ def test_update_borehole_panel():
 
     vtk = module.show_boreholes_panel()
     vtk.show()
+
 
 
 

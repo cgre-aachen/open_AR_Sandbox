@@ -12,7 +12,7 @@ from sandbox.modules.template import ModuleTemplate
 
 from .utils import get_scale, Grid
 from .plot import plot_gempy
-
+from .example_models import create_model_dict, all_models
 #from sandbox.projector.plot import Plot
 
 try:
@@ -24,21 +24,31 @@ except ImportError:
 
 
 class GemPyModule(ModuleTemplate):
-    def __init__(self, *args, geo_model = None, extent: list = None, box: list = None, ** kwargs):
+    def __init__(self, *args, geo_model=None, extent: list = None, box: list = None,
+                 load_examples=True, name_example: list = all_models, ** kwargs):
         # TODO: include save elevation map and export geologic map --self.geo_map
         """
 
         Args:
-            geo_model:
-            grid:
-            geol_map:
-            work_directory:
-
+            geo_model: Previously constructed geo_model ready for visualization
+            extent: sensor extents
+            box: physical extends of the sandbox
+            load_examples: To load all the example models and switch between them using a dictionary
         Returns:
             None
 
         """
-        self.geo_model = geo_model
+        if load_examples and len(name_example) > 0:
+            self.model_dict = create_model_dict(name_example)
+            print("Model examples loaded in dictionary model_dict")
+        else: self.model_dict = None
+
+        if geo_model is None and self.model_dict is not None:
+            self.geo_model = self.model_dict[name_example[0]]
+            print("Model "+ name_example[0]+ "loaded as geo_model")
+        else:
+            self.geo_model = geo_model
+
         try:
             self._model_extent = self.geo_model._grid.regular_grid.extent
         except:
