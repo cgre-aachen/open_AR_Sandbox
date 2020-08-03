@@ -26,10 +26,23 @@ class Sensor:
     """
     def __init__(self, calibsensor: str = None, name: str ='kinect_v2', crop_values: bool = True,
                  clip_values: bool = False, gauss_filter: bool = True,
-                 n_frames: int = 3, gauss_sigma: int = 3, **kwargs):
-
+                 n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
+        """
+        Sensor Api class to manage the different sensor for the frame adquisition
+        Args:
+            calibsensor: file path for the .json calibration file of the sensor
+            name: type of sensor to use. Current ['kinect_v1', 'kinect_v2', 'dummy']. Predefined is 'kinect_v2'
+            crop_values: to crop the frame according to the calibration file
+            clip_values: clip the values to the maximum and minimum extent
+            gauss_filter: apply a gaussian filter to the data
+            n_frames: number of frames to get the average. Avoids anomalies
+            gauss_sigma: How strong the filter is
+            inverted: The data is measured from the sensor outwards. \
+                        This will normalize the data according to the maximun value of the sensor
+            **kwargs:
+        """
         self.json_filename = calibsensor
-        self.version = '2.0.s'
+        self.version = '2.1.s'
         if calibsensor is None:
             self.s_name = name
             self.s_top = 10
@@ -65,6 +78,7 @@ class Sensor:
         self.filter = gauss_filter
         self.n_frames = n_frames
         self.sigma_gauss = gauss_sigma
+        self.invert = invert
 
         self.s_name = self.Sensor.name
         self.s_width = self.Sensor.depth_width
@@ -92,6 +106,17 @@ class Sensor:
             depth = scipy.ndimage.filters.gaussian_filter(depth, self.sigma_gauss)
 
         return depth
+
+    def get_inverted_frame(self, frame):
+        """
+        Get the current frame and invert the values to get the normalized height,
+        being the maximum value of the calibrated sensor data 0.
+        Args:
+            frame: Sensor frame to invert
+        Returns:
+            inverted frame
+        """
+        return self.s_max - frame
 
     # computed parameters for easy access
     @property
@@ -193,6 +218,8 @@ class Sensor:
 
     def get_frame(self) -> numpy.ndarray:
         frame = self.get_raw_frame(self.filter)
+        if self.invert:
+            frame = self.get_inverted_frame(frame)
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
@@ -202,9 +229,15 @@ class Sensor:
         return self.depth
 
     @property
+    def vmax(self):
+        """return the maximum extent of the sensor according to the calibration file """
+        return numpy.abs(self.s_max - self.s_min)
+
+    @property
     def extent(self):
-        """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox"""
-        return [0, self.s_frame_width, 0, self.s_frame_height, self.s_min, self.s_max]
+        """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox
+        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun point] """
+        return [0, self.s_frame_width, 0, self.s_frame_height, 0, self.vmax]
 
     @property
     def physical_dimensions(self):

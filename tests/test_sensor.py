@@ -37,5 +37,5 @@ def test_get_frame_croped_clipped():
 def test_extent_property():
     sensor = Sensor(name='dummy')
     print(sensor.extent)
-    assert np.allclose(np.asarray([0, 492, 0, 404, 700, 1500]), sensor.extent)
+    assert np.allclose(np.asarray([0, 492, 0, 404, 0, 800]), sensor.extent)
 
