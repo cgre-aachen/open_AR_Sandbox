@@ -5,7 +5,7 @@ from sandbox import _test_data
 all_models = ['Horizontal_layers', 'Recumbent_fold', 'Anticline',
                   'Pinchout', 'Fault', 'Unconformity']
 
-def create_model_dict(model_name: list = all_models):
+def create_model_dict(model_name: list = all_models, **kwargs):
     """
     Create all the example models for the gempy module and stores them in a dictionary
     Returns:
@@ -13,10 +13,10 @@ def create_model_dict(model_name: list = all_models):
     """
     model_dict = {}
     for model in model_name:
-        model_dict.update({model: create_example_model(model)})
+        model_dict.update({model: create_example_model(model, **kwargs)})
     return model_dict
 
-def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=False,
+def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 2000], do_sections=False,
                          change_color=False, data_path=_test_data['gempy_data'], theano_optimizer='fast_compile'):
     """
     Create all the example models
@@ -42,14 +42,14 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=F
             geo_model.surfaces.colors.change_colors({"rock2": '#9f0052', 'rock1': '#e36746',
                                                      'basement': '#f9f871'})
 
-        gp.map_series_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
+        gp.map_stack_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
 
     elif name == 'Recumbent_fold':
         geo_model = gp.init_data(geo_model, extent=extent, resolution=[2, 2, 2],
                                  path_o=data_path + "model3_orientations.csv",
                                  path_i=data_path + "model3_surface_points.csv")
-        gp.map_series_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
+        gp.map_stack_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
         if change_color:
             geo_model.surfaces.colors.change_colors({"rock2": '#e36746', 'rock1': '#c0539f',
@@ -59,14 +59,14 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=F
         geo_model = gp.init_data(geo_model, extent=extent, resolution=[2, 2, 2],
                                  path_o=data_path + "model2_orientations.csv",
                                  path_i=data_path + "model2_surface_points.csv")
-        gp.map_series_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
+        gp.map_stack_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
 
     elif name == 'Pinchout':
         geo_model = gp.init_data(geo_model, extent=extent, resolution=[2, 2, 2],
                                  path_o=data_path + "model4_orientations.csv",
                                  path_i=data_path + "model4_surface_points.csv")
-        gp.map_series_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
+        gp.map_stack_to_surfaces(geo_model, {"Strat_Series": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
         if change_color:
             geo_model.surfaces.colors.change_colors({"rock2": '#a1b455', 'rock1': '#ffbe00',
@@ -76,7 +76,7 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=F
         geo_model = gp.init_data(geo_model, extent=extent, resolution=[2, 2, 2],
                                  path_o=data_path + "model5_orientations.csv",
                                  path_i=data_path + "model5_surface_points.csv")
-        gp.map_series_to_surfaces(geo_model, {"Fault_Series": 'fault',
+        gp.map_stack_to_surfaces(geo_model, {"Fault_Series": 'fault',
                                               "Strat_Series": ('rock2', 'rock1')})
         geo_model.set_is_fault(['Fault_Series'], change_color=False)
         if change_color:
@@ -88,7 +88,7 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=F
                                  path_o=data_path + "model6_orientations.csv",
                                  path_i=data_path + "model6_surface_points.csv")
 
-        gp.map_series_to_surfaces(geo_model, {"Strat_Series1": ('rock3'),
+        gp.map_stack_to_surfaces(geo_model, {"Strat_Series1": ('rock3'),
                                               "Strat_Series2": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
 
