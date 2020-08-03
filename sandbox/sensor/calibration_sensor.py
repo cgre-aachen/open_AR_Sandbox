@@ -14,7 +14,7 @@ class CalibSensor: #TODO: include automatic
         self.c_under = '#DBD053'
         self.c_over = '#DB3A34'
         self.c_margin = '#084C61'
-        self.sensor = Sensor(name=name, **kwargs)
+        self.sensor = Sensor(name=name, invert=False, **kwargs)
         self.projector = Projector(calibprojector=calibprojector, **kwargs)
         self.cmap = plt.cm.get_cmap('Greys_r')
         self.cmap.set_over(self.c_over)

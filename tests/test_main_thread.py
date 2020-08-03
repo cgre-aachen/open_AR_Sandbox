@@ -38,3 +38,9 @@ def test_thread_functions():
     smain.stop()
     print('stop() working')
 
+def test_thread_kinectv2():
+    projector_2 = Projector(use_panel=True)
+    sensor_2 = Sensor(name='kinect_v2')
+    smain = MainThread(sensor_2, projector_2)
+    smain.run()
+
