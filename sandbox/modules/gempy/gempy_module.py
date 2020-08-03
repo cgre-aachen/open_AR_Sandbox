@@ -46,15 +46,16 @@ class GemPyModule(Module):
         self.plot_topography = True
         self.plot_faults = True
         self.cross_section = None
-        self.section_dict = None
+        self.section_dict = {}
+        self.dic_actual_model = {}
         self.resolution_section = [150, 100]
         self.figsize = (10, 10)
         self.section_traces = None
         self.geological_map = None
         self.section_actual_model = None
-        self.fig_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        self.fig_actual_model = pn.pane.Matplotlib(plt.figure(), tight=False, height=500)
         plt.close()
-        self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=335)
+        self.fig_plot_2d = pn.pane.Matplotlib(plt.figure(), tight=False, height=500)
         plt.close()
 
         self.section_dict_boreholes = {}
@@ -101,7 +102,7 @@ class GemPyModule(Module):
         self.geo_model._grid.topography.extent = self.scale.extent[:4]
         self.geo_model._grid.topography.resolution = numpy.asarray((self.scale.output_res[1], self.scale.output_res[0]))
         self.geo_model._grid.topography.values = self.grid.depth_grid
-        self.geo_model._grid.topography.values_3D = numpy.dstack(
+        self.geo_model._grid.topography.values_2d = numpy.dstack(
             [self.grid.depth_grid[:, 0].reshape(self.scale.output_res[1], self.scale.output_res[0]),
              self.grid.depth_grid[:, 1].reshape(self.scale.output_res[1], self.scale.output_res[0]),
              self.grid.depth_grid[:, 2].reshape(self.scale.output_res[1], self.scale.output_res[0])])
@@ -117,7 +118,7 @@ class GemPyModule(Module):
 
         self.grid.update_grid(frame)
         self.geo_model._grid.topography.values = self.grid.depth_grid
-        self.geo_model._grid.topography.values_3D[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
+        self.geo_model._grid.topography.values_2d[:, :, 2] = self.grid.depth_grid[:, 2].reshape(
                                                 self.geo_model._grid.topography.resolution)
         self.geo_model._grid.update_grid_values()
         self.geo_model.update_from_grid()
@@ -129,7 +130,7 @@ class GemPyModule(Module):
         #prepare the plot object
         self.plot.ax.cla()
 
-        self.plot.add_contours(data=self.geo_model._grid.topography.values_3D[:, :, 2],
+        self.plot.add_contours(data=self.geo_model._grid.topography.values_2d[:, :, 2],
                                extent=self.geo_model._grid.topography.extent)
         self.plot.add_faults()
         self.plot.add_lith()
@@ -139,63 +140,23 @@ class GemPyModule(Module):
             self.update_aruco()
             self.compute_modelspace_arucos()
             self.plot.plot_aruco(self.modelspace_arucos)
-            #self.get_section_dict(self.modelspace_arucos)
+            self.get_section_dict(self.modelspace_arucos)
 
         self.projector.trigger()
 
         return True
 
+    @property
+    def dictionaries(self):
+        return {**self.section_dict_boreholes, **self.dic_actual_model, **self.section_dict}
+
     def cross_section(self):
-        self.get_section_dict(self.modelspace_arucos, "cross_section")
+        self.get_section_dict(self.modelspace_arucos)
 
     def boreholes(self):
-        pass
-
-    def cs_thread_loop(self):
-        while self.cs_thread_status == 'running':
-            self.cs_lock.acquire()
-            self.cross_section()
-            self.cs_lock.release()
-
-    def run_cs(self):
-        if self.cs_thread_status != 'running':
-            self.cs_thread_status = 'running'
-            self.cs_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
-            self.cs_thread.start()
-            print('Thread started or resumed...')
-        else:
-            print('Thread already running.')
-
-    def stop_cs(self):
-        if self.cs_thread_status is not 'stopped':
-            self.cs_thread_status = 'stopped'  # set flag to end thread loop
-            self.cs_thread.join()  # wait for the thread to finish
-            print('Thread stopped.')
-        else:
-            print('thread was not running.')
-
-    def bh_thread_loop(self):
-        while self.bh_thread_status == 'running':
-            self.bh_lock.acquire()
-            self.boreholes()
-            self.bh_lock.release()
-
-    def run_bh(self):
-        if self.bh_thread_status != 'running':
-            self.bh_thread_status = 'running'
-            self.bh_thread = threading.Thread(target=self.cs_thread_loop, daemon=True, )
-            self.bh_thread.start()
-            print('Thread started or resumed...')
-        else:
-            print('Thread already running.')
-
-    def stop_bh(self):
-        if self.bh_thread_status is not 'stopped':
-            self.bh_thread_status = 'stopped'  # set flag to end thread loop
-            self.bh_thread.join()  # wait for the thread to finish
-            print('Thread stopped.')
-        else:
-            print('thread was not running.')
+        self.borehole_cross_section(self.modelspace_arucos)
+        self.get_polygon_data()
+        self.plot_boreholes()
 
     def change_model(self, geo_model):
         self.stop()
@@ -205,42 +166,55 @@ class GemPyModule(Module):
 
         return True
 
-    def get_section_dict(self, df, mode): # TODO: Change here
-        if len(df) > 0:
+    def get_section_dict(self, df): # TODO: Change here
+        if len(df) > 1:
             df.sort_values('box_x', ascending=True)
             x = df.box_x.values
             y = df.box_y.values
             self.section_dict = {'aruco_section': ([x[0], y[0]], [x[1], y[1]], self.resolution_section)}
 
     def _plot_section_traces(self):
-        self.geo_model.set_section_grid(self.section_dict)
+        #self.geo_model.set_section_grid(self.section_dict)
+        self.geo_model.set_section_grid(self.dictionaries)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         self.section_traces = gempy._plot.plot_section_traces(self.geo_model)
+        plt.close()
 
     def plot_section_traces(self):
-        self.geo_model.set_section_grid(self.section_dict)
+        #self.geo_model.set_section_grid(self.section_dict)
+        self.geo_model.set_section_grid(self.dictionaries)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         self.section_traces = gempy.plot.plot_section_traces(self.geo_model)
 
     def plot_cross_section(self):
-        self.geo_model.set_section_grid(self.section_dict)
+        #self.geo_model.set_section_grid(self.section_dict)
+        self.geo_model.set_section_grid(self.dictionaries)
+        _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         self.cross_section = gempy.plot_2d(self.geo_model,
                                                  section_names=['aruco_section'],
                                                  figsize=self.figsize,
                                                  show_topography=True,
-                                                 show_data=False)
+                                                 show_data=False,
+                                           show=False)
+        #self.cross_section.axes.set_aspect(aspect=0.5)
 
     def plot_geological_map(self):
         self.geological_map = gempy.plot_2d(self.geo_model,
                                                   section_names=['topography'],
                                                   show_data=False,
-                                                  figsize=self.figsize)
+                                                  figsize=self.figsize,
+                                            show=False)
 
     def plot_actual_model(self, name):
-        self.geo_model.set_section_grid({'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)})
+        self.dic_actual_model = {'section:' + ' ' + name: ([0, 500], [1000, 500], self.resolution_section)}
+        self.geo_model.set_section_grid(self.dictionaries)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         self.section_actual_model = gempy.plot_2d(self.geo_model,
                                                         section_names=['section:' + ' ' + name],
                                                         show_data=False,
-                                                        figsize=self.figsize)
+                                                        figsize=self.figsize,
+                                                  show=False)
+
 
     def compute_modelspace_arucos(self):
         df = self.Aruco.aruco_markers.copy()
@@ -341,9 +315,9 @@ class GemPyModule(Module):
         return poly
 
 
-    def show_widgets(self):
-        tabs = pn.Tabs(('Cross_sections', self.widget_plot2d()),
-                       ("Boreholes"),
+    def show_widgets(self, Model_dict):
+        tabs = pn.Tabs(('Select Model', self.widget_model_selector(Model_dict)),
+                        ('Cross_sections', self.widget_plot2d()),
                        ('Plot', self.widget_plot_module())
                        )
 
@@ -358,12 +332,12 @@ class GemPyModule(Module):
                                                                   button_type='success')
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
 
-        widgets = pn.WidgetBox(self._widget_model_selector,
-                               self.fig_actual_model,
-                               width=550
-                               )
+        #widgets = pn.WidgetBox(self._widget_model_selector,
+                               #self.fig_actual_model,
+                               #width=550
+         #                      )
 
-        panel = pn.Column("### Model Selector widgets", widgets)
+        panel = pn.Column("### Model Selector widgets", self._widget_model_selector)
         return panel
 
     def widget_plot2d(self):
