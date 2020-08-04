@@ -103,7 +103,7 @@ def test_widgets_calibration():
     widget = projector.calibrate_projector()
     widget.show()
 
-    projector2 = Projector(calibprojector=calib_dir + 'my_projector_calibration.json', use_panel=True)
+    projector2 = Projector(calibprojector=calib_dir + 'test_projector_calibration.json', use_panel=True)
     widget2 = projector2.calibrate_projector()
     widget2.show()
 
