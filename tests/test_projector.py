@@ -1,12 +1,12 @@
 from sandbox.projector import Projector
-from sandbox import _calibration_dir as calib_dir
-from sandbox import _test_data as test_data
+from sandbox import _test_data
+calib_dir = _test_data['test'] + 'temp/'
 import matplotlib.pyplot as plt
 import numpy as np
 
 from tests import test_calib_sensor
 
-file = np.load(test_data['topo'] + "DEM1.npz")
+file = np.load(_test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
 

@@ -17,7 +17,8 @@ _test_data = {'topo': os.path.dirname(__file__) +
               'landslide_simulation': os.path.dirname(__file__) +
                                    '/../notebooks/tutorials/07_LandslideSimulation/simulation_data/',
               'gempy_data': os.path.dirname(__file__) +
-                            '/../notebooks/tutorials/04_GempyModule/Example_Models/inputdata/'}
+                            '/../notebooks/tutorials/04_GempyModule/Example_Models/inputdata/',
+              'test': os.path.dirname(__file__) + '/../tests/test_data/'}
 
 _calibration_dir = os.path.dirname(__file__) + '/../notebooks/calibration_files/'
 

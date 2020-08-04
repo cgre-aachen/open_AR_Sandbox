@@ -44,18 +44,18 @@ def test_save_topo():
     module = LoadSaveTopoModule(extent=extent)
     module.frame = frame
     module.extractTopo()
-    module.saveTopo()
+    module.saveTopo(filename=test_data['test']+'temp/01_savedTopo.npz')
 
 def test_load_topo():
     module = LoadSaveTopoModule(extent=extent)
-    module.loadTopo()
+    module.loadTopo(filename=test_data['test']+'temp/01_savedTopo.npz')
     assert module.absolute_topo is not None
     print(module.file_id)
 
 def test_release_area():
     module = LoadSaveTopoModule(extent=extent)
     module.add_release_area_origin(x=20, y=40)
-    module.save_release_area()
+    module.save_release_area(filename=test_data['test']+'temp/01_releaseArea.npy')
 
 def test_show_loaded_topo():
     module = LoadSaveTopoModule(extent=extent)

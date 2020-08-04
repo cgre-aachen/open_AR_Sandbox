@@ -108,5 +108,6 @@ venv.bak/
 .idea/
 
 notebooks/panel-examples/
-
+sandbox/_sandbox_old/
+tests/test_data/temp/**
 grids_do_not_push/
