@@ -4,11 +4,11 @@ from sandbox.sensor import Sensor
 import numpy as np
 import matplotlib.pyplot as plt
 
-def test_init_kinect_v1():
-    """ Test if detects the kinect 1"""
-    sensor = Sensor(name='kinect_v1')
-    # print(sensor.get_frame(), sensor.get_frame().shape)
-    assert sensor.get_frame().shape == (240, 320)
+#def test_init_kinect_v1():
+#    """ Test if detects the kinect 1"""
+#    sensor = Sensor(name='kinect_v1')
+#    # print(sensor.get_frame(), sensor.get_frame().shape)
+#    assert sensor.get_frame().shape == (240, 320)
 
 def test_init_kinect_v2():
     """Test if detects the kinect 2"""

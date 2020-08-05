@@ -82,7 +82,7 @@ class MainThread:
         else: df = []
 
         for m in modules:
-            frame, ax, self.extent, self.cmap, self.norm = m.update(frame=frame,
+            frame, ax, self.extent, self.cmap, self.norm, df = m.update(frame=frame,
                                                                     ax=ax,
                                                                     extent=self.extent,
                                                                     marker=df,
@@ -91,7 +91,8 @@ class MainThread:
         self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)
         #plot the contour lines
         self.contours.update(frame, ax, **kwargs)
-
+        if self.ARUCO_ACTIVE:
+            ax = self.Aruco.plot_aruco(ax, df)
         self.projector.trigger()
 
     def delete_axes(self, ax):

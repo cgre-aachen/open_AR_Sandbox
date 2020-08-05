@@ -45,6 +45,9 @@ class GemPyModule(ModuleTemplate):
             print("Model "+ name_example[0]+ " loaded as geo_model")
         else:
             self.geo_model = geo_model
+            if self.model_dict is None:
+                self.model_dict = {}
+            self.model_dict[geo_model.meta.project_name] = geo_model
 
         try:
             self._model_extent = self.geo_model._grid.regular_grid.extent
@@ -150,14 +153,12 @@ class GemPyModule(ModuleTemplate):
 
         gempy.compute_model(self.geo_model, compute_mesh=False)
         if len(marker) > 0:
-            self._compute_modelspace_arucos(marker)
-        # if self.marker:
-        #    self.compute_modelspace_arucos()
-        #    self.plot.plot_aruco(self.modelspace_arucos)
-        # self.get_section_dict(self.modelspace_arucos)
+            self.modelspace_arucos = self._compute_modelspace_arucos(marker)
+            self.set_aruco_dict(self.modelspace_arucos)
+
         ax, cmap = self.plot(ax, self.geo_model)
         norm = None
-        return frame, ax, extent, cmap, norm
+        return frame, ax, extent, cmap, norm, self.modelspace_arucos
 
     def plot(self, ax, geo_model):
         ax, cmap = plot_gempy(ax, geo_model)
@@ -186,7 +187,7 @@ class GemPyModule(ModuleTemplate):
         Args:
             marker: dataframe with aruco locations
         Returns:
-            Change in place
+            new dataframe with scaled values
         """
         df = marker.copy()
         if len(df) > 0:
@@ -197,16 +198,42 @@ class GemPyModule(ModuleTemplate):
             # Workaround: just replace the value from the actual frame
             frame = self.frame
             for i in df.index:
-                df.at[i, 'box_z'] = self.grid.scale_frame(frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))])
+                df.at[i, 'box_z'] = self.grid.scale_frame(frame[int(df.at[i, 'box_y'])][(int(df.at[i, 'box_x']))])
                     #self._model_extent[5] -
                     #                 ((frame[int(df.at[i, 'box_x'])][(int(df.at[i, 'box_y']))] - self._sensor_extent[-2]) /
                     #                  (self._sensor_extent[-1]- self._sensor_extent[-2]) *
                     #                  (self._model_extent[5] - self._model_extent[4])))
                 #the combination below works though it should not! Look into scale again!!
                 #pixel scale and pixel size should be consistent!
-                df.at[i, 'box_x'] = (self._pixel_size[0]*self.marker['box_x'][i])
-                df.at[i, 'box_y'] = (self._pixel_scale[1]*self.marker['box_y'][i])
-        self.modelspace_arucos = df
+                df.at[i, 'box_x'] = (self._pixel_size[0]*marker['box_x'][i])
+                df.at[i, 'box_y'] = (self._pixel_scale[1]*marker['box_y'][i])
+
+        return df
+
+    def set_aruco_dict(self, df):
+        """
+        Receive an aruco dataframe already in the model coordinates and set a cross_section and points for the borehole
+        Args:
+            df: aruco dataframe
+
+        Returns:
+            change in place the section dictionary
+        """
+        if len(df)>0:
+            # include boreholes
+            for i in df.index:
+                x = df.at[i, 'box_x']
+                y = df.at[i, 'box_y']
+                self.set_borehole_dict((x,y), "aruco_"+str(i))
+            if len(df)==2:
+                # Obtain the position of the aruco markers (must be 2 aruco markers)
+                # to draw a cross-section by updating the section dictionary
+                df.sort_values('box_x', ascending=True)
+                x = df.box_x.values
+                y = df.box_y.values
+                p1 = (x[0], y[0])
+                p2 = (x[1], y[1])
+                self.set_section_dict(p1, p2, "Aruco_section")
 
     def set_section_dict(self, p1, p2, name):
         """
@@ -437,6 +464,7 @@ class GemPyModule(ModuleTemplate):
         Returns:
             Pyvista object with all the boreholes
         """
+        self._get_polygon_data()
         p = pv.Plotter(notebook=notebook)
         for i in range(len(self.borehole_tube)):
             cmap = self.colors_bh[i]
@@ -480,7 +508,7 @@ class GemPyModule(ModuleTemplate):
 
     def show_widgets(self):
         _ = self.show_actual_model()
-        tabs = pn.Tabs(('Example models', self.widget_model_selector()),
+        tabs = pn.Tabs(('Models', self.widget_model_selector()),
                        ('Geological map', self.widget_geological_map()),
                        ('Section traces', self.widget_section_traces()),
                        ('Cross_sections', self.widget_cross_sections()),
@@ -493,8 +521,14 @@ class GemPyModule(ModuleTemplate):
         self._widget_show_3d_model = pn.widgets.Button(name="Show 3D Gempy Model", button_type="success")
         self._widget_show_3d_model.param.watch(self._callback_show_3d_model, 'clicks',
                                                 onlychanged=False)
+        self._widget_show_3d_model_pyvista = pn.widgets.Button(name="Show 3D Gempy Model pyvista", button_type="warning")
+        self._widget_show_3d_model_pyvista.param.watch(self._callback_show_3d_model_pyvista, 'clicks',
+                                                        onlychanged=False)
+
         # TODO: add method to include more boreholes
-        widgets = pn.Column('### Show 3D Gempy Model', self._widget_show_3d_model)
+        widgets = pn.Column('### Show 3D Gempy Model',
+                            self._widget_show_3d_model,
+                            self._widget_show_3d_model_pyvista)
         return widgets
     
     def widget_boreholes(self):
@@ -563,6 +597,9 @@ class GemPyModule(ModuleTemplate):
     def _callback_show_3d_model(self, event):
         pass
 
+    def _callback_show_3d_model_pyvista(self, event):
+        pass
+
     def _callback_show_boreholes_pyvista(self, event):
         p = self.plot_boreholes(notebook=False)
         p.show()
@@ -574,7 +611,7 @@ class GemPyModule(ModuleTemplate):
         _ = self.show_geological_map()
 
     def _callback_cross_section(self, event):
-        _ = self.show_cross_section(self._widget_update_cross_section.value)
+        _ = self.show_cross_section(self._widget_select_cross_section.value)
 
     def _callback_selection(self, event): # TODO: Not working properly, change in notebook
         """

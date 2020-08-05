@@ -58,19 +58,19 @@ def test_update():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
     fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
     fig.show()
 
 def test_change_model():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
     fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
     fig.show()
 
     geo_model2 = create_example_model('Fault')
     module.change_model(geo_model2)
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
     fig.show()
 
 def test_section_dictionaries_cross_section():
@@ -81,20 +81,21 @@ def test_section_dictionaries_cross_section():
     module.set_section_dict((100, 100), (500, 10), "Section2")
     module.show_actual_model()
 
-    assert module.section_dict == {'Section1': ([10, 10], [500, 500], [150, 100]),
+    assert module.section_dict == {'Model: Horizontal_layers': ([0.0, 500.0], [1000.0, 500.0], [150, 100]),
+                                   'Section1': ([10, 10], [500, 500], [150, 100]),
                                    'Section2': ([100, 100], [500, 10], [150, 100]),
-                                   'Model: Horizontal_layers': ([0.0, 500.0], [1000.0, 500.0], [150, 100])}
+                                   }
 
     module.remove_section_dict("Section2")
 
-    assert module.section_dict == {'Section1': ([10, 10], [500, 500], [150, 100]),
-                                   'Model: Horizontal_layers': ([0.0, 500.0], [1000.0, 500.0], [150, 100])}
+    assert module.section_dict == {'Model: Horizontal_layers': ([0.0, 500.0], [1000.0, 500.0], [150, 100]),
+                                   'Section1': ([10, 10], [500, 500], [150, 100])}
 
 def test_plot_cross_sections():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
     fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
     module.show_actual_model()
@@ -102,26 +103,6 @@ def test_plot_cross_sections():
     module.show_cross_section("Section1")
     module.show_cross_section("Section2")
     module.show_geological_map()
-
-def test_show_plot_widgets():
-    geo_model = create_example_model('Horizontal_layers')
-    module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
-    module.set_section_dict((10, 10), (500, 500), "Section1")
-    module.set_section_dict((100, 100), (500, 10), "Section2")
-    module.show_actual_model()
-
-    module.show_section_traces()
-
-    module.show_cross_section("Section1")
-
-    module.show_geological_map()
-
-    module.panel_actual_model.show()
-    module.panel_plot_2d.show()
-    module.panel_section_traces.show()
-    module.panel_geo_map.show()
 
 def test_borehole_dict():
     geo_model = create_example_model('Horizontal_layers')
@@ -174,6 +155,72 @@ def test_plot_boreholes():
     p = module.plot_boreholes(notebook = False)
     p.show()
 
+def test_compute_model_space_arucos():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2')
+    aruco = MarkerDetection(sensor=sensor)
+    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
+    module = GemPyModule(geo_model=None, extent=sensor.extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(sensor.get_frame())
+    df = aruco.update(frame=color)
+    df_new = module._compute_modelspace_arucos(df)
+    print(df_new)
+
+def test_set_aruco_dict():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2')
+    aruco = MarkerDetection(sensor=sensor)
+    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
+    module = GemPyModule(geo_model=None, extent=sensor.extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(sensor.get_frame())
+    df = aruco.update(frame=color)
+    df_new = module._compute_modelspace_arucos(df)
+    module.set_aruco_dict(df_new)
+
+    print(module.model_sections_dict)
+
+def test_update_arucos():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2', invert=False)
+    aruco = MarkerDetection(sensor=sensor)
+    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
+    module = GemPyModule(geo_model=None, extent=sensor.extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(sensor.get_frame())
+    df = aruco.update(frame=color)
+    fig, ax = plt.subplots()
+    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
+    aruco.plot_aruco(ax, df)
+    fig.show()
+
+def test_show_plot_widgets():
+    geo_model = create_example_model('Horizontal_layers')
+    module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    fig, ax = plt.subplots()
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
+    module.set_section_dict((10, 10), (500, 500), "Section1")
+    module.set_section_dict((100, 100), (500, 10), "Section2")
+    module.show_actual_model()
+
+    module.show_section_traces()
+
+    module.show_cross_section("Section1")
+
+    module.show_geological_map()
+
+    module.panel_actual_model.show()
+    module.panel_plot_2d.show()
+    module.panel_section_traces.show()
+    module.panel_geo_map.show()
+
 def test_update_borehole_panel():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
@@ -198,7 +245,7 @@ def test_widgets():
     module.setup(frame)
 
     fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
+    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
 
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
@@ -210,6 +257,22 @@ def test_widgets():
 
     widgets.show()
 
-
-
-
+def test_widgets_with_arucos():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2')
+    aruco = MarkerDetection(sensor=sensor)
+    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
+    geo_model = create_example_model(name='Anticline')
+    module = GemPyModule(geo_model=geo_model, extent=sensor.extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(sensor.get_frame())
+    df = aruco.update(frame=color)
+    fig, ax = plt.subplots()
+    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
+    module._get_polygon_data()
+    aruco.plot_aruco(ax, df)
+    fig.show()
+    widgets = module.show_widgets()
+    widgets.show()

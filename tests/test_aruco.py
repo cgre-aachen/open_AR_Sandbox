@@ -79,13 +79,13 @@ def test_marker_detection_class():
     """Work only with sensor active"""
     markers = MarkerDetection(sensor=sensor)
     fig, ax = plt.subplots()
-    markers.update(ax)
+    df = markers.update(frame=color)
+    markers.plot_aruco(ax, df)
     fig.show()
 
 def test_save_df():
     markers = MarkerDetection(sensor=sensor)
-    fig, ax = plt.subplots()
-    df, ax = markers.update(ax, frame=color)
+    df = markers.update(frame=color)
     df.to_pickle(im_folder+"arucos.pkl")
     print(df)
 
@@ -97,7 +97,8 @@ def test_load_df():
 def test_widgets():
     markers = MarkerDetection(sensor=sensor)
     fig, ax = plt.subplots()
-    markers.update(ax, frame=color)
+    df=markers.update(frame=color)
+    markers.plot_aruco(ax, df)
     fig.show()
     widget = markers.widgets_aruco()
     widget.show()

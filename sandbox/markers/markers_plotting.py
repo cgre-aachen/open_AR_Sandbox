@@ -15,14 +15,12 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.aruco_color = 'red'
 
 
-    def update(self, ax, **kwargs):
+    def update(self, **kwargs):
         self.Aruco.search_aruco(**kwargs)
         self.Aruco.update_marker_dict()
         self.Aruco.transform_to_box_coordinates()
         self.df = self.Aruco.aruco_markers
-        ax = self.plot_aruco(ax, self.df)
-
-        return self.df, ax
+        return self.df
 
     def plot_aruco(self, ax, df_position):
         if len(df_position) > 0:
