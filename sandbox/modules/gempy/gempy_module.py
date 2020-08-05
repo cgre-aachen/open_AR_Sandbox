@@ -149,6 +149,8 @@ class GemPyModule(ModuleTemplate):
         self.geo_model.update_from_grid()
 
         gempy.compute_model(self.geo_model, compute_mesh=False)
+        if len(marker) > 0:
+            self._compute_modelspace_arucos(marker)
         # if self.marker:
         #    self.compute_modelspace_arucos()
         #    self.plot.plot_aruco(self.modelspace_arucos)

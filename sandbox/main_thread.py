@@ -7,16 +7,17 @@ import matplotlib.pyplot as plt
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
-from sandbox.markers import ArucoMarkers
+from sandbox.markers import MarkerDetection
 from sandbox.modules import *
 
 class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: ArucoMarkers = None, modules: list = [],
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, modules: list = [],
                  crop: bool = True, clip: bool = True, **kwargs):
 
+        self.check_change = True
         self.sensor = sensor
         self.projector = projector
         self.extent = sensor.extent
@@ -40,7 +41,7 @@ class MainThread:
         # if CV2_IMPORT is True:
         self.Aruco = aruco
         self.ARUCO_ACTIVE = False
-        if isinstance(self.Aruco, ArucoMarkers):
+        if isinstance(self.Aruco, MarkerDetection):
             self.ARUCO_ACTIVE = True
 
         ax = self.projector.ax
@@ -69,21 +70,22 @@ class MainThread:
         modules = self.modules
         frame = self.sensor.get_frame()
         # This is to avoid noise in the data
-        if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
-            self.previous_frame = frame
-        else:
-            frame = self.previous_frame
+        if self.check_change:
+            if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
+                self.previous_frame = frame
+            else:
+                frame = self.previous_frame
 
         #filter
         if self.ARUCO_ACTIVE:
-            points = self.aruco.get_loaction()
-        else: points = []
+            df, ax = self.Aruco.update(ax)
+        else: df = []
 
         for m in modules:
             frame, ax, self.extent, self.cmap, self.norm = m.update(frame=frame,
                                                                     ax=ax,
                                                                     extent=self.extent,
-                                                                    marker=points,
+                                                                    marker=df,
                                                                     **kwargs)
 
         self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)

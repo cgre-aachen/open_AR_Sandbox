@@ -1,12 +1,19 @@
-from sandbox.markers import ArucoMarkers
+from sandbox.markers import ArucoMarkers, MarkerDetection
 from sandbox.sensor import Sensor
-from sandbox import _test_data
+from sandbox import _test_data, _calibration_dir
 im_folder = _test_data['test']
 import numpy as np
 import matplotlib.pyplot as plt
 frame = np.load(im_folder+'frame1.npz')
 depth = frame['arr_0']
 color = frame['arr_1']
+try:
+    sensor = Sensor(calibsensor= _calibration_dir + "sensorcalib.json", name='kinect_v2')
+except:
+    import warnings as warn
+    warn("Testing will be performed without the sensor")
+    sensor = None
+
 
 def test_plot_image():
     depth = frame['arr_0']
@@ -47,5 +54,53 @@ def test_create_several_aruco_pdf():
     fig = aruco.create_arucos_pdf(nx=5, ny=5, resolution=150, path=im_folder+'temp/')
     fig.show()
 
-def test_plot_aruco_location_rgb():
-    aruco = ArucoMarkers(sensor=Sensor(name="kinect_v2"))
+def test_update_arucos():
+    aruco = ArucoMarkers(sensor=sensor)
+    markers_in_frame = aruco.search_aruco(color)
+    print(markers_in_frame)
+    aruco.update_marker_dict()
+    print(aruco.aruco_markers)
+    aruco.transform_to_box_coordinates()
+    print(aruco.aruco_markers)
+    assert len(aruco.aruco_markers) == 2
+
+def test_find_markers_IR():
+    """Carefull. Most of the times doesn't work cause is stuck in infinite loop. If want to try, change the None with the number of arucos to detect"""
+    aruco = ArucoMarkers(sensor=sensor)
+    ir = aruco.find_markers_ir(amount=None)
+    print(ir)
+
+def test_create_coordinate_map():
+    aruco = ArucoMarkers(sensor=sensor)
+    map = aruco.create_CoordinateMap()
+    print(map)
+
+def test_marker_detection_class():
+    """Work only with sensor active"""
+    markers = MarkerDetection(sensor=sensor)
+    fig, ax = plt.subplots()
+    markers.update(ax)
+    fig.show()
+
+def test_save_df():
+    markers = MarkerDetection(sensor=sensor)
+    fig, ax = plt.subplots()
+    df, ax = markers.update(ax, frame=color)
+    df.to_pickle(im_folder+"arucos.pkl")
+    print(df)
+
+def test_load_df():
+    import pandas as pd
+    df = pd.read_pickle(im_folder+"arucos.pkl")
+    print(df)
+
+def test_widgets():
+    markers = MarkerDetection(sensor=sensor)
+    fig, ax = plt.subplots()
+    markers.update(ax, frame=color)
+    fig.show()
+    widget = markers.widgets_aruco()
+    widget.show()
+
+
+

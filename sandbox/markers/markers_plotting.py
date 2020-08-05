@@ -4,36 +4,55 @@ import matplotlib.colors as mcolors
 
 
 class MarkerDetection: #TODO: include here the connection to the aruco markers
-    def __init__(self):
-        pass
+    def __init__(self, sensor):
+        self.sensor = sensor
+        self.Aruco = ArucoMarkers(sensor=sensor)
+        self.df = None
+        # aruco setup
+        self.aruco_connect = True
+        self.aruco_scatter = True
+        self.aruco_annotate = True
+        self.aruco_color = 'red'
 
-        ##### Widgets for aruco plotting
 
-    def plot_aruco(self, df_position):
+    def update(self, ax, **kwargs):
+        self.Aruco.search_aruco(**kwargs)
+        self.Aruco.update_marker_dict()
+        self.Aruco.transform_to_box_coordinates()
+        self.df = self.Aruco.aruco_markers
+        ax = self.plot_aruco(ax, self.df)
+
+        return self.df, ax
+
+    def plot_aruco(self, ax, df_position):
         if len(df_position) > 0:
 
             if self.aruco_scatter:
-                self.ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
-                                df_position[df_position['is_inside_box']]['box_y'].values,
-                                s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2)
+                ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
+                            df_position[df_position['is_inside_box']]['box_y'].values,
+                            s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2)
 
                 if self.aruco_annotate:
                     for i in range(len(df_position[df_position['is_inside_box']])):
-                        self.ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
-                                         (df_position[df_position['is_inside_box']]['box_x'].values[i],
-                                         df_position[df_position['is_inside_box']]['box_y'].values[i]),
-                                         c=self.aruco_color,
-                                         fontsize=20,
-                                         textcoords='offset pixels',
-                                         xytext=(20, 20))
+                        ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
+                                     (df_position[df_position['is_inside_box']]['box_x'].values[i],
+                                     df_position[df_position['is_inside_box']]['box_y'].values[i]),
+                                     c=self.aruco_color,
+                                     fontsize=20,
+                                     textcoords='offset pixels',
+                                     xytext=(20, 20))
 
             if self.aruco_connect:
-                self.ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
-                             df_position[df_position['is_inside_box']]['box_y'].values,
-                             linestyle='solid',
-                             color=self.aruco_color)
+                ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
+                         df_position[df_position['is_inside_box']]['box_y'].values,
+                         linestyle='solid',
+                         color=self.aruco_color)
 
-            self.ax.set_axis_off()
+            ax.set_axis_off()
+
+        return ax
+
+    ##### Widgets for aruco plotting
 
     def widgets_aruco(self):
         self._create_aruco_widgets()

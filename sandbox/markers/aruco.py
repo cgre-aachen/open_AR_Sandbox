@@ -29,7 +29,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     An Area of interest can be specified, markers outside this area will be ignored
     """
 
-    def __init__(self, sensor=None, calibration=None, aruco_dict=None, area=None, **kwargs):
+    def __init__(self, sensor=None, aruco_dict=None, **kwargs):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
@@ -55,7 +55,6 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         self.dict_markers_current = None  # markers that were detected in the last frame
         # self.dict_markers_all = all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
-        #self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
 
         self.middle = None
         self.corner_middle = None
@@ -197,7 +196,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         Returns:
         """
         if len(self.aruco_markers) > 0:
-            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x']- self.calib.s_left
+            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x'] - self.calib.s_left
             self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
             for j in self.aruco_markers.index:
                 self.aruco_markers['is_inside_box'].loc[j] = self.calib.s_frame_width > (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left) and \

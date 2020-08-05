@@ -92,6 +92,23 @@ def test_get_file_id():
     module._get_id(test_data['landslide_topo'] + 'Topography_1.npz')
     assert module.file_id == '1'
 
+def test_arucos_release_area():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    color =  np.load(_test_data['test']+'frame1.npz')['arr_1']
+    sensor = Sensor(calibsensor=_calibration_dir+'sensorcalib.json', name = 'kinect_v2')
+    aruco = MarkerDetection(sensor=sensor)
+    module = LoadSaveTopoModule(extent=sensor.extent)
+    fig, ax = plt.subplots()
+    aruco.update(ax, frame=color)
+    module.box_width = 100
+    module.box_height = 50
+    depth, ax, size, cmap, norm = module.update(sensor.get_frame(), ax, sensor.extent, marker=aruco.df)
+
+    ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap="gist_earth_r", norm=norm, origin='lower')
+    fig.show()
+
 def test_snapshot_frame():
     module = LoadSaveTopoModule(extent=extent)
     module.box_width = 100

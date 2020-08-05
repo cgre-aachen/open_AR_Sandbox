@@ -70,7 +70,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.frame = frame
         if len(marker) > 0:
             self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
-
+            self.add_release_area_origin()
         self.plot(frame, ax)
         cmap = None
         norm = None
