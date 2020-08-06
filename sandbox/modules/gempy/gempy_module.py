@@ -42,7 +42,7 @@ class GemPyModule(ModuleTemplate):
 
         if geo_model is None and self.model_dict is not None:
             self.geo_model = self.model_dict[name_example[0]]
-            print("Model "+ name_example[0]+ " loaded as geo_model")
+            print("Model " + name_example[0] + " loaded as geo_model")
         else:
             self.geo_model = geo_model
             if self.model_dict is None:
@@ -71,18 +71,27 @@ class GemPyModule(ModuleTemplate):
         self._resolution_section = [150, 100]
         self.figsize = (10, 10)
 
+        #2D images
         self.im_section_traces = None
         self.im_plot_2d = None
         self.im_actual_model = None
         self.im_geo_map = None
 
+        # 3D gempy model
+        self.geo_3d = None
+
+        self._plotter_type = 'basic'
+        self._notebook = False
+        self._param_3d_model = {'show_data': True,
+                                'show_results': True,
+                                'show_surfaces': True,
+                                'show_lith': True,
+                                'show_scalar': False,
+                                'show_boundaries': True,
+                                'show_topography': False}
+        self._ve = 0.3
+
         # Manage panel figure to show current model
-        #self._figure_actual_model = Figure()
-        #self.ax_actual_model = plt.Axes(self._figure_actual_model, [0., 0., 1., 1.])
-        #self._figure_actual_model.add_axes(self.ax_actual_model)
-        #self.ax_actual_model.set_axis_off()
-        #self.fig_actual_model = pn.pane.Matplotlib(self._figure_actual_model, tight=False, height=500)
-        #plt.close(self._figure_actual_model)
         self.panel_section_traces = pn.pane.Matplotlib(plt.figure(), tight=False, height=500)
         plt.close()
         # Manage panel figure to show 2D plots ( Cross-sections or geological maps)
@@ -95,9 +104,12 @@ class GemPyModule(ModuleTemplate):
         self.panel_geo_map = pn.pane.Matplotlib(plt.figure(), tight=False, height=500)
         plt.close()
 
-        p = pv.Plotter(notebook=False)
-        self.vtk = pn.panel(p.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
+        p1 = pv.Plotter(notebook=False)
+        self.vtk_borehole = pn.panel(p1.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
+        p2 = pv.Plotter(notebook=False)
+        self.vtk_model = pn.panel(p2.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
 
+        # For the boreholes potting
         self.borehole_tube = []
         self.colors_bh = []
         self.faults_bh = []
@@ -296,7 +308,7 @@ class GemPyModule(ModuleTemplate):
         return self.im_section_traces.fig
 
     def show_geological_map(self):
-        """Show the geological map from the gmpy package"""
+        """Show the geological map from the gempy package"""
         self.im_geo_map = gempy.plot_2d(self.geo_model, section_names=['topography'], show_data=False,
                                         show_topography=True, show = False)
         self.panel_geo_map.object = self.im_geo_map.fig
@@ -325,7 +337,7 @@ class GemPyModule(ModuleTemplate):
         # Get a cross_section in the middle of the model
         self.set_actual_dict()
         self.im_actual_model = gempy.plot_2d(self.geo_model, section_names=['Model: ' + self.geo_model.meta.project_name],
-                                             show_data=False, show=False)
+                                             show_data=False, show=False, show_topography=False)
         #self.im_actual_model.axes[0].set_ylim(self.frame.min(), self.frame.max())
         self.im_actual_model.axes[0].set_aspect(aspect=0.5)
         self.panel_actual_model.object = self.im_actual_model.fig
@@ -455,7 +467,7 @@ class GemPyModule(ModuleTemplate):
         poly.lines = cells
         return poly
 
-    def plot_boreholes(self, notebook=False):
+    def plot_boreholes(self, notebook=False, background=False, **kwargs):
         """
         Uses the previously calculated borehole tubes in self._get_polygon_data() when a borehole dictionary is available
         This will generate a pyvista object that can be visualized with .show()
@@ -465,7 +477,10 @@ class GemPyModule(ModuleTemplate):
             Pyvista object with all the boreholes
         """
         self._get_polygon_data()
-        p = pv.Plotter(notebook=notebook)
+        if background:
+            p = pv.BackgroundPlotter(**kwargs)
+        else:
+            p = pv.Plotter(notebook=notebook, **kwargs)
         for i in range(len(self.borehole_tube)):
             cmap = self.colors_bh[i]
             p.add_mesh(self.borehole_tube[i], cmap=[cmap[j] for j in range(len(cmap)-1)], smooth_shading=False)
@@ -480,6 +495,7 @@ class GemPyModule(ModuleTemplate):
         #extent[-1] = numpy.ceil(self.modelspace_arucos.box_z.max()/100)*100
         p.show_bounds(bounds=extent)
         p.show_grid()
+        p.set_scale(zscale=self._ve)
         #self.vtk = pn.panel(p.ren_win, sizing_mode='stretch_width', orientation_widget=True)
         #self.vtk = pn.Row(pn.Column(pan, pan.construct_colorbars()), pn.pane.Str(type(p.ren_win), width=500))
         return p
@@ -487,7 +503,7 @@ class GemPyModule(ModuleTemplate):
     def show_boreholes_panel(self):
         """This function will show the pyvista object of plot_boreholes in a panel server"""
         pl = self.plot_boreholes(notebook = False)
-        pan = pn.panel(pl.ren_win, sizing_mode='stretch_both', orientation_widget=True, enable_keybindings=True)
+        pan = pn.panel(pl.ren_win, orientation_widget=True, enable_keybindings=True, sizing_mode='scale_both')
         axes = dict(
             origin=[self._model_extent[0], self._model_extent[2], self._model_extent[4]],
             xticker={'ticks': numpy.linspace(self._model_extent[0], self._model_extent[1], 5)},
@@ -501,11 +517,53 @@ class GemPyModule(ModuleTemplate):
         pan.axes = axes
         widget = pn.Row(pn.Column(pan, pan.construct_colorbars()), pn.pane.Str(type(pl.ren_win)))#, width=500))
 
-        self.vtk = widget
+        self.vtk_borehole = widget
         #self.vtk.object = pan.object
         #self.vtk.param.trigger('object')
-        return self.vtk
+        return self.vtk_borehole
 
+
+    def plot_3d_model(self):
+        """Generate a 3D gempy model and return a the pyvista object"""
+        self.geo_3d = gempy.plot_3d(self.geo_model,
+                                    plotter_type=self._plotter_type,
+                                    show_data=self._param_3d_model['show_data'],
+                                    show_results=self._param_3d_model['show_results'],
+                                    show_surfaces=self._param_3d_model['show_surfaces'],
+                                    show_lith=self._param_3d_model['show_lith'],
+                                    show_scalar=self._param_3d_model['show_scalar'],
+                                    show_boundaries=self._param_3d_model['show_boundaries'],
+                                    show_topography=self._param_3d_model['show_topography'],
+                                    notebook=self._notebook,
+                                    image=False,
+                                    off_screen=False,
+                                    ve=self._ve
+                                    )
+        return self.geo_3d
+
+    def show_3d_model_panel(self): #TODO: NOT WORKING
+        """This function will show the pyvista object of plot_3d_model in a panel server"""
+        pl = self.plot_3d_model()
+        pan = pn.panel(pl.p.ren_win, width=700, sizing_mode='stretch_both', orientation_widget=True,
+                       enable_keybindings=True)
+        axes = dict(
+            origin=[self._model_extent[0], self._model_extent[2], self._model_extent[4]],
+            xticker={'ticks': numpy.linspace(self._model_extent[0], self._model_extent[1], 5)},
+            yticker={'ticks': numpy.linspace(self._model_extent[2], self._model_extent[3], 5)},
+            zticker={'ticks': numpy.linspace(self._model_extent[4], self._model_extent[5], 5),
+                     'labels': [''] + [str(int(item)) for item in
+                                       numpy.linspace(self._model_extent[4], self._model_extent[5], 5)[1:]]},
+            fontsize=12,
+            digits=1,
+            grid_opacity=0.5,
+            show_grid=True)
+        pan.axes = axes
+        widget = pn.Row(pn.Column(pan, pan.construct_colorbars()), pn.pane.Str(type(pl.ren_win)))  # , width=500))
+
+        self.vtk_model = widget
+        return self.vtk_model
+
+    # Panel widgets
     def show_widgets(self):
         _ = self.show_actual_model()
         tabs = pn.Tabs(('Models', self.widget_model_selector()),
@@ -518,19 +576,35 @@ class GemPyModule(ModuleTemplate):
         return tabs
 
     def widget_3d_model(self):
-        self._widget_show_3d_model = pn.widgets.Button(name="Show 3D Gempy Model", button_type="success")
+        self._widget_show_3d_model = pn.widgets.Button(name="Show 3D Gempy Model", button_type="success", disabled=True) #TODO: Fix this
         self._widget_show_3d_model.param.watch(self._callback_show_3d_model, 'clicks',
                                                 onlychanged=False)
         self._widget_show_3d_model_pyvista = pn.widgets.Button(name="Show 3D Gempy Model pyvista", button_type="warning")
         self._widget_show_3d_model_pyvista.param.watch(self._callback_show_3d_model_pyvista, 'clicks',
                                                         onlychanged=False)
 
-        # TODO: add method to include more boreholes
+        self._widget_parameters_3d_model = pn.widgets.CheckBoxGroup(name='Select properties to show of gempy model',
+                                                                    options=list(self._param_3d_model.keys()),
+                                                                    value=[active for active in self._param_3d_model.keys()
+                                                                           if self._param_3d_model[active] == True],
+                                                                    inline=False)
+
+        self._widget_parameters_3d_model.param.watch(self._callback_param_3d_model, 'value',
+                                                       onlychanged=False)
+
+        self._widget_vertical_exageration = pn.widgets.Spinner(name='Vertical Exaggeration',value=self._ve, step=0.1)
+        self._widget_vertical_exageration.param.watch(self._callback_vertical_exageration, 'value',
+                                                     onlychanged=False)
+
+
         widgets = pn.Column('### Show 3D Gempy Model',
                             self._widget_show_3d_model,
-                            self._widget_show_3d_model_pyvista)
+                            self._widget_show_3d_model_pyvista,
+                            '<b>Select properties to show of gempy model</b>',
+                            self._widget_parameters_3d_model,
+                            self._widget_vertical_exageration)
         return widgets
-    
+
     def widget_boreholes(self):
         self._widget_show_boreholes = pn.widgets.Button(name="Show Boreholes panel", button_type="success")
         self._widget_show_boreholes.param.watch(self._callback_show_boreholes, 'clicks',
@@ -539,10 +613,40 @@ class GemPyModule(ModuleTemplate):
         self._widget_show_boreholes_pyvista = pn.widgets.Button(name="Show Boreholes pyvista", button_type="warning")
         self._widget_show_boreholes_pyvista.param.watch(self._callback_show_boreholes_pyvista, 'clicks',
                                                 onlychanged=False)
-        #TODO: add method to include more boreholes
+        self._w_borehole_name = pn.widgets.TextInput(name='Borehole name', value='BH_1')
+        self._w_x = pn.widgets.TextInput(name='x:', value='10.0', width=60)
+        self._w_y = pn.widgets.TextInput(name='y:', value='20.0', width=60)
+
+        self._widget_add_bh = pn.widgets.Button(name="Add borehole", button_type="success")
+        self._widget_add_bh.param.watch(self._callback_add_bh, 'clicks',
+                                        onlychanged=False)
+
+        self._w_remove_borehole_name = pn.widgets.AutocompleteInput(name='Remove borehole name', options=list(self.borehole_dict.keys()))
+        self._widget_remove_bh = pn.widgets.Button(name="Remove borehole", button_type="success")
+        self._widget_remove_bh.param.watch(self._callback_remove_bh, 'clicks',
+                                           onlychanged=False)
+
+        self._widget_boreholes_available = pn.widgets.RadioBoxGroup(name='Available boreholes',
+                                                                     options=list(self.borehole_dict.keys()),
+                                                                     inline=False,
+                                                                    disabled=True
+                                                                     )
+
         widgets = pn.Column('### Creation of boreholes',
                             self._widget_show_boreholes,
-                            self._widget_show_boreholes_pyvista)
+                            self._widget_show_boreholes_pyvista,
+                            '<b>add new borehole </b>',
+                            pn.WidgetBox(self._w_borehole_name,
+                                         pn.Row(self._w_x, self._w_y)),
+                            self._widget_add_bh,
+                            '<b>Remove borehole</b>',
+                            self._w_remove_borehole_name,
+                            self._widget_remove_bh,
+                            '<b>Loaded boreholes</b>',
+                            self._widget_boreholes_available,
+                            )
+        #TODO: add method to include more boreholes
+
         return widgets
     
     def widget_geological_map(self):
@@ -566,25 +670,62 @@ class GemPyModule(ModuleTemplate):
     def widget_cross_sections(self):
         self._widget_select_cross_section = pn.widgets.RadioBoxGroup(name='Available Cross sections',
                                                                      options=list(self.section_dict.keys()),
-                                                                     inline=False)
+                                                                     inline=False
+                                                                     )
         
         self._widget_select_cross_section.param.watch(self._callback_selection_plot2d, 'value', onlychanged=False)
 
         self._widget_update_cross_section = pn.widgets.Button(name="Update Cross Section", button_type="success")
         self._widget_update_cross_section.param.watch(self._callback_cross_section, 'clicks',
                                                        onlychanged=False)
+
+        self._w_section_name = pn.widgets.TextInput(name="Name cross section:", value = 'CS_1')
+        self._w_p1_x = pn.widgets.TextInput(name='x:', value= '10.0', width=60)
+        self._w_p1_y = pn.widgets.TextInput(name='y:', value= '20.0', width=60)
+
+        self._w_p2_x = pn.widgets.TextInput(name='x:', value='200.0', width=60)
+        self._w_p2_y = pn.widgets.TextInput(name='y:', value='400.0', width=60)
+
+        self._widget_add_cs = pn.widgets.Button(name="Add cross section", button_type="success")
+        self._widget_add_cs .param.watch(self._callback_add_cs, 'clicks',
+                                                       onlychanged=False)
+
+        self._w_remove_name = pn.widgets.AutocompleteInput(name='Cross section name', options=list(self.section_dict.keys()))
+
+        self._widget_remove_cs = pn.widgets.Button(name="Remove cross section", button_type="success")
+        self._widget_remove_cs.param.watch(self._callback_remove_cs, 'clicks',
+                                        onlychanged=False)
+
+
         widgets = pn.Column('### Creation of 2D Plots',
                             self._widget_update_cross_section,
-                            self._widget_select_cross_section)
+                            '<b>add new cross section</b>',
+                            pn.WidgetBox(self._w_section_name,
+                                         pn.Row(pn.WidgetBox('From',
+                                                             self._w_p1_x,
+                                                             self._w_p1_y,
+                                                             horizontal=True),
+                                                pn.WidgetBox('To',
+                                                             self._w_p2_x,
+                                                             self._w_p2_y,
+                                                             horizontal=True))),
+                            self._widget_add_cs,
+                            '<b>Remove cross section</b>',
+                            self._w_remove_name,
+                            self._widget_remove_cs,
+                            '<b>Select cross section to display</b>',
+                            self._widget_select_cross_section,
+                            )
+
+
         panel = pn.Row(widgets, self.panel_plot_2d)
         
         return panel
 
-
     def widget_model_selector(self):
         self._widget_model_selector = pn.widgets.RadioButtonGroup(name='Model selector',
                                                                   options=list(self.model_dict.keys()),
-                                                                  value=list(self.model_dict.keys())[0],
+                                                                  value=list(self.geo_model.meta.project_name),
                                                                   button_type='success')
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
 
@@ -594,11 +735,44 @@ class GemPyModule(ModuleTemplate):
 
         return panel
 
+    def _callback_add_cs(self, event):
+        name = self._w_section_name.value
+        p1 = (float(self._w_p1_x.value), float(self._w_p1_y.value))
+        p2 = (float(self._w_p2_x.value), float(self._w_p2_y.value))
+        self.set_section_dict(p1, p2, name)
+        self._widget_select_cross_section.options = list(self.section_dict.keys())
+        self._widget_remove_cs.options = list(self.section_dict.keys())
+
+    def _callback_remove_cs(self, event): #TODO: Not working properly
+        self.remove_section_dict(self._w_remove_name.value)
+        self._widget_select_cross_section.options = list(self.section_dict.keys())
+
+    def _callback_add_bh(self, event):
+        name = self._w_borehole_name.value
+        xy = (float(self._w_x.value), float(self._w_x.value))
+        self.set_borehole_dict(xy, name)
+        self._widget_boreholes_available.options = list(self.borehole_dict.keys())
+        self._widget_remove_bh.options = list(self.borehole_dict.keys())
+
+    def _callback_remove_bh(self, event): #TODO: Not working properly
+        self.remove_section_dict(self._w_remove_borehole_name.value)
+        self._widget_boreholes_available.options = list(self.borehole_dict.keys())
+        self._w_remove_borehole_name.options = list(self.section_dict.keys())
+
+    def _callback_param_3d_model(self, event):
+        for key in self._param_3d_model.keys():
+            if key in event.new:
+                self._param_3d_model[key] = True
+            else:
+                self._param_3d_model[key] = False
+
     def _callback_show_3d_model(self, event):
-        pass
+        vtk = self.show_3d_model_panel()
+        vtk.show()
 
     def _callback_show_3d_model_pyvista(self, event):
-        pass
+        geo = self.plot_3d_model()
+        geo.p.show()
 
     def _callback_show_boreholes_pyvista(self, event):
         p = self.plot_boreholes(notebook=False)
@@ -613,35 +787,21 @@ class GemPyModule(ModuleTemplate):
     def _callback_cross_section(self, event):
         _ = self.show_cross_section(self._widget_select_cross_section.value)
 
-    def _callback_selection(self, event): # TODO: Not working properly, change in notebook
+    def _callback_selection(self, event):
         """
         callback function for the widget to update the self.
         :return:
         """
         geo_model = self.model_dict[event.new]
         self.change_model(geo_model)
-        #self.plot_actual_model(event.new)
-        #self.fig_actual_model.object = self.section_actual_model.fig
-        #self.fig_actual_model.object.param.trigger('object')
 
     def _callback_show_boreholes(self, event):
         self._get_polygon_data()
         vtk = self.show_boreholes_panel()
         vtk.show()
 
-    #def _callback_selection_plot2d(self, event):
-    #    if event.new == 'Geological_map':
-    #        self.plot_geological_map()
-    #        self.fig_plot_2d.object = self.geological_map.fig
-    #        self.fig_plot_2d.object.param.trigger('object')
-    #    elif event.new == 'Section_traces':
-    #        self.plot_section_traces()
-    #        self.fig_plot_2d.object = self.section_traces.fig
-    #        self.fig_plot_2d.object.param.trigger('object')
-    #    elif event.new == 'Cross_Section':
-    #        self.plot_cross_section()
-    #        self.fig_plot_2d.object = self.cross_section.fig
-    #        self.fig_plot_2d.object.param.trigger('object')
+    def _callback_vertical_exageration(self, event):
+        self._ve = event.new
 
     def _callback_selection_plot2d(self, event):
         _ = self.show_cross_section(event.new)

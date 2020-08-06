@@ -147,12 +147,12 @@ def test_plot_boreholes():
     module.set_borehole_dict((900, 500), "borehole4")
     module.set_borehole_dict((100, 100), "borehole5")
     module.set_borehole_dict((600, 700), "borehole6")
-    module.set_borehole_dict((200, 800), "borehole7")
-    module.set_borehole_dict((800, 200), "borehole8")
+    module.set_borehole_dict((200, 150), "borehole7")
+    module.set_borehole_dict((150, 200), "borehole8")
 
     module._get_polygon_data()
 
-    p = module.plot_boreholes(notebook = False)
+    p = module.plot_boreholes(notebook=False, background=False)
     p.show()
 
 def test_compute_model_space_arucos():
@@ -221,6 +221,28 @@ def test_show_plot_widgets():
     module.panel_section_traces.show()
     module.panel_geo_map.show()
 
+def test_3d_model_plot():
+    module = GemPyModule(geo_model=None, extent=extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(frame)
+    geo_3d = module.plot_3d_model()
+    geo_3d.p.show()
+
+def test_3d_model_plot_widget():
+    module = GemPyModule(geo_model=None, extent=extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(frame)
+    #module._plotter_type = 'background'
+    vtk = module.show_3d_model_panel()
+    vtk.show()
+
+def test_3d_widgets():
+    module = GemPyModule(geo_model=None, extent=extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(frame)
+    widget = module.widget_3d_model()
+    widget.show()
+
 def test_update_borehole_panel():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
@@ -276,3 +298,23 @@ def test_widgets_with_arucos():
     fig.show()
     widgets = module.show_widgets()
     widgets.show()
+
+def test_cross_section_widgets():
+    geo_model = create_example_model('Horizontal_layers')
+    module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    module.setup(frame)
+    module.set_section_dict((10, 10), (500, 500), "Section1")
+    module.set_section_dict((100, 100), (500, 10), "Section2")
+    widget=module.widget_cross_sections()
+    widget.show()
+
+def test_borehole_widgets():
+    geo_model = create_example_model('Horizontal_layers')
+    module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    module.setup(frame)
+    module.set_borehole_dict((500, 500), "borehole3")
+    module.set_borehole_dict((900, 500), "borehole4")
+    module._get_polygon_data()
+    widget = module.widget_boreholes()
+    widget.show()
+
