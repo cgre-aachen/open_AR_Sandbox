@@ -86,12 +86,12 @@ def test_marker_detection_class():
 def test_save_df():
     markers = MarkerDetection(sensor=sensor)
     df = markers.update(frame=color)
-    df.to_pickle(im_folder+"arucos.pkl")
+    df.to_pickle(im_folder+"temp/arucos.pkl")
     print(df)
 
 def test_load_df():
     import pandas as pd
-    df = pd.read_pickle(im_folder+"arucos.pkl")
+    df = pd.read_pickle(im_folder+"temp/arucos.pkl")
     print(df)
 
 def test_widgets():
