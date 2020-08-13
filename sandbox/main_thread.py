@@ -44,14 +44,22 @@ class MainThread:
         if isinstance(self.Aruco, MarkerDetection):
             self.ARUCO_ACTIVE = True
 
-        ax = self.projector.ax
+        self.sb_params = {'frame': self.sensor.get_frame(),
+                         'ax': self.projector.ax,
+                         'extent': self.sensor.extent,
+                         'marker': [],
+                         'cmap': plt.cm.get_cmap('gist_earth'),
+                         'norm': None,
+                         'active_cmap': True,
+                         'active_contours': True}
+
+        #ax = self.projector.ax
         frame = self.sensor.get_frame()
         self.previous_frame = frame
         # render the frame
-        self.cmap_frame.render_frame(frame, ax, **kwargs)
-        self.cmap = self.cmap_frame.cmap
+        self.cmap_frame.render_frame(frame, self.projector.ax)
         # plot the contour lines
-        self.contours.plot_contour_lines(frame, ax, **kwargs)
+        self.contours.plot_contour_lines(frame, self.projector.ax,)
         self.projector.trigger()
 
     def update(self, **kwargs):

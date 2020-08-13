@@ -266,8 +266,9 @@ def test_widgets():
     module = GemPyModule(geo_model=None, extent=extent, box=[1000, 800], load_examples=True)
     module.setup(frame)
 
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
+    #fig, ax = plt.subplots()
+    #depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
+    module.setup(frame)
 
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
@@ -277,26 +278,6 @@ def test_widgets():
 
     widgets = module.show_widgets()
 
-    widgets.show()
-
-def test_widgets_with_arucos():
-    from sandbox.sensor import Sensor
-    from sandbox.markers import MarkerDetection
-    from sandbox import _calibration_dir, _test_data
-    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2')
-    aruco = MarkerDetection(sensor=sensor)
-    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
-    geo_model = create_example_model(name='Anticline')
-    module = GemPyModule(geo_model=geo_model, extent=sensor.extent, box=[1000, 800], load_examples=True,
-                         name_example=['Horizontal_layers'])
-    module.setup(sensor.get_frame())
-    df = aruco.update(frame=color)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
-    module._get_polygon_data()
-    aruco.plot_aruco(ax, df)
-    fig.show()
-    widgets = module.show_widgets()
     widgets.show()
 
 def test_cross_section_widgets():
@@ -317,4 +298,29 @@ def test_borehole_widgets():
     module._get_polygon_data()
     widget = module.widget_boreholes()
     widget.show()
+
+def test_widgets_with_arucos():
+    from sandbox.sensor import Sensor
+    from sandbox.markers import MarkerDetection
+    from sandbox import _calibration_dir, _test_data
+    sensor = Sensor(calibsensor=_calibration_dir + 'sensorcalib.json', name='kinect_v2')
+    aruco = MarkerDetection(sensor=sensor)
+    color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
+    geo_model = create_example_model(name='Anticline')
+    module = GemPyModule(geo_model=geo_model, extent=sensor.extent, box=[1000, 800], load_examples=True,
+                         name_example=['Horizontal_layers'])
+    module.setup(sensor.get_frame())
+    df = aruco.update(frame=color)
+    fig, ax = plt.subplots()
+    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
+    module.set_section_dict((10, 10), (500, 500), "Section1")
+    module.set_section_dict((100, 100), (500, 10), "Section2")
+
+    module.set_borehole_dict((500, 500), "borehole3")
+    module.set_borehole_dict((900, 500), "borehole4")
+    module._get_polygon_data()
+    aruco.plot_aruco(ax, df)
+    fig.show()
+    widgets = module.show_widgets()
+    widgets.show()
 

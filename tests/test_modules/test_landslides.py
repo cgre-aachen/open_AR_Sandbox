@@ -1,11 +1,44 @@
 from sandbox import _test_data as test_data
 from sandbox.modules import LandslideSimulation
 import matplotlib.pyplot as plt
-
+import pytest
 import numpy as np
 file = np.load(test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
+
+
+def load_marker():
+    import pandas as pd
+    from sandbox import _test_data
+    arucos = _test_data['test'] + "arucos.pkl"
+    try:
+        df = pd.read_pickle(arucos)
+        print("Arucos loaded")
+    except:
+        df = pd.DataFrame()
+        print("No arucos found")
+    return df
+
+fig, ax = plt.subplots()
+pytest.sb_params = {'frame': frame,
+                    'ax': ax,
+                    'fig': fig,
+                    'extent': extent,
+                    'marker': load_marker(),
+                    'cmap': plt.cm.get_cmap('gist_earth_r'),
+                    'norm': None,
+                    'active_cmap': True,
+                    'active_contours': True}
+
+def update(module):
+    pytest.sb_params['ax'].cla()
+    sb_params = module.update(pytest.sb_params)
+    ax = sb_params['ax']
+    fig = sb_params['fig']
+    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower left')
+    fig.show()
 
 
 def test_init():
@@ -14,10 +47,7 @@ def test_init():
 
 def test_update():
     module = LandslideSimulation(extent=extent)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm = module.update(frame, ax, extent)
-    ax.imshow(depth, vmin=size[-2], vmax=size[-1], cmap=cmap, norm=norm, origin='lower')
-    fig.show()
+    update(module)
 
 def test_load_simulation():
     module = LandslideSimulation(extent=extent)
@@ -30,8 +60,8 @@ def test_load_release_area():
     assert module.Load_Area.file_id == '3'
 
     module.load_release_area(test_data['landslide_release'])
-    assert module.release_options == ['ReleaseArea_3_1.npy', 'ReleaseArea_3_3.npy', 'ReleaseArea_3_2.npy']
-    assert module.release_id_all == ['1', '3', '2']
+    assert module.release_options == ['ReleaseArea_3_1.npy', 'ReleaseArea_3_2.npy', 'ReleaseArea_3_3.npy']
+    assert module.release_id_all == ['1', '2', '3']
 
 def test_show_box_release():
     module = LandslideSimulation(extent=extent)

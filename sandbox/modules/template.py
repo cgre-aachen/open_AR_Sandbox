@@ -10,15 +10,21 @@ class ModuleTemplate(ABC):
         pass
 
     @abstractmethod
-    def update(self, frame, ax, extent, marker, **kwargs):
+    def update(self, sb_params: dict):
+        active_cmap = sb_params.get('active_cmap')
+        active_contours = sb_params.get('active_contours')
+        frame = sb_params.get('frame')
+        extent = sb_params.get('extent')
+        ax = sb_params.get('ax')
+        cmap = sb_params.get('cmap')
+        norm = sb_params.get('norm')
+        marker = sb_params.get('marker')
 
-        cmap = None
-        norm = None
         ### Do all the calculations from the data
         self.plot(frame, ax)
         ### pass the data to the plot to paint in the axes, this will return the axes and a colormap
 
-        return frame, ax, extent, cmap, norm
+        return sb_params
         pass
 
     @abstractmethod

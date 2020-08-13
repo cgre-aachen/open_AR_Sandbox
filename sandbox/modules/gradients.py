@@ -39,13 +39,20 @@ class GradientModule(ModuleTemplate):
         self.ve = 0.25
         self.set_lightsource()
 
-    def update(self, frame, ax, extent, **kwargs):
+    def update(self, sb_params: dict):
+        frame = sb_params.get('frame')
+        extent = sb_params.get('extent')
+        ax = sb_params.get('ax')
         frame = numpy.clip(frame, self.vmin, self.vmax)
 
         frame, ax, cmap, extent = self.plot(frame, ax, extent, self.current_grad)
 
-        norm = None
-        return frame, ax, extent, cmap, norm
+        sb_params['frame'] = frame
+        sb_params['ax'] = ax
+        sb_params['cmap'] = cmap
+        sb_params['extent'] = extent
+
+        return sb_params
 
     def plot(self, frame, ax, extent, current_grad):
         dx, dy = numpy.gradient(frame)

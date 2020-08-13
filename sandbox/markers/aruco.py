@@ -95,7 +95,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         #self.load_corners_ids()
 
         self.CoordinateMap = pd.DataFrame()
-        if PYKINECT_INSTALLED:
+        if PYKINECT_INSTALLED and sensor is not None:
             while len(self.CoordinateMap) < 5:
                 self.CoordinateMap = self.create_CoordinateMap()
 

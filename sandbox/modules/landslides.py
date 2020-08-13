@@ -50,12 +50,14 @@ class LandslideSimulation(ModuleTemplate):
         self.plot_flow_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
-    def update(self, frame, ax, extent, marker=[]):
+    def update(self, sb_params: dict):
+        frame = sb_params.get('frame')
+        ax = sb_params.get('ax')
+
         self.Load_Area.plot(frame, ax)
         self.plot(frame, ax)
-        cmap = plt.get_cmap('gist_earth_r')
-        norm = None
-        return frame, ax, extent, cmap, norm
+
+        return sb_params
 
     def plot(self, frame, ax):
         if self.box_release_area:

@@ -114,8 +114,7 @@ tests/test_data/temp/*.npz
 tests/test_data/temp/*.npy
 tests/test_data/temp/*.png
 tests/test_data/temp/*.pkl
-
-
+tests/test_data/temp/*.pdf
 
 
 grids_do_not_push/

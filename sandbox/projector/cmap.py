@@ -12,7 +12,7 @@ class CmapModule:
                  bad=None, norm=None, lot=None, vmin=None, vmax=None,
                  extent=None):
         """
-        Initialize the colormap to plot using pcolormesh()
+        Initialize the colormap to plot using imshow()
         Args:
             cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
             over (e.g. str): Color used for values above the expected data range.
@@ -43,7 +43,7 @@ class CmapModule:
         self.col = None
         self.active = True
 
-    def update(self, data, extent, ax, cmap, norm):
+    def update(self, sb_params: dict):# data, extent, ax, cmap, norm):
         """
         if self.active:
             self.set_data(data)
@@ -51,10 +51,18 @@ class CmapModule:
         else:
             self.delete_image() #Todo
         """
-        if cmap is not None:
+        active = sb_params.get('active_cmap')
+        if active:
+            data = sb_params.get('frame')
+            ax = sb_params.get('ax')
+            cmap = sb_params.get('cmap')
+            norm = sb_params.get('norm')
+
             self.set_cmap(cmap, 'k', 'k', 'k')
             self.set_norm(norm)
             self.render_frame(data, ax)
+
+        return sb_params
 
     def set_norm(self, norm):
         self.norm = norm

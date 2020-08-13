@@ -29,19 +29,29 @@ class TopoModule(ModuleTemplate):
         self.norm = None
         self.cmap = None
 
-    def update(self, frame, ax, extent, **kwargs):
+    def update(self, sb_params: dict):
+        frame = sb_params.get('frame')
+        extent = sb_params.get('extent')
+        ax = sb_params.get('ax')
+
         if self.normalize:
             frame = extent[-1] - frame
-            if self.see:
-                self.cmap = self.terrain_cmap
-                self.norm = self.set_norm
-            else:
-                self.cmap = plt.get_cmap("gist_earth")
-                self.norm = None
+        if self.see:
+            self.cmap = self.terrain_cmap
+            self.norm = self.set_norm
+        else:
+            self.cmap = plt.get_cmap("gist_earth")
+            self.norm = None
             frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
         self.plot()
 
-        return frame, ax, extent, self.cmap, self.norm
+        sb_params['frame'] = frame
+        sb_params['ax'] = ax
+        sb_params['cmap'] = self.cmap
+        sb_params['norm'] = self.norm
+        sb_params['extent'] = extent
+
+        return sb_params
 
     def plot(self):
         return None

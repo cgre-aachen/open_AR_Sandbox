@@ -63,14 +63,18 @@ class ContourLinesModule:
             self.contours_step_minor = contours_step_minor
             self.contours_width_minor = contours_width_minor
 
-    def update(self, frame, ax):
-        if frame is not None:
+    def update(self, sb_params: dict):
+        active = sb_params.get('active_contours')
+        if active:
+            frame = sb_params.get('frame')
+            ax = sb_params.get('ax')
             if self.contours:
                 self.add_major_contours(frame, ax)
             if self.minor_contours:
                 self.add_minor_contours(frame, ax)
             if self.contours_label:
-                self.add_label_contours(frame, ax)
+                self.add_label_contours(ax)
+        return sb_params
 
     def set_array(self, data):
         self.major.set_array(data)

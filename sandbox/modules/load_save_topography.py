@@ -66,15 +66,18 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
-    def update(self, frame, ax, extent, marker=[], **kwargs):
+    def update(self, sb_params: dict):
+        frame = sb_params.get('frame')
+        ax = sb_params.get('ax')
+        marker = sb_params.get('marker')
+
         self.frame = frame
         if len(marker) > 0:
             self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
             self.add_release_area_origin()
         self.plot(frame, ax)
-        cmap = None
-        norm = None
-        return frame, ax, extent, cmap, norm
+
+        return sb_params
 
     def plot(self, frame, ax):
         if self.show_loaded:

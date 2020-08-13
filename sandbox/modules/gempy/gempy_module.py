@@ -725,7 +725,7 @@ class GemPyModule(ModuleTemplate):
     def widget_model_selector(self):
         self._widget_model_selector = pn.widgets.RadioButtonGroup(name='Model selector',
                                                                   options=list(self.model_dict.keys()),
-                                                                  value=list(self.geo_model.meta.project_name),
+                                                                  value=self.geo_model.meta.project_name,
                                                                   button_type='success')
         self._widget_model_selector.param.watch(self._callback_selection, 'value', onlychanged=False)
 

@@ -41,6 +41,20 @@ def test_delete_contours():
     module.delete_contourns(ax)
     fig.show()
 
+def test_update():
+    module = ContourLinesModule(extent=extent)
+    fig, ax = plt.subplots()
+    sb_params = {'frame': frame,
+                 'ax': ax,
+                 'extent': extent,
+                 'marker': [],
+                 'cmap': plt.cm.get_cmap('viridis'),
+                 'norm': None,
+                 'active_cmap': True,
+                 'active_contours': True}
+    sb_params = module.update(sb_params)
+    fig.show()
+
 def test_create_widgets_plot():
     module = ContourLinesModule(extent=extent)
     widget = module.widgets_plot()
