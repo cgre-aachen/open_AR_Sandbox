@@ -4,6 +4,7 @@ import threading
 import panel as pn
 pn.extension()
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -45,62 +46,57 @@ class MainThread:
             self.ARUCO_ACTIVE = True
 
         self.sb_params = {'frame': self.sensor.get_frame(),
-                         'ax': self.projector.ax,
-                         'extent': self.sensor.extent,
-                         'marker': [],
-                         'cmap': plt.cm.get_cmap('gist_earth'),
-                         'norm': None,
-                         'active_cmap': True,
-                         'active_contours': True}
+                          'ax': self.projector.ax,
+                          'extent': self.sensor.extent,
+                          'marker': [],
+                          'cmap': plt.cm.get_cmap('gist_earth'),
+                          'norm': None,
+                          'active_cmap': True,
+                          'active_contours': True}
 
-        #ax = self.projector.ax
-        frame = self.sensor.get_frame()
-        self.previous_frame = frame
+        self.previous_frame = self.sb_params['frame']
         # render the frame
-        self.cmap_frame.render_frame(frame, self.projector.ax)
+        self.cmap_frame.render_frame(self.sb_params['frame'], self.sb_params['ax'])
         # plot the contour lines
-        self.contours.plot_contour_lines(frame, self.projector.ax,)
+        self.contours.plot_contour_lines(self.sb_params['frame'], self.sb_params['ax'])
         self.projector.trigger()
 
     def update(self, **kwargs):
         """
-        if frame = None -> No contour lines
-        if cmap = None -> No image
         Args:
             **kwargs:
 
         Returns:
 
         """
-        ax = self.projector.ax
-        self.delete_axes(ax)
-
-        modules = self.modules
+        self.sb_params['ax'].cla()
+        #self.delete_axes(ax)
         frame = self.sensor.get_frame()
+        self.sb_params['extent'] = self.sensor.extent
+
         # This is to avoid noise in the data
         if self.check_change:
             if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
                 self.previous_frame = frame
             else:
                 frame = self.previous_frame
+        self.sb_params['frame'] = frame
 
         #filter
         if self.ARUCO_ACTIVE:
-            df, ax = self.Aruco.update(ax)
-        else: df = []
-
+            df = self.Aruco.update()
+        else:
+            df = pd.Dataframe()
+        self.sb_params['marker'] = df
+        modules = self.modules
         for m in modules:
-            frame, ax, self.extent, self.cmap, self.norm, df = m.update(frame=frame,
-                                                                    ax=ax,
-                                                                    extent=self.extent,
-                                                                    marker=df,
-                                                                    **kwargs)
+            self.sb_params = m.update(self.sb_params)
 
-        self.cmap_frame.update(frame, self.extent, ax, self.cmap, self.norm)
+        self.cmap_frame.update(self.sb_params)
         #plot the contour lines
-        self.contours.update(frame, ax, **kwargs)
+        self.contours.update(self.sb_params)
         if self.ARUCO_ACTIVE:
-            ax = self.Aruco.plot_aruco(ax, df)
+            _ = self.Aruco.plot_aruco(self.sb_params['ax'], self.sb_params['df'])
         self.projector.trigger()
 
     def delete_axes(self, ax):
@@ -113,7 +109,7 @@ class MainThread:
         """
         #self.cmap_frame.delete_image()
         ax.cla()
-        self.extent = self.sensor.extent
+        #self.extent = self.sensor.extent
 
     def thread_loop(self):
         while self.thread_status == 'running':
