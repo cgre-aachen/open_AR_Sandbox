@@ -63,7 +63,9 @@ class CmapModule:
             self.vmax = extent[-1]
             self.set_cmap(cmap, 'k', 'k', 'k')
             self.set_norm(norm)
-            self.render_frame(data, ax)
+            #self.render_frame(data, ax)
+            self.set_data(data)
+            #self.set_array(data)
 
             sb_params['cmap'] = self.cmap
 
@@ -93,14 +95,24 @@ class CmapModule:
         self.col.set_cmap(cmap)
         return None
 
-    def set_data(self, data):
+    def set_array(self, data):
         """
-        Change the numpy array that is being plotted without the need to errase the arrays
+        Change the numpy array that is being plotted without the need to errase the pcolormesh figure
         Args:
             data:
         Returns:
         """
         self.col.set_array(data.ravel())
+        return None
+
+    def set_data(self, data):
+        """
+        Change the numpy array that is being plotted without the need to errase the imshow figure
+        Args:
+            data:
+        Returns:
+        """
+        self.col.set_data(data)
         return None
 
     def render_frame(self, data, ax, vmin=None, vmax=None, extent=None):
@@ -110,12 +122,12 @@ class CmapModule:
         if vmax is None:
             vmax = self.vmax
 
-        self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax,
-                                 cmap=self.cmap, norm=self.norm,
-                                 shading='nearest')
-        #self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
-        #                     cmap=self.cmap, norm=self.norm,
-        #                     origin='lower', aspect='auto', zorder=1)
+        #self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax,
+        #                         cmap=self.cmap, norm=self.norm,
+        #                         shading='nearest')
+        self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
+                             cmap=self.cmap, norm=self.norm,
+                             origin='lower left', aspect='auto', zorder=1)
         ax.set_axis_off()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -151,5 +163,7 @@ class CmapModule:
         self.active = event.new
 
     def _callback_plot_cmap(self, event):
+        self.lock.acquire()
         cmap = plt.cm.get_cmap(event.new)
         self.set_cmap(cmap, 'k', 'k','k')
+        self.lock.release()

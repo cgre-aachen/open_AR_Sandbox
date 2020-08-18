@@ -82,6 +82,10 @@ class ContourLinesModule:
             extent = sb_params.get('extent')
             self.vmin = extent[-2]
             self.vmax = extent[-1]
+
+            #self.delete_contourns(ax)
+
+
             if self.contours:
                 self.add_major_contours(frame, ax, extent[:4])
             if self.minor_contours:
@@ -96,7 +100,7 @@ class ContourLinesModule:
 
     def delete_contourns(self, ax):
         ax.collections = []
-        ax.artists = []
+        #ax.artists = []
         #[coll.remove() for coll in ax.collections]
         #[text.remove() for text in ax.artists]
 

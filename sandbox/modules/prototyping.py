@@ -1,8 +1,8 @@
 import traceback
-from .module_main_thread import Module
+from .template import ModuleTemplate
 
 
-class PrototypingModule(Module):
+class PrototypingModule(ModuleTemplate):
     """
     Class for the connectivity between Notebook plotting and sandbox image in live thread
     """

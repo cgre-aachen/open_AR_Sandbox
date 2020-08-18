@@ -70,11 +70,12 @@ class MainThread:
         Returns:
 
         """
-        self.sb_params['ax'].cla()
-        #self.delete_axes(ax)
+        #self.sb_params['ax'].cla()
+        self.delete_axes(self.sb_params['ax'])
+
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
-        self.sb_params['cmap'] = self.cmap_frame.cmap
+        #self.sb_params['cmap'] = self.cmap_frame.cmap
         # This is to avoid noise in the data
         if self.check_change:
             if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
@@ -89,11 +90,11 @@ class MainThread:
         else:
             df = pd.DataFrame()
         self.sb_params['marker'] = df
-
+        self.lock.acquire()
         for key in self.modules.keys():
-            self.module[key].lock = self.lock
+            self.modules[key].lock = self.lock
             self.sb_params = self.modules[key].update(self.sb_params)
-
+        self.lock.release()
         #self.cmap_frame.update(self.sb_params)
         #plot the contour lines
         #self.contours.update(self.sb_params)
@@ -124,14 +125,16 @@ class MainThread:
 
         """
         #self.cmap_frame.delete_image()
-        ax.cla()
+        #ax.cla()
         #self.extent = self.sensor.extent
+        ax.collections = []
+        #ax.artists = []
+        #ax.text = []
 
     def thread_loop(self):
         while self.thread_status == 'running':
-            self.lock.acquire()
             self.update()
-            self.lock.release()
+
 
     def run(self):
         if self.thread_status != 'running':

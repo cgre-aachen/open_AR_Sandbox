@@ -6,10 +6,10 @@ import random
 import seaborn as sns
 import panel as pn
 
-from sandbox.modules.module_main_thread import Module
+from .template import ModuleTemplate
 
 
-class SearchMethodsModule(Module):
+class SearchMethodsModule(ModuleTemplate):
     """
     Module for visualization of different search techniques based on gradients and
     #TODO: have deterministic and probabilistic search methods and later combine them

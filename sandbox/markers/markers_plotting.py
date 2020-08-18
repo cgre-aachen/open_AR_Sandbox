@@ -24,6 +24,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         return self.df
 
     def plot_aruco(self, ax, df_position=None):
+
         if df_position is None:
             df_position = self.update()
         if len(df_position) > 0:
