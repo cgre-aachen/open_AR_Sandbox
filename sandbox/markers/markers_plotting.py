@@ -4,15 +4,16 @@ import matplotlib.colors as mcolors
 
 
 class MarkerDetection: #TODO: include here the connection to the aruco markers
-    def __init__(self, sensor):
+    def __init__(self, sensor, **kwargs):
         self.sensor = sensor
-        self.Aruco = ArucoMarkers(sensor=sensor)
+        self.Aruco = ArucoMarkers(sensor=sensor, **kwargs)
         self.df = None
         # aruco setup
         self.aruco_connect = True
         self.aruco_scatter = True
         self.aruco_annotate = True
         self.aruco_color = 'red'
+        print("Aruco detection ready")
 
 
     def update(self, **kwargs):

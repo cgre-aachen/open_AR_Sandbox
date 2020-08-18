@@ -8,7 +8,7 @@ class CmapModule:
     """
     Class to manage changes in the colormap and plot in the desired projector figure
     """
-    def __init__(self, cmap='gist_earth_r', over=None, under=None,
+    def __init__(self, cmap='gist_earth', over=None, under=None,
                  bad=None, norm=None, lot=None, vmin=None, vmax=None,
                  extent=None):
         """
@@ -25,16 +25,17 @@ class CmapModule:
             extent (list): ...
         """
         # z-range handling
-        self.extent = extent
+        self.lock = None  # For locking the multithreading while using bokeh server
+        self.extent = extent[:4]
         if vmin is not None:
             self.vmin = vmin
         else:
-            self.vmin = self.extent[4]
+            self.vmin = extent[4]
 
         if vmax is not None:
             self.vmax = vmax
         else:
-            self.vmax = self.extent[5]
+            self.vmax = extent[5]
 
         self.cmap = plt.cm.get_cmap(cmap)#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
 
@@ -52,15 +53,19 @@ class CmapModule:
             self.delete_image() #Todo
         """
         active = sb_params.get('active_cmap')
-        if active:
+        if active and self.active:
             data = sb_params.get('frame')
             ax = sb_params.get('ax')
             cmap = sb_params.get('cmap')
             norm = sb_params.get('norm')
-
+            extent = sb_params.get('extent')
+            self.vmin = extent[-2]
+            self.vmax = extent[-1]
             self.set_cmap(cmap, 'k', 'k', 'k')
             self.set_norm(norm)
             self.render_frame(data, ax)
+
+            sb_params['cmap'] = self.cmap
 
         return sb_params
 
@@ -98,18 +103,22 @@ class CmapModule:
         self.col.set_array(data.ravel())
         return None
 
-    def render_frame(self, data, ax, vmin=None, vmax=None):
+    def render_frame(self, data, ax, vmin=None, vmax=None, extent=None):
         """Renders a new image or actualizes the current one"""
         if vmin is None:
             vmin = self.vmin
         if vmax is None:
             vmax = self.vmax
-        data = numpy.flipud(data)
-        self.col = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=self.cmap, norm=self.norm, origin = 'lower left')
-        ax.axis('off')
+
+        self.col = ax.pcolormesh(data, vmin=vmin, vmax=vmax,
+                                 cmap=self.cmap, norm=self.norm,
+                                 shading='nearest')
+        #self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
+        #                     cmap=self.cmap, norm=self.norm,
+        #                     origin='lower', aspect='auto', zorder=1)
+        ax.set_axis_off()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-
         return None
 
     def delete_image(self):
@@ -142,5 +151,5 @@ class CmapModule:
         self.active = event.new
 
     def _callback_plot_cmap(self, event):
-        self.cmap = plt.cm.get_cmap(event.new)
-
+        cmap = plt.cm.get_cmap(event.new)
+        self.set_cmap(cmap, 'k', 'k','k')

@@ -5,13 +5,24 @@ from sandbox import _test_data as test_data
 from sandbox.modules import GemPyModule
 from sandbox.modules.gempy.example_models import *
 import matplotlib.pyplot as plt
-
+import pytest
 import numpy as np
-#with np.load(test_data['topo'] + "DEM1.npz") as data:
-#    file = data
+
 file = np.load(file=test_data['topo'] + "DEM4.npz", allow_pickle=True)#, encoding='bytes', allow_pickle=False)
 frame = file['arr_0'] + 500 #assuming the mean of the previous one was 1000
 extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
+
+fig, ax = plt.subplots()
+pytest.sb_params = {'frame': frame,
+                    'ax': ax,
+                    'fig': fig,
+                    'extent': extent,
+                    'marker': [],
+                    'cmap': plt.cm.get_cmap('viridis'),
+                    'norm': None,
+                    'active_cmap': True,
+                    'active_contours': True}
+
 
 def test_scale():
     from sandbox.modules.gempy.utils import get_scale
@@ -57,21 +68,19 @@ def test_init():
 def test_update():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
-    fig.show()
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
 
 def test_change_model():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
-    fig.show()
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
 
     geo_model2 = create_example_model('Fault')
     module.change_model(geo_model2)
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
-    fig.show()
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
 
 def test_section_dictionaries_cross_section():
     geo_model = create_example_model('Horizontal_layers')
@@ -94,8 +103,8 @@ def test_section_dictionaries_cross_section():
 def test_plot_cross_sections():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
     module.show_actual_model()
@@ -194,18 +203,21 @@ def test_update_arucos():
     color = np.load(_test_data['test'] + 'frame1.npz')['arr_1']
     module = GemPyModule(geo_model=None, extent=sensor.extent, box=[1000, 800], load_examples=True,
                          name_example=['Horizontal_layers'])
-    module.setup(sensor.get_frame())
-    df = aruco.update(frame=color)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
-    aruco.plot_aruco(ax, df)
+    sb_params = pytest.sb_params
+    sb_params['frame'] = sensor.get_frame()
+    module.setup(sb_params['frame'])
+    sb_params['marker']= aruco.update(frame=color)
+
+    sb_params = module.update(sb_params)
+    sb_params['fig'].show()
+    aruco.plot_aruco(sb_params['ax'], sb_params['marker'])
     fig.show()
 
 def test_show_plot_widgets():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(frame, ax, extent)
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
     module.show_actual_model()
@@ -310,17 +322,17 @@ def test_widgets_with_arucos():
     module = GemPyModule(geo_model=geo_model, extent=sensor.extent, box=[1000, 800], load_examples=True,
                          name_example=['Horizontal_layers'])
     module.setup(sensor.get_frame())
-    df = aruco.update(frame=color)
-    fig, ax = plt.subplots()
-    depth, ax, size, cmap, norm, df = module.update(sensor.get_frame(), ax, extent, df)
+    pytest.sb_params['marker'] = aruco.update(frame=color)
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()
     module.set_section_dict((10, 10), (500, 500), "Section1")
     module.set_section_dict((100, 100), (500, 10), "Section2")
 
     module.set_borehole_dict((500, 500), "borehole3")
     module.set_borehole_dict((900, 500), "borehole4")
     module._get_polygon_data()
-    aruco.plot_aruco(ax, df)
-    fig.show()
+    aruco.plot_aruco(sb_params['ax'], sb_params['marker'])
+    sb_params['fig'].show()
     widgets = module.show_widgets()
     widgets.show()
 

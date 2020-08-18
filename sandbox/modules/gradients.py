@@ -14,6 +14,7 @@ class GradientModule(ModuleTemplate):
 
     def __init__(self, *args, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]
@@ -43,14 +44,19 @@ class GradientModule(ModuleTemplate):
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
-        frame = numpy.clip(frame, self.vmin, self.vmax)
 
         frame, ax, cmap, extent = self.plot(frame, ax, extent, self.current_grad)
 
+        frame = numpy.clip(frame, extent[-2], extent[-1])
         sb_params['frame'] = frame
         sb_params['ax'] = ax
         sb_params['cmap'] = cmap
         sb_params['extent'] = extent
+        sb_params['active_contours'] = False
+        if cmap is None:
+            sb_params['active_cmap'] = False
+        else:
+            sb_params['active_cmap'] = True
 
         return sb_params
 
@@ -81,14 +87,14 @@ class GradientModule(ModuleTemplate):
         return frame, ax, cmap, extent
 
     def _dx(self, dx, extent):
-        extent[-2] = -2
-        extent[-1] = 2
+        extent[-2] = -5
+        extent[-1] = 5
         cmap = plt.get_cmap('viridis')
         return dx, extent, cmap
 
     def _dy(self, dy, extent):
-        extent[-2] = -2
-        extent[-1] = 2
+        extent[-2] = -5
+        extent[-1] = 5
         cmap = plt.get_cmap('viridis')
         return dy, extent, cmap
 

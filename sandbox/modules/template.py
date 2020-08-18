@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 class ModuleTemplate(ABC):
 
     def __init__(self, extent: list = None):
+        self.lock = None
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]

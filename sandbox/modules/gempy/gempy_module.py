@@ -35,6 +35,7 @@ class GemPyModule(ModuleTemplate):
             None
 
         """
+        self.lock = None #For locking the multithreading while using bokeh server
         if load_examples and len(name_example) > 0:
             self.model_dict = create_model_dict(name_example, **kwargs)
             print("Examples loaded in dictionary model_dict")
@@ -152,11 +153,16 @@ class GemPyModule(ModuleTemplate):
         self.geo_model.update_from_grid()
         self.set_actual_dict()
 
-    def update(self, frame, ax, extent, marker=[], **kwargs):
+    def update(self, sb_params: dict):
+        frame = sb_params.get('frame')
+        extent = sb_params.get('extent')
+        ax = sb_params.get('ax')
+        marker = sb_params.get('marker')
         self.frame = frame #Store the current frame
         self.vmin = frame.min()
         self.vmax = frame.max()
-        self.grid.update_grid(frame)
+        scale_frame = self.grid.scale_frame(frame)
+        self.grid.update_grid(scale_frame)
         self.geo_model._grid.topography.values = self.grid.depth_grid
         data = self.grid.depth_grid[:, 2].reshape(self.geo_model._grid.topography.resolution)
         self.geo_model._grid.topography.values_2d[:, :, 2] = data
@@ -169,8 +175,15 @@ class GemPyModule(ModuleTemplate):
             self.set_aruco_dict(self.modelspace_arucos)
 
         ax, cmap = self.plot(ax, self.geo_model)
-        norm = None
-        return frame, ax, extent, cmap, norm, self.modelspace_arucos
+
+        sb_params['ax'] = ax
+        sb_params['frame'] = scale_frame
+        sb_params['cmap'] = cmap
+        sb_params['marker'] = self.modelspace_arucos
+        sb_params['active_cmap'] = False
+        sb_params['extent'] = self._model_extent
+
+        return sb_params
 
     def plot(self, ax, geo_model):
         ax, cmap = plot_gempy(ax, geo_model)
@@ -258,7 +271,7 @@ class GemPyModule(ModuleTemplate):
             change in place the section dictionary
         """
         self.section_dict[name] = ([p1[0], p1[1]], [p2[0], p2[1]], self._resolution_section)
-        self.geo_model.set_section_grid(self.model_sections_dict)
+        _ = self.geo_model.set_section_grid(self.model_sections_dict)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
 
     def set_actual_dict(self):
@@ -310,7 +323,7 @@ class GemPyModule(ModuleTemplate):
     def show_geological_map(self):
         """Show the geological map from the gempy package"""
         self.im_geo_map = gempy.plot_2d(self.geo_model, section_names=['topography'], show_data=False,
-                                        show_topography=True, show = False)
+                                        show_topography=True, show=False)
         self.panel_geo_map.object = self.im_geo_map.fig
         self.panel_geo_map.param.trigger('object')
         return self.im_geo_map.fig

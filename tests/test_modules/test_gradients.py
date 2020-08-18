@@ -153,3 +153,6 @@ def test_widget():
     module = GradientModule(extent=extent)
     widgets = module.show_widgets()
     widgets.show()
+
+
+

@@ -16,6 +16,7 @@ class LandslideSimulation(ModuleTemplate):
     """
 
     def __init__(self, *args, extent: list = None, **kwargs):
+        self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]

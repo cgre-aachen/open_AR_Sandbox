@@ -27,6 +27,7 @@ class LoadSaveTopoModule(ModuleTemplate):
 
     def __init__(self, *args, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]

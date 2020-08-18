@@ -85,10 +85,13 @@ class Projector(object):
 
         self.figure = Figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
                              dpi=self.dpi)
-
+        #self.figure = plt.figure()
+        #self.ax = plt.gca()
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         self.ax.set_axis_off()
+        self.ax.get_xaxis().set_visible(False)
+        self.ax.get_yaxis().set_visible(False)
 
         self.frame = pn.pane.Matplotlib(self.figure,
                                         width=self.p_frame_width,
@@ -167,6 +170,8 @@ class Projector(object):
         Returns:
 
         """
+        self.figure.canvas.draw()
+        #self.figure.canvas.flush_events()
         self.frame.param.trigger('object')
         return True
 

@@ -1,3 +1,4 @@
+import threading
 import panel as pn
 pn.extension()
 from sandbox.sensor import Sensor
@@ -11,9 +12,13 @@ from matplotlib.figure import Figure
 class CalibSensor: #TODO: include automatic
     """Module to calibrate the sensor"""
     def __init__(self,  calibprojector: str = None, name: str = 'kinectv2', **kwargs):
+        # color map setup
         self.c_under = '#DBD053'
         self.c_over = '#DB3A34'
+        # margin patches setup
         self.c_margin = '#084C61'
+        self.margin_alpha = 0.5
+
         self.sensor = Sensor(name=name, invert=False, **kwargs)
         self.projector = Projector(calibprojector=calibprojector, **kwargs)
         self.cmap = plt.cm.get_cmap('Greys_r')
@@ -21,16 +26,14 @@ class CalibSensor: #TODO: include automatic
         self.cmap.set_under(self.c_under)
         self.cmap.set_bad('k')
 
-        # margin patches setup
-        self.margin_color = 'red' #margin_color
-        self.margin_alpha = '0.5' #margin_alpha
+        self._refresh_panel_frame()
 
-        fig = plt.figure()
+        #fig = plt.figure()
         self.figure = Figure()
         self.ax_notebook_frame = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax_notebook_frame)
 
-        self.calib_notebook_frame = pn.pane.Matplotlib(self.figure, tight=False, height=400)
+        self.calib_notebook_frame = pn.pane.Matplotlib(self.figure, tight=False, height=300)
         plt.close()  # close figure to prevent inline display
 
         self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
@@ -40,14 +43,27 @@ class CalibSensor: #TODO: include automatic
         self.calib_notebook_frame.param.trigger('object')
         self._create_widgets()
 
+        #self._lock = threading.Lock()
+        #self._thread = None
+        #self._thread_status = 'stopped'
+        #self.run()
+
+    def _refresh_panel_frame(self):
+        self.projector.ax.cla()
+        self.fig_frame = self.projector.ax.pcolormesh(self.sensor.get_frame(),
+                                                      vmin=self.sensor.s_min,
+                                                      vmax=self.sensor.s_max,
+                                                      cmap=self.cmap)
+
     def update(self):
         self.update_panel_frame(self.projector.ax)
         self.update_notebook_frame(self.ax_panel_frame)
 
     def update_panel_frame(self):
-        self.projector.ax.cla()
         frame = self.sensor.get_frame()
-        self.projector.ax.pcolormesh(frame, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap)
+        self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
+        self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
+        self.fig_frame.set_array(frame.flatten()) #TODO: This method when moving the sensor to the right or left the array move and the image get distorted
         self.projector.trigger()
 
     def update_notebook_frame(self):
@@ -56,17 +72,16 @@ class CalibSensor: #TODO: include automatic
         """
 
         self.ax_notebook_frame.cla()
-
         self.ax_notebook_frame.pcolormesh(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap)
 
         rec_t = plt.Rectangle((0, self.sensor.s_height - self.sensor.s_top), self.sensor.s_width, self.sensor.s_top,
-                              fc=self.margin_color, alpha=self.margin_alpha)
+                              fc=self.c_margin, alpha=self.margin_alpha)
         rec_r = plt.Rectangle((self.sensor.s_width - self.sensor.s_right, 0), self.sensor.s_right, self.sensor.s_height,
-                              fc=self.margin_color, alpha=self.margin_alpha)
+                              fc=self.c_margin, alpha=self.margin_alpha)
         rec_b = plt.Rectangle((0, 0), self.sensor.s_width, self.sensor.s_bottom,
-                              fc=self.margin_color, alpha=self.margin_alpha)
+                              fc=self.c_margin, alpha=self.margin_alpha)
         rec_l = plt.Rectangle((0, 0), self.sensor.s_left, self.sensor.s_height,
-                              fc=self.margin_color, alpha=self.margin_alpha)
+                              fc=self.c_margin, alpha=self.margin_alpha)
         self.ax_notebook_frame.add_patch(rec_t)
         self.ax_notebook_frame.add_patch(rec_r)
         self.ax_notebook_frame.add_patch(rec_b)
@@ -203,6 +218,7 @@ class CalibSensor: #TODO: include automatic
 
     def _callback_s_right(self, event):
         self.sensor.s_right = event.new
+        self._refresh_panel_frame() #TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_bottom(self, event):
@@ -211,20 +227,23 @@ class CalibSensor: #TODO: include automatic
 
     def _callback_s_left(self, event):
         self.sensor.s_left = event.new
+        self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_min(self, event):
         self.sensor.s_min = event.new
+        self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_max(self, event):
         self.sensor.s_max = event.new
+        self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_refresh_frame(self, event):
         plt.pause(3)
         # only here, get a new frame before updating the plot
-        self.calib_frame = self.sensor.get_raw_frame()
+        self.frame_raw = self.sensor.get_raw_frame()
         self.update_notebook_frame()
 
     def _callback_json_filename(self, event):
@@ -282,5 +301,4 @@ class CalibSensor: #TODO: include automatic
             self._widget_s_left.value = self.calib.s_left
             self._widget_s_right.value = self.calib.s_right
             self.update_calib_plot()
-            self.resume()
-"""
+            self.resume()"""

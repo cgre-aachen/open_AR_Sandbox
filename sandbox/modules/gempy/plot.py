@@ -15,7 +15,6 @@ def plot_gempy(ax, geo_model):
     ax.cla()
     ax = add_faults(ax, geo_model, cmap)
     ax = add_lith(ax, geo_model, cmap)
-
     return ax, cmap
 
 def add_faults(ax, geo_model, cmap):

@@ -14,8 +14,9 @@ class TopoModule(ModuleTemplate):
     """
 
     def __init__(self, *args, extent: list = None, **kwargs):
-        self.max_height = 2000
-        self.center = 500
+        self.lock = None  # For locking the multithreading while using bokeh server
+        self.max_height = 1500
+        self.center = 300
         self.min_height = 0
         self.see = True
         self.terrain_cmap = None
@@ -34,16 +35,15 @@ class TopoModule(ModuleTemplate):
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
 
-        if self.normalize:
-            frame = extent[-1] - frame
+        frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
+
         if self.see:
             self.cmap = self.terrain_cmap
             self.norm = self.set_norm
         else:
             self.cmap = plt.get_cmap("gist_earth")
             self.norm = None
-            frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
-        self.plot()
+            #frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -54,21 +54,20 @@ class TopoModule(ModuleTemplate):
         return sb_params
 
     def plot(self):
-        return None
+        pass
 
     def normalize_topography(self, frame, extent, max_height, min_height):
-        frame = frame * (max_height / frame.max())
-        extent[4] = min_height #self.plot.vmin = min_height
-        extent[5] = max_height #self.plot.vmax = max_height
-
+        frame = frame * (max_height / extent[-1])
+        extent[-2] = min_height #self.plot.vmin = min_height
+        extent[-1] = max_height #self.plot.vmax = max_height
         return frame, extent
 
     def create_custom_cmap(self):
         colors_undersea = plt.cm.gist_earth(numpy.linspace(0, 0.20, 256))
         colors_land = plt.cm.gist_earth(numpy.linspace(0.35, 1, 256))
         all_colors = numpy.vstack((colors_undersea, colors_land))
-        self.terrain_cmap = mcolors.LinearSegmentedColormap.from_list('terrain_map',
-                                                                all_colors)
+        self.terrain_cmap = mcolors.LinearSegmentedColormap.from_list('terrain_map', all_colors)
+
     @property
     def set_norm(self):
         div_norm = mcolors.TwoSlopeNorm(vmin=self.min_height,
@@ -79,7 +78,7 @@ class TopoModule(ModuleTemplate):
     def widgets(self):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
-                          self._widget_normalize,
+                          #self._widget_normalize,
                           self._widget_max_height,
                           self._widget_see,
                           self._widget_see_level)
@@ -89,10 +88,10 @@ class TopoModule(ModuleTemplate):
         self._widget_max_height = pn.widgets.Spinner(name="Maximum height of topography", value= self.max_height, step = 20)
         self._widget_max_height.param.watch(self._callback_max_height, 'value', onlychanged=False)
 
-        self._widget_normalize = pn.widgets.Checkbox(name='Normalize maximun and minimun height of topography',
-                                                     value=self.normalize)
-        self._widget_normalize.param.watch(self._callback_normalize, 'value',
-                                       onlychanged=False)
+        #self._widget_normalize = pn.widgets.Checkbox(name='Normalize maximun and minimun height of topography',
+        #                                             value=self.normalize)
+        #self._widget_normalize.param.watch(self._callback_normalize, 'value',
+        #                               onlychanged=False)
 
         self._widget_see_level = pn.widgets.IntSlider(name="Set see level height",
                                                        start=self.min_height,
@@ -110,8 +109,8 @@ class TopoModule(ModuleTemplate):
         self.max_height = event.new
         self._widget_see_level.end = event.new
 
-    def _callback_normalize(self, event):
-        self.norm = event.new
+    #def _callback_normalize(self, event):
+    #    self.norm = event.new
 
     def _callback_see_level(self, event):
         self.center = event.new

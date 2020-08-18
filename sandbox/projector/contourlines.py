@@ -6,11 +6,11 @@ pn.extension()
 class ContourLinesModule:
     dpi = 100  # make sure that figures can be displayed pixel-precise
     def __init__(self, contours=True, contours_step=100,
-                 contours_width=1.0, contours_color='k', contours_label=True,
+                 contours_width=1.0, contours_color='k', contours_label=False,
                  contours_label_inline=True, contours_label_fontsize=15,
                  contours_label_format='%3.0f', minor_contours=True,
                  contours_step_minor=50, contours_width_minor=0.5,
-                 extent=None):
+                 extent=None, check_change=True):
             """
             Module for the display and manipulation of contourlines
 
@@ -38,14 +38,18 @@ class ContourLinesModule:
                 contours_width_minor (float): Width of minor contour lines.
                     (default is 0.5)
                 extent (list): extents of the sandbox to indicate the physical dimensions of it
+                check_change (bool): Update the contour ines only when the frame changes
             """
+            self.lock = None  # For locking the multithreading while using bokeh server
             self.major = None
             self.minor = None
             self.label = None
+            self.check_change = check_change
 
             self.extent = extent
             self.vmin = self.extent[4]
             self.vmax = self.extent[5]
+            self.previous_frame = None
 
             # flags
             self.contours = contours
@@ -67,11 +71,21 @@ class ContourLinesModule:
         active = sb_params.get('active_contours')
         if active:
             frame = sb_params.get('frame')
+            if self.previous_frame is None:
+                self.previous_frame = sb_params.get('active_contours')
+            if self.check_change:
+                if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
+                    self.previous_frame = frame
+                else:
+                    frame = self.previous_frame
             ax = sb_params.get('ax')
+            extent = sb_params.get('extent')
+            self.vmin = extent[-2]
+            self.vmax = extent[-1]
             if self.contours:
-                self.add_major_contours(frame, ax)
+                self.add_major_contours(frame, ax, extent[:4])
             if self.minor_contours:
-                self.add_minor_contours(frame, ax)
+                self.add_minor_contours(frame, ax, extent[:4])
             if self.contours_label:
                 self.add_label_contours(ax)
         return sb_params
@@ -81,8 +95,10 @@ class ContourLinesModule:
         self.minor.set_array(data)
 
     def delete_contourns(self, ax):
-        [coll.remove() for coll in ax.collections]
-        [text.remove() for text in ax.artists]
+        ax.collections = []
+        ax.artists = []
+        #[coll.remove() for coll in ax.collections]
+        #[text.remove() for text in ax.artists]
 
     def plot_contour_lines(self, frame, ax):
         self.add_major_contours(frame, ax)
@@ -97,7 +113,7 @@ class ContourLinesModule:
                                    levels=self.contours_levels,
                                    linewidths=self.contours_width,
                                    colors=self.contours_color,
-                                   #extent=extent
+                                   extent=extent
                                    )
 
     def add_minor_contours(self, data, ax, extent=None):
@@ -105,7 +121,7 @@ class ContourLinesModule:
                            levels=self.contours_levels_minor,
                            linewidths=self.contours_width_minor,
                            colors=self.contours_color,
-                           #extent=extent
+                           extent=extent
                            )
 
     def add_label_contours(self, ax, extent=None):

@@ -42,5 +42,19 @@ def test_thread_kinectv2():
     projector_2 = Projector(use_panel=True)
     sensor_2 = Sensor(name='kinect_v2')
     smain = MainThread(sensor_2, projector_2)
+    smain.sb_params['active_contours'] = True
+    smain.sb_params['active_cmap'] = True
+    smain.run()
+
+def test_thread_module():
+    from sandbox.modules import TopoModule, GradientModule
+    proj = Projector(use_panel=True)
+    sens = Sensor(name='kinect_v2', invert=True)
+    smain = MainThread(sens, proj)
+
+    topo = TopoModule(extent=sens.extent)
+    grad = GradientModule(extent=sens.extent)
+
+    smain.modules = [topo]
     smain.run()
 

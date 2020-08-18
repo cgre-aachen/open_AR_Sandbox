@@ -38,7 +38,7 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
 
     scale[0] = pixel_scale[0] / pixel_size[0]
     scale[1] = pixel_scale[1] / pixel_size[1]
-    scale[2] = float(model_extent[5] - model_extent[4]) / (sensor_extent[1] - sensor_extent[0])
+    scale[2] = float(model_extent[5] - model_extent[4]) / (sensor_extent[5] - sensor_extent[4])
     print("scale in Model units/ mm (X,Y,Z): " + str(scale))
     return scale, pixel_scale, pixel_size
 
@@ -90,13 +90,15 @@ class Grid(object):
 
     def scale_frame(self, frame):
         """Method to scale the frame"""
-        scaled_frame = self.model_extent[5] - \
-                       ((frame - self.sensor_extent[-2]) /
-                        (self.sensor_extent[-1] - self.sensor_extent[-2]) *
-                        (self.model_extent[5] - self.model_extent[4]))
+        #scaled_frame = self.model_extent[5] - \
+        #               ((frame - self.sensor_extent[-2]) /
+        #                (self.sensor_extent[-1] - self.sensor_extent[-2]) *
+        #                (self.model_extent[5] - self.model_extent[4]))
+        scaled_frame = frame * self.scale[2]
+
         return scaled_frame
 
-    def update_grid(self, cropped_frame):
+    def update_grid(self, scale_frame):
         """
         The frame that is passed here is cropped and clipped
         Appends the z (depth) coordinate to the empty depth grid.
@@ -108,7 +110,7 @@ class Grid(object):
 
         Returns:
         """
-        flattened_depth = self.scale_frame(cropped_frame).ravel()
+        flattened_depth = scale_frame.ravel()
         depth_grid = numpy.c_[self.empty_depth_grid, flattened_depth]
 
         self.depth_grid = depth_grid

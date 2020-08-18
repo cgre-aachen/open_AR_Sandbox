@@ -218,13 +218,13 @@ class Sensor:
 
     def get_frame(self) -> numpy.ndarray:
         frame = self.get_raw_frame(self.filter)
-        if self.invert:
-            frame = self.get_inverted_frame(frame)
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
             #frame = self.depth_mask(frame) #TODO: When is this needed?
             frame = self.clip_frame(frame)
+        if self.invert:
+            frame = self.get_inverted_frame(frame)
         self.depth = frame
         return self.depth
 
@@ -236,7 +236,7 @@ class Sensor:
     @property
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox
-        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun point] """
+        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun point(total height in mm)] """
         return [0, self.s_frame_width, 0, self.s_frame_height, 0, self.vmax]
 
     @property
