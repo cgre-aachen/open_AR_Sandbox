@@ -221,8 +221,8 @@ class Sensor:
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            #frame = self.depth_mask(frame) #TODO: When is this needed?
-            frame = self.clip_frame(frame)
+            frame = self.depth_mask(frame) #TODO: When is this needed?
+            #frame = self.clip_frame(frame)
         if self.invert:
             frame = self.get_inverted_frame(frame)
         self.depth = frame

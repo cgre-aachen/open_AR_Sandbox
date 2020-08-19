@@ -1,16 +1,17 @@
 import numpy
 import matplotlib.pyplot as plt
+import matplotlib
 import panel as pn
 pn.extension()
 
 class ContourLinesModule:
     dpi = 100  # make sure that figures can be displayed pixel-precise
     def __init__(self, contours=True, contours_step=100,
-                 contours_width=1.0, contours_color='k', contours_label=False,
+                 contours_width=1.0, contours_color='k', contours_label=True,
                  contours_label_inline=True, contours_label_fontsize=15,
                  contours_label_format='%3.0f', minor_contours=True,
                  contours_step_minor=50, contours_width_minor=0.5,
-                 extent=None, check_change=True):
+                 extent=None, check_change=True, rtol=0.1, atol=0):
             """
             Module for the display and manipulation of contourlines
 
@@ -39,13 +40,16 @@ class ContourLinesModule:
                     (default is 0.5)
                 extent (list): extents of the sandbox to indicate the physical dimensions of it
                 check_change (bool): Update the contour ines only when the frame changes
+                rtol (float): relative tolerance for checking the change
+                atol (float): absolute tolerance for checking the change
             """
             self.lock = None  # For locking the multithreading while using bokeh server
             self.major = None
             self.minor = None
             self.label = None
             self.check_change = check_change
-
+            self._rtol = 0.15
+            self._atol = 0
             self.extent = extent
             self.vmin = self.extent[4]
             self.vmax = self.extent[5]
@@ -72,9 +76,9 @@ class ContourLinesModule:
         if active:
             frame = sb_params.get('frame')
             if self.previous_frame is None:
-                self.previous_frame = sb_params.get('active_contours')
+                self.previous_frame = frame
             if self.check_change:
-                if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
+                if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
                     self.previous_frame = frame
                 else:
                     frame = self.previous_frame
@@ -83,8 +87,7 @@ class ContourLinesModule:
             self.vmin = extent[-2]
             self.vmax = extent[-1]
 
-            #self.delete_contourns(ax)
-
+            self.delete_contourns(ax)
 
             if self.contours:
                 self.add_major_contours(frame, ax, extent[:4])
@@ -99,10 +102,18 @@ class ContourLinesModule:
         self.minor.set_array(data)
 
     def delete_contourns(self, ax):
-        ax.collections = []
+        #del self.major
+        #del self.major.collections
+        #del self.minor.collections
+        #del self.label
+        #self.major=None
+        #self.minor = None
+        #self.label=None
+        #[ax.value.remove() for value in ax.collection ]
+        #ax.collections = []
         #ax.artists = []
-        #[coll.remove() for coll in ax.collections]
-        #[text.remove() for text in ax.artists]
+        [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
+        [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
 
     def plot_contour_lines(self, frame, ax):
         self.add_major_contours(frame, ax)
@@ -114,11 +125,12 @@ class ContourLinesModule:
         Uses the different attributes to style contour lines and contour labels.
         """
         self.major = ax.contour(data,
-                                   levels=self.contours_levels,
-                                   linewidths=self.contours_width,
-                                   colors=self.contours_color,
-                                   extent=extent
-                                   )
+                               levels=self.contours_levels,
+                               linewidths=self.contours_width,
+                               colors=self.contours_color,
+                               extent=extent
+                               )
+
 
     def add_minor_contours(self, data, ax, extent=None):
         self.minor = ax.contour(data,
@@ -149,8 +161,8 @@ class ContourLinesModule:
 
     def widgets_plot(self):
         self._create_widgets()
-
         panel = pn.Column("<b> Contour lines </b>",
+                          self._widget_check_difference,
                           self._widget_plot_contours,
                           self._widget_plot_step_contours,
                           self._widget_plot_minorcontours,
@@ -162,6 +174,9 @@ class ContourLinesModule:
         return panel
 
     def _create_widgets(self):
+        self._widget_check_difference = pn.widgets.Checkbox(name='Check_difference', value=self.contours)
+        self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
+                                               onlychanged=False)
         self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours)
         self._widget_plot_contours.param.watch(self._callback_plot_contours, 'value',
                                                onlychanged=False)
@@ -187,21 +202,17 @@ class ContourLinesModule:
         self._widget_plot_contours_label_fontsize.param.watch(self._callback_plot_contours_label_fontsize, 'value',
                                                               onlychanged=False)
 
+    def _callback_check_difference(self, event): self.check_change = event.new
 
-    def _callback_plot_contours(self, event):
-        self.contours = event.new
 
-    def _callback_plot_minorcontours(self, event):
-        self.minor_contours = event.new
+    def _callback_plot_contours(self, event): self.contours = event.new
 
-    def _callback_plot_step_contours(self, event):
-        self.contours_step = event.new
+    def _callback_plot_minorcontours(self, event): self.minor_contours = event.new
 
-    def _callback_plot_step_minorcontours(self, event):
-        self.contours_step_minor = event.new
+    def _callback_plot_step_contours(self, event): self.contours_step = event.new
 
-    def _callback_plot_contours_label(self, event):
-        self.contours_label = event.new
+    def _callback_plot_step_minorcontours(self, event): self.contours_step_minor = event.new
 
-    def _callback_plot_contours_label_fontsize(self, event):
-        self.contours_label_fontsize = event.new
+    def _callback_plot_contours_label(self, event): self.contours_label = event.new
+
+    def _callback_plot_contours_label_fontsize(self, event): self.contours_label_fontsize = event.new

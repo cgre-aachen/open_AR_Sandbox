@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy
 import panel as pn
 pn.extension()
@@ -38,7 +39,7 @@ class CmapModule:
             self.vmax = extent[5]
 
         self.cmap = plt.cm.get_cmap(cmap)#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
-
+        self._cmap = None
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
         self.col = None
@@ -53,26 +54,31 @@ class CmapModule:
             self.delete_image() #Todo
         """
         active = sb_params.get('active_cmap')
+        ax = sb_params.get('ax')
+        data = sb_params.get('frame')
+        cmap = sb_params.get('cmap')
+        norm = sb_params.get('norm')
+        extent = sb_params.get('extent')
+        self.vmin = extent[-2]
+        self.vmax = extent[-1]
+        if len(ax.images) == 0:
+            self.render_frame(data, ax, vmin=self.vmin, vmax=self.vmax, extent=extent)
         if active and self.active:
-            data = sb_params.get('frame')
-            ax = sb_params.get('ax')
-            cmap = sb_params.get('cmap')
-            norm = sb_params.get('norm')
-            extent = sb_params.get('extent')
-            self.vmin = extent[-2]
-            self.vmax = extent[-1]
+            self.set_data(data)
             self.set_cmap(cmap, 'k', 'k', 'k')
             self.set_norm(norm)
-            #self.render_frame(data, ax)
-            self.set_data(data)
-            #self.set_array(data)
-
             sb_params['cmap'] = self.cmap
+        else:
+            ax.images[0].remove()
 
         return sb_params
 
     def set_norm(self, norm):
+        #if norm is None:
+        #    norm = matplotlib.colors.Normalize(vmin=None, vmax=None, clip=False)
         self.norm = norm
+        if self.norm is not None:
+            self.col.set_norm(norm)
 
     def set_cmap(self, cmap, over=None, under=None, bad=None):
         """
@@ -85,6 +91,13 @@ class CmapModule:
 
         Returns:
         """
+        if isinstance(cmap, str):
+            cmap = plt.cm.get_cmap(cmap)
+
+        if self._cmap is not None and self._cmap.name != cmap.name:
+            cmap = self._cmap
+            self._cmap = None
+
         if over is not None:
             cmap.set_over(over, 1.0)
         if under is not None:
@@ -95,15 +108,15 @@ class CmapModule:
         self.col.set_cmap(cmap)
         return None
 
-    def set_array(self, data):
-        """
-        Change the numpy array that is being plotted without the need to errase the pcolormesh figure
-        Args:
-            data:
-        Returns:
-        """
-        self.col.set_array(data.ravel())
-        return None
+    #def set_array(self, data):
+    #    """
+    #    Change the numpy array that is being plotted without the need to errase the pcolormesh figure
+    #    Args:
+    #        data:
+    #    Returns:
+    #    """
+    #    self.col.set_array(data.ravel())
+    #    return None
 
     def set_data(self, data):
         """
@@ -112,7 +125,9 @@ class CmapModule:
             data:
         Returns:
         """
+        #masked = numpy.ma.masked_outside(data, self.vmin, self.vmax )
         self.col.set_data(data)
+        self.col.set_clim(vmin=self.vmin, vmax=self.vmax)
         return None
 
     def render_frame(self, data, ax, vmin=None, vmax=None, extent=None):
@@ -127,7 +142,7 @@ class CmapModule:
         #                         shading='nearest')
         self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
                              cmap=self.cmap, norm=self.norm,
-                             origin='lower left', aspect='auto', zorder=1)
+                             origin='lower left', aspect='auto', zorder=-1)
         ax.set_axis_off()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -163,7 +178,7 @@ class CmapModule:
         self.active = event.new
 
     def _callback_plot_cmap(self, event):
-        self.lock.acquire()
-        cmap = plt.cm.get_cmap(event.new)
-        self.set_cmap(cmap, 'k', 'k','k')
-        self.lock.release()
+        #self.lock.acquire()
+        self._cmap = plt.cm.get_cmap(event.new)
+        #self.set_cmap(cmap, 'k', 'k','k')
+        #self.lock.release()

@@ -1,6 +1,7 @@
 from .aruco import ArucoMarkers
 import panel as pn
 import matplotlib.colors as mcolors
+import numpy
 
 
 class MarkerDetection: #TODO: include here the connection to the aruco markers
@@ -8,6 +9,8 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.sensor = sensor
         self.Aruco = ArucoMarkers(sensor=sensor, **kwargs)
         self.df = None
+        self.lines = None
+        self.scat = None
         # aruco setup
         self.aruco_connect = True
         self.aruco_scatter = True
@@ -24,15 +27,20 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         return self.df
 
     def plot_aruco(self, ax, df_position=None):
-
+        ax.texts = []
         if df_position is None:
             df_position = self.update()
         if len(df_position) > 0:
 
             if self.aruco_scatter:
-                ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
-                            df_position[df_position['is_inside_box']]['box_y'].values,
-                            s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2)
+                if self.scat is None:
+                    self.scat = ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
+                                           df_position[df_position['is_inside_box']]['box_y'].values,
+                                           s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2)
+                else :
+                    self.scat.set_offsets(numpy.c_[df_position[df_position['is_inside_box']]['box_x'].values,
+                                                   df_position[df_position['is_inside_box']]['box_y'].values])
+                    self.scat.set_edgecolor(self.aruco_color)
 
                 if self.aruco_annotate:
                     for i in range(len(df_position[df_position['is_inside_box']])):
@@ -43,12 +51,24 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
                                      fontsize=20,
                                      textcoords='offset pixels',
                                      xytext=(20, 20))
+                else: ax.texts = []
+            else:
+                if self.scat is not None: self.scat.remove()
+                self.scat = None
 
             if self.aruco_connect:
-                ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
-                         df_position[df_position['is_inside_box']]['box_y'].values,
-                         linestyle='solid',
-                         color=self.aruco_color)
+                if self.lines is None:
+                    self.lines, = ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
+                             df_position[df_position['is_inside_box']]['box_y'].values,
+                             linestyle='solid',
+                             color=self.aruco_color)
+                else:
+                    self.lines.set_data(df_position[df_position['is_inside_box']]['box_x'].values,
+                             df_position[df_position['is_inside_box']]['box_y'].values)
+                    self.lines.set_color(self.aruco_color)
+            else:
+                if self.lines is not None: self.lines.remove()
+                self.lines = None
 
             ax.set_axis_off()
 

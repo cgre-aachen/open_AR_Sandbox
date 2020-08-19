@@ -71,17 +71,17 @@ class MainThread:
 
         """
         #self.sb_params['ax'].cla()
-        self.delete_axes(self.sb_params['ax'])
+        #self.delete_axes(self.sb_params['ax'])
 
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
         #self.sb_params['cmap'] = self.cmap_frame.cmap
         # This is to avoid noise in the data
-        if self.check_change:
-            if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
-                self.previous_frame = frame
-            else:
-                frame = self.previous_frame
+        #if self.check_change:
+        #    if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
+        #        self.previous_frame = frame
+        #    else:
+        #        frame = self.previous_frame
         self.sb_params['frame'] = frame
 
         #filter
@@ -127,9 +127,10 @@ class MainThread:
         #self.cmap_frame.delete_image()
         #ax.cla()
         #self.extent = self.sensor.extent
-        ax.collections = []
+        #ax.collections = []
         #ax.artists = []
         #ax.text = []
+        pass
 
     def thread_loop(self):
         while self.thread_status == 'running':
@@ -169,7 +170,7 @@ class MainThread:
 
     def widget_plot_module(self):
         if isinstance(self.Aruco, MarkerDetection):
-            marker = pn.Column(self.widget_thread_controller(), self.widgets_aruco_visualization())
+            marker = pn.Column(self.widgets_aruco_visualization(), self.widget_thread_controller())
             widgets = pn.Column(self.cmap_frame.widgets_plot(),
                                 self.contours.widgets_plot())
             rows = pn.Row(widgets, marker)
