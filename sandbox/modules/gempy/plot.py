@@ -1,5 +1,6 @@
 import numpy
 import matplotlib.colors as mcolors
+import matplotlib
 
 def plot_gempy(ax, geo_model):
     """
@@ -12,10 +13,21 @@ def plot_gempy(ax, geo_model):
 
     """
     cmap = mcolors.ListedColormap(list(geo_model.surfaces.df['color']))
-    ax.cla()
+    ax = delete_ax(ax)
     ax = add_faults(ax, geo_model, cmap)
     ax = add_lith(ax, geo_model, cmap)
     return ax, cmap
+
+def delete_ax(ax):
+    """
+    replace the ax.cla()
+    Args:
+        ax:
+    Returns:
+        ax
+    """
+    [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
+    return ax
 
 def add_faults(ax, geo_model, cmap):
     ax = extract_boundaries(ax, geo_model, cmap, e_faults=True, e_lith=False)

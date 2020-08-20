@@ -67,11 +67,15 @@ class CmapModule:
             self.set_data(data)
             self.set_cmap(cmap, 'k', 'k', 'k')
             self.set_norm(norm)
+            self.set_extent(extent)
             sb_params['cmap'] = self.cmap
         else:
             ax.images[0].remove()
 
         return sb_params
+
+    def set_extent(self, extent):
+        self.col.set_extent(extent[:4])
 
     def set_norm(self, norm):
         #if norm is None:

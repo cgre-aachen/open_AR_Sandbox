@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib.colors import LightSource
 import numpy
 import panel as pn
@@ -32,6 +33,8 @@ class GradientModule(ModuleTemplate):
                           'Laplacian + Vectorfield',
                           'Laplacian + Stream'
                           ]
+        self.vector = None
+        self.stream = None
         self.current_grad = self.grad_type[0]
 
         #lightsource parameter
@@ -44,6 +47,10 @@ class GradientModule(ModuleTemplate):
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
+        if self.current_grad != self.grad_type[5]: #quiver plot
+            self.delete_quiver_ax(ax)
+        if self.stream is not None:  #stream plot
+            self.delete_stream_ax(ax)
 
         frame, ax, cmap, extent = self.plot(frame, ax, extent, self.current_grad)
 
@@ -59,6 +66,15 @@ class GradientModule(ModuleTemplate):
             sb_params['active_cmap'] = True
 
         return sb_params
+
+    def delete_quiver_ax(self, ax):
+        [quiver.remove() for quiver in reversed(ax.collections) if isinstance(quiver, matplotlib.quiver.Quiver)]
+        self.vector = None
+
+    def delete_stream_ax(self, ax):
+        [arrow.remove() for arrow in reversed(ax.patches) if isinstance(arrow, matplotlib.patches.FancyArrowPatch)]
+        [lines.remove() for lines in reversed(ax.collections) if isinstance(lines, matplotlib.collections.LineCollection)]
+        self.stream = None
 
     def plot(self, frame, ax, extent, current_grad):
         dx, dy = numpy.gradient(frame)
@@ -87,21 +103,21 @@ class GradientModule(ModuleTemplate):
         return frame, ax, cmap, extent
 
     def _dx(self, dx, extent):
-        extent[-2] = -5
-        extent[-1] = 5
+        extent[-2] = -6
+        extent[-1] = 6
         cmap = plt.get_cmap('viridis')
         return dx, extent, cmap
 
     def _dy(self, dy, extent):
-        extent[-2] = -5
-        extent[-1] = 5
+        extent[-2] = -6
+        extent[-1] = 6
         cmap = plt.get_cmap('viridis')
         return dy, extent, cmap
 
     def _dxdy(self, dx, dy, extent):
         dxdy = numpy.sqrt(dx**2 + dy**2)
         extent[-2] = 0
-        extent[-1] = 5
+        extent[-1] = 6
         cmap = plt.get_cmap('viridis')
         return dxdy, extent, cmap
 
@@ -109,8 +125,8 @@ class GradientModule(ModuleTemplate):
         dxdx, dxdy = numpy.gradient(dx)
         dydx, dydy = numpy.gradient(dy)
         laplacian = dxdx + dydy
-        extent[-2] = -1
-        extent[-1] = 1
+        extent[-2] = -2
+        extent[-1] = 2
         cmap = plt.get_cmap('RdBu_r')
         return laplacian, extent, cmap
 
@@ -122,16 +138,22 @@ class GradientModule(ModuleTemplate):
 
     def _quiver(self, frame, dx, dy, ax):
         xx, yy = frame.shape
-        ax.quiver(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
-                           dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10])
+        if self.vector is None:
+            self.vector = ax.quiver(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
+                                            dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10],
+                                    zorder=3)
+        else:
+            self.vector.set_UVC(dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10])
         cmap = None
         #frame = None
         return frame, cmap
 
     def _stream(self, frame, dx, dy, ax):
         xx, yy = frame.shape
-        ax.streamplot(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
-                                dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10])
+        #self.delete_stream_ax(ax)
+        self.stream = ax.streamplot(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
+                                    dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10], zorder=3,
+                                    color='blue')
         cmap = None
         #frame = None
         return frame, cmap

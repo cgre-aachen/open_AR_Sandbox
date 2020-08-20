@@ -138,7 +138,23 @@ class Projector(object):
                             sizing_mode='fixed',
                             css_classes=['panel']
                             )
+        #TODO: Super-dirty fix
+        #self._replace_figure_with_pyplot()
+
         return True
+
+    def _replace_figure_with_pyplot(self):
+        """workaround to fix bug of no dpi"""
+        fig, ax = plt.subplots()
+        #ax = plt.gca()
+        ax.cla()
+        ax.set_axis_off()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        self.frame.object = fig
+        self.figure = fig
+        self.ax = ax
+
 
     def start_server(self):
         """

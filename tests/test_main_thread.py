@@ -61,3 +61,36 @@ def test_thread_module():
     smain.modules = [topo]
     smain.run()
 
+def test_bug_no_dpi():
+    from sandbox import _calibration_dir
+    _calibprojector = _calibration_dir + "my_projector_calibration.json"
+    _calibsensor = _calibration_dir + "my_sensor_calibration.json"
+    from sandbox.sensor import Sensor
+    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    from sandbox.projector import Projector
+    projector = Projector(calibprojector=_calibprojector)
+    # Initialize the aruco detection
+    from sandbox.markers import MarkerDetection
+    aruco = MarkerDetection(sensor=sensor)
+    from sandbox.main_thread import MainThread
+    main = MainThread(sensor=sensor, projector=projector, aruco=aruco)
+    # Start the thread
+    main.run()
+    #main.ARUCO_ACTIVE = False
+
+def test_bug_no_dpi_no_aruco():
+    #import matplotlib.text
+    from sandbox import _calibration_dir
+    _calibprojector = _calibration_dir + "my_projector_calibration.json"
+    _calibsensor = _calibration_dir + "my_sensor_calibration.json"
+    from sandbox.sensor import Sensor
+    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    from sandbox.projector import Projector
+    projector = Projector(calibprojector=_calibprojector)
+    # Initialize the aruco detection
+    from sandbox.main_thread import MainThread
+    main = MainThread(sensor=sensor, projector=projector)
+    # Start the thread
+    main.run()
+    main.sb_params
+

@@ -17,11 +17,22 @@ class MainThread:
     Module with threading methods
     """
     def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, modules: list = [],
-                 crop: bool = True, clip: bool = True, **kwargs):
+                 crop: bool = True, clip: bool = True, check_change: bool = False, **kwargs):
+        """
 
-        self.check_change = False
+        Args:
+            sensor:
+            projector:
+            aruco:
+            modules:
+            crop:
+            clip:
+            check_change:
+            **kwargs:
+        """
         self.sensor = sensor
         self.projector = projector
+        self.projector.ax.cla()
         self.extent = sensor.extent
         self.box = sensor.physical_dimensions
         self.contours = ContourLinesModule(extent=self.extent)
@@ -53,9 +64,13 @@ class MainThread:
                           'cmap': plt.cm.get_cmap('gist_earth'),
                           'norm': None,
                           'active_cmap': True,
-                          'active_contours': True}
+                          'active_contours': True,
+                          'same_frame': False}
 
         self.previous_frame = self.sb_params['frame']
+        self.check_change = check_change
+        self._rtol = 0.2
+        self._atol = 5
         # render the frame
         self.cmap_frame.render_frame(self.sb_params['frame'], self.sb_params['ax'])
         # plot the contour lines
@@ -75,13 +90,18 @@ class MainThread:
 
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
+        #self.sb_params['ax'].set_xlim(xmin=self.sensor.extent[0], xmax=self.sensor.extent[1])
+        #self.sb_params['ax'].set_ylim(ymin=self.sensor.extent[2], ymax=self.sensor.extent[3])
         #self.sb_params['cmap'] = self.cmap_frame.cmap
         # This is to avoid noise in the data
-        #if self.check_change:
-        #    if not numpy.allclose(self.previous_frame, frame, atol=5, rtol=1e-1, equal_nan=True):
-        #        self.previous_frame = frame
-        #    else:
-        #        frame = self.previous_frame
+        if self.check_change:
+            if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
+                self.previous_frame = frame
+                self.sb_params['same_frame'] = False
+            else:
+                frame = self.previous_frame
+                self.sb_params['same_frame'] = True
+        else: self.sb_params['same_frame'] = False
         self.sb_params['frame'] = frame
 
         #filter
@@ -90,11 +110,13 @@ class MainThread:
         else:
             df = pd.DataFrame()
         self.sb_params['marker'] = df
-        self.lock.acquire()
+        #self.lock.acquire()
         for key in self.modules.keys():
             self.modules[key].lock = self.lock
             self.sb_params = self.modules[key].update(self.sb_params)
-        self.lock.release()
+        #self.lock.release()
+        self.sb_params['ax'].set_xlim(xmin=self.sb_params['extent'][0], xmax=self.sb_params['extent'][1])
+        self.sb_params['ax'].set_ylim(ymin=self.sb_params['extent'][2], ymax=self.sb_params['extent'][3])
         #self.cmap_frame.update(self.sb_params)
         #plot the contour lines
         #self.contours.update(self.sb_params)
@@ -134,7 +156,9 @@ class MainThread:
 
     def thread_loop(self):
         while self.thread_status == 'running':
+            self.lock.acquire()
             self.update()
+            self.lock.release()
 
 
     def run(self):
@@ -190,8 +214,15 @@ class MainThread:
                                                                    button_type='success')
         self._widget_thread_selector.param.watch(self._callback_thread_selector, 'value', onlychanged=False)
 
-        panel = pn.Column("##<b>Thread Controller</b>", self._widget_thread_selector)
+        self._widget_check_difference = pn.widgets.Checkbox(name='Check changes in fame', value=self.check_change)
+        self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
+                                                  onlychanged=False)
+
+        panel = pn.Column("##<b>Thread Controller</b>", self._widget_thread_selector, self._widget_check_difference)
         return panel
+
+    def _callback_check_difference(self, event):
+        self.check_change = event.new
 
     def _callback_thread_selector(self, event):
         if event.new == "Start":

@@ -120,9 +120,8 @@ class GemPyModule(ModuleTemplate):
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos = pd.DataFrame()
 
-        dummy_frame = numpy.ones((self._sensor_extent[3], self._sensor_extent[1])) * 100
+        dummy_frame = numpy.ones((self._sensor_extent[3], self._sensor_extent[1])) * 1000
         self.setup(dummy_frame)
-
 
     def setup(self, frame):
         self.frame = frame
@@ -780,33 +779,47 @@ class GemPyModule(ModuleTemplate):
                 self._param_3d_model[key] = False
 
     def _callback_show_3d_model(self, event):
+        self.lock.acquire()
         vtk = self.show_3d_model_panel()
         vtk.show()
+        self.lock.release()
 
     def _callback_show_3d_model_pyvista(self, event):
+        self.lock.acquire()
         geo = self.plot_3d_model()
         geo.p.show()
+        self.lock.release()
 
     def _callback_show_boreholes_pyvista(self, event):
+        self.lock.acquire()
         p = self.plot_boreholes(notebook=False)
         p.show()
+        self.lock.release()
 
     def _callback_section_traces(self, event):
+        self.lock.acquire()
         _ = self.show_section_traces()
+        self.lock.release()
 
     def _callback_geo_map(self, event):
+        self.lock.acquire()
         _ = self.show_geological_map()
+        self.lock.release()
 
     def _callback_cross_section(self, event):
+        self.lock.acquire()
         _ = self.show_cross_section(self._widget_select_cross_section.value)
+        self.lock.release()
 
     def _callback_selection(self, event):
         """
         callback function for the widget to update the self.
         :return:
         """
+        self.lock.acquire()
         geo_model = self.model_dict[event.new]
         self.change_model(geo_model)
+        self.lock.release()
 
     def _callback_show_boreholes(self, event):
         self._get_polygon_data()
