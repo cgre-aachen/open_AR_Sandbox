@@ -125,8 +125,8 @@ class GradientModule(ModuleTemplate):
         dxdx, dxdy = numpy.gradient(dx)
         dydx, dydy = numpy.gradient(dy)
         laplacian = dxdx + dydy
-        extent[-2] = -2
-        extent[-1] = 2
+        extent[-2] = -1
+        extent[-1] = 1
         cmap = plt.get_cmap('RdBu_r')
         return laplacian, extent, cmap
 

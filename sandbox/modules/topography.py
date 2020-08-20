@@ -94,7 +94,7 @@ class TopoModule(ModuleTemplate):
         #                               onlychanged=False)
 
         self._widget_see_level = pn.widgets.IntSlider(name="Set see level height",
-                                                       start=self.min_height,
+                                                       start=self.min_height+1,
                                                        end=self.max_height,
                                                        value=self.center)
         self._widget_see_level.param.watch(self._callback_see_level, 'value',

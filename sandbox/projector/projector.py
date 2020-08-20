@@ -85,13 +85,15 @@ class Projector(object):
 
         self.figure = Figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
                              dpi=self.dpi)
-        #self.figure = plt.figure()
+        #self.figure = plt.figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
+        #                     dpi=self.dpi)
         #self.ax = plt.gca()
         self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         self.ax.set_axis_off()
         self.ax.get_xaxis().set_visible(False)
         self.ax.get_yaxis().set_visible(False)
+
 
         self.frame = pn.pane.Matplotlib(self.figure,
                                         width=self.p_frame_width,
@@ -140,20 +142,28 @@ class Projector(object):
                             )
         #TODO: Super-dirty fix
         #self._replace_figure_with_pyplot()
+        #self._paint_logo()
 
         return True
 
+    def _paint_logo(self):
+        self.ax.texts=[]
+        self.ax.annotate("cgre-aachen / open_AR_Sandbox ", (self.p_frame_width/2, self.p_frame_height/2),
+                         zorder=1)#c='k', fontsize=30)#, textcoords='offset pixels', xytext=(20, 20), zorder=21)
+        self.trigger()
+
     def _replace_figure_with_pyplot(self):
         """workaround to fix bug of no dpi"""
-        fig, ax = plt.subplots()
-        #ax = plt.gca()
-        ax.cla()
+        figure = plt.figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
+                             dpi=self.dpi)
+        ax = plt.Axes(figure, [0., 0., 1., 1.])
+        figure.add_axes(ax)
+        plt.close(figure)  # close figure to prevent inline display
         ax.set_axis_off()
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-        self.frame.object = fig
-        self.figure = fig
+        self.figure = figure
         self.ax = ax
+        self.frame.object = figure
+        self.trigger()
 
 
     def start_server(self):
@@ -186,7 +196,7 @@ class Projector(object):
         Returns:
 
         """
-        self.figure.canvas.draw()
+        #self.figure.canvas.draw()
         #self.figure.canvas.flush_events()
         self.frame.param.trigger('object')
         return True

@@ -68,11 +68,11 @@ def extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=False):
         zorder = zorder - (f_id + len(level))
 
         if f_id >= len(faults):
-            ax.contourf(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][::-1],
+            fill = ax.contourf(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][::-1],
                              linestyles='solid', origin='lower',
                              extent=extent, zorder=zorder)
         else:
-            ax.contour(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][0],
+            fau = ax.contour(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][0],
                             linestyles='solid', origin='lower',
                             extent=extent, zorder=zorder)
         c_id += len(level)

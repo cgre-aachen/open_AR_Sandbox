@@ -109,12 +109,13 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
+            self.sb_params['ax'].cla()
         self.sb_params['marker'] = df
-        #self.lock.acquire()
+        self.lock.acquire()
         for key in self.modules.keys():
             self.modules[key].lock = self.lock
             self.sb_params = self.modules[key].update(self.sb_params)
-        #self.lock.release()
+        self.lock.release()
         self.sb_params['ax'].set_xlim(xmin=self.sb_params['extent'][0], xmax=self.sb_params['extent'][1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params['extent'][2], ymax=self.sb_params['extent'][3])
         #self.cmap_frame.update(self.sb_params)
@@ -156,9 +157,7 @@ class MainThread:
 
     def thread_loop(self):
         while self.thread_status == 'running':
-            self.lock.acquire()
             self.update()
-            self.lock.release()
 
 
     def run(self):

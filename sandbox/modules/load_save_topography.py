@@ -67,11 +67,13 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
+        self._lod = None
+
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
         ax = sb_params.get('ax')
         marker = sb_params.get('marker')
-
+        self.delete_rectangles_ax(ax)
         self.frame = frame
         if len(marker) > 0:
             self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
@@ -79,6 +81,9 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.plot(frame, ax)
 
         return sb_params
+
+    def delete_rectangles_ax(self, ax):
+        [rec.remove() for rec in reversed(ax.patches) if isinstance(rec, matplotlib.patches.Rectangle)]
 
     def plot(self, frame, ax):
         if self.show_loaded:
@@ -227,8 +232,11 @@ class LoadSaveTopoModule(ModuleTemplate):
             shape_frame = self.getBoxShape()
             self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:shape_frame[0],
                                                                             :shape_frame[1]])
-            ax.pcolormesh(self.loaded, cmap='gist_earth_r')
+            self._lod = ax.pcolormesh(self.loaded, cmap='gist_earth_r')
         else:
+            if self._lod == None:
+                self._lod.remove()
+                self._lod = None
             print("No Topography loaded, please load a Topography")
 
     def modify_to_box_coordinates(self, frame):

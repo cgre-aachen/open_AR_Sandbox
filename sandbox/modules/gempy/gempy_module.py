@@ -161,12 +161,12 @@ class GemPyModule(ModuleTemplate):
         self.vmin = frame.min()
         self.vmax = frame.max()
         scale_frame = self.grid.scale_frame(frame)
-        self.grid.update_grid(scale_frame)
+        _ = self.grid.update_grid(scale_frame)
         self.geo_model._grid.topography.values = self.grid.depth_grid
         data = self.grid.depth_grid[:, 2].reshape(self.geo_model._grid.topography.resolution)
         self.geo_model._grid.topography.values_2d[:, :, 2] = data
-        self.geo_model._grid.update_grid_values()
-        self.geo_model.update_from_grid()
+        _= self.geo_model._grid.update_grid_values()
+        _= self.geo_model.update_from_grid()
 
         gempy.compute_model(self.geo_model, compute_mesh=False)
         if len(marker) > 0:
@@ -283,7 +283,7 @@ class GemPyModule(ModuleTemplate):
         self.actual_dict['Model: ' + self.geo_model.meta.project_name] = ([self._model_extent[0], self._model_extent[3]/2],
                                                                           [self._model_extent[1], self._model_extent[3]/2],
                                                                           self._resolution_section)
-        self.geo_model.set_section_grid(self.model_sections_dict)
+        _=self.geo_model.set_section_grid(self.model_sections_dict)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
 
     def remove_section_dict(self, name: str):
@@ -295,7 +295,7 @@ class GemPyModule(ModuleTemplate):
         """
         if name in self.section_dict.keys():
             self.section_dict.pop(name)
-            self.geo_model.set_section_grid(self.model_sections_dict)
+            _ = self.geo_model.set_section_grid(self.model_sections_dict)
             _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         else:
             print("No key found with name ", name, " in section_dict")
@@ -381,7 +381,7 @@ class GemPyModule(ModuleTemplate):
         """
         if name in self.borehole_dict.keys():
             self.borehole_dict.pop(name)
-            self.geo_model.set_section_grid(self.model_sections_dict)
+            _ = self.geo_model.set_section_grid(self.model_sections_dict)
             _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         else:
             print("No key found with name ", name, " in borehole_dict")
@@ -397,7 +397,7 @@ class GemPyModule(ModuleTemplate):
             change in place the section dictionary
         """
         self.borehole_dict[name] = ([xy[0], xy[1]], [xy[0]+1, xy[1]], [5, 5])
-        self.geo_model.set_section_grid(self.model_sections_dict)
+        _ = self.geo_model.set_section_grid(self.model_sections_dict)
         _ = gempy.compute_model(self.geo_model, compute_mesh=False)
 
     def _get_polygon_data(self):
