@@ -12,6 +12,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.lines = None
         self.scat = None
         self._scat = None # weak reference to a scat plot
+        self._lin = None  # weak reference to a lines plot
         # aruco setup
         self.aruco_connect = True
         self.aruco_scatter = True
@@ -28,12 +29,13 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         return self.df
 
     def plot_aruco(self, ax, df_position=None):
+        ax.texts = []
+        if self._scat is not None and self._scat() not in ax.collections:
+            self.scat = None
+        if self._lin is not None and self._lin() not in ax.lines:
+            self.lines = None
         if len(df_position) > 0:
-            ax.texts = []
             if self.aruco_scatter:
-                if self._scat is not None and self._scat() not in ax.collections:
-                    self.scat = None
-
                 if self.scat is None:
                     self.scat = ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
                                            df_position[df_position['is_inside_box']]['box_y'].values,
@@ -69,6 +71,8 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
                              linestyle='solid',
                              color=self.aruco_color,
                                           zorder = 22)
+                    self._lin = weakref.ref(self.lines)
+
                 else:
                     self.lines.set_data(df_position[df_position['is_inside_box']]['box_x'].values,
                              df_position[df_position['is_inside_box']]['box_y'].values)
@@ -77,10 +81,11 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
                 if self.lines is not None: self.lines.remove()
                 self.lines = None
 
-            ax.set_axis_off()
+            #ax.set_axis_off()
         else:
-            if self.lines is not None: self.lines.remove()
-            self.lines = None
+            if self.lines is not None:
+                self.lines.remove()
+                self.lines = None
             if self.scat is not None:
                 self.scat.remove()
                 self.scat = None

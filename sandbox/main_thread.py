@@ -66,9 +66,13 @@ class MainThread:
                           'norm': None,
                           'active_cmap': True,
                           'active_contours': True,
-                          'same_frame': False}
+                          'same_frame': False,
+                          'trigger': self.projector.trigger} #TODO: Carefull with this use because it can make to paint the figure incompletely
+
+                          #'freeze_frame': False}
 
         self.previous_frame = self.sb_params['frame']
+        #self.freeze_frame = False
         self.check_change = check_change
         self._rtol = 0.2
         self._atol = 5
@@ -77,6 +81,19 @@ class MainThread:
         # plot the contour lines
         self.contours.plot_contour_lines(self.sb_params['frame'], self.sb_params['ax'])
         self.projector.trigger()
+
+    #@property @TODO: test if this works
+    #def sb_params(self):
+    #    return {'frame': self.sensor.get_frame(),
+    #              'ax': self.projector.ax,
+    #              'extent': self.sensor.extent,
+    #              'marker': pd.DataFrame(),
+    #              'cmap': plt.cm.get_cmap('gist_earth'),
+    #              'norm': None,
+    #              'active_cmap': True,
+    #              'active_contours': True,
+    #              'same_frame': False,
+    #              'freeze_frame': False}
 
     def update(self, **kwargs):
         """
@@ -88,7 +105,10 @@ class MainThread:
         """
         #self.sb_params['ax'].cla()
         #self.delete_axes(self.sb_params['ax'])
-
+        #self.sb_params['freeze_frame'] = self.freeze_frame
+        #if self.sb_params['freeze_frame']:
+        #    frame = self.previous_frame
+        #else:
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
         #self.sb_params['ax'].set_xlim(xmin=self.sensor.extent[0], xmax=self.sensor.extent[1])
@@ -110,7 +130,7 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            #plt.pause(0.1)
+            plt.pause(0.1)
 
         self.sb_params['marker'] = df
 
@@ -126,8 +146,8 @@ class MainThread:
             self.lock.release()
             self.thread_status = 'stopped'
 
-        self.sb_params['ax'].set_xlim(xmin=self.sb_params['extent'][0], xmax=self.sb_params['extent'][1])
-        self.sb_params['ax'].set_ylim(ymin=self.sb_params['extent'][2], ymax=self.sb_params['extent'][3])
+        self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
+        self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
         #self.cmap_frame.update(self.sb_params)
         #plot the contour lines
         #self.contours.update(self.sb_params)
@@ -229,11 +249,22 @@ class MainThread:
         self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
                                                   onlychanged=False)
 
-        panel = pn.Column("##<b>Thread Controller</b>", self._widget_thread_selector, self._widget_check_difference)
+        #self._widget_freeze_frame = pn.widgets.Checkbox(name='Freeze frame acquisition', value=self.freeze_frame)
+        #self._widget_freeze_frame.param.watch(self._callback_freeze_frame, 'value',
+        #                                          onlychanged=False)
+
+        panel = pn.Column("##<b>Thread Controller</b>",
+                          self._widget_thread_selector,
+                          self._widget_check_difference,
+                          #self._widget_freeze_frame)
+                          )
         return panel
 
     def _callback_check_difference(self, event):
         self.check_change = event.new
+
+    #def _callback_freeze_frame(self, event):
+    #    self.freeze_frame = event.new
 
     def _callback_thread_selector(self, event):
         if event.new == "Start":
