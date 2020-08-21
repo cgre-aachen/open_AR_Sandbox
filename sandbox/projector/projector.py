@@ -196,8 +196,9 @@ class Projector(object):
         Returns:
 
         """
-        #self.figure.canvas.draw()
+        self.figure.canvas.draw_idle()
         #self.figure.canvas.flush_events()
+        #self.ax.draw_idle()
         self.frame.param.trigger('object')
         return True
 

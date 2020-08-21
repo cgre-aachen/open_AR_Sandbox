@@ -23,6 +23,8 @@ class LandslideSimulation(ModuleTemplate):
 
         self.release_area = None
         self.release_area_all = None
+        self._patch = None
+        self._lan = None
 
         self.height_flow = None
         self.velocity_flow = None
@@ -54,16 +56,29 @@ class LandslideSimulation(ModuleTemplate):
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
         ax = sb_params.get('ax')
-
-        self.Load_Area.plot(frame, ax)
+        #self.Load_Area.frame = frame
+        #self.Load_Area.plot(frame, ax)
+        sb_params = self.Load_Area.update(sb_params)
         self.plot(frame, ax)
 
         return sb_params
 
     def plot(self, frame, ax):
+        self.delete_polygon()
+        self.delete_land()
         if self.box_release_area:
             self.show_box_release(ax, self.release_area)
         self.plot_landslide_frame(ax)
+
+    def delete_polygon(self):
+        if self._patch is not None:
+            self._patch.remove()
+            self._patch = None
+
+    def delete_land(self):
+        if self._lan is not None:
+            self._lan.remove()
+            self._lan = None
 
     def plot_landslide_frame(self, ax):
         """
@@ -86,7 +101,7 @@ class LandslideSimulation(ModuleTemplate):
             move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
             move = self.Load_Area.modify_to_box_coordinates(move)
-            ax.pcolormesh(move, cmap='hot', shading='gouraud')
+            self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
         elif self.flow_selector == 'Velocity':
             if self.running_simulation:
@@ -97,7 +112,7 @@ class LandslideSimulation(ModuleTemplate):
             move = numpy.round(move, decimals=1)
             move[move == 0] = numpy.nan
             move = self.Load_Area.modify_to_box_coordinates(move)
-            ax.pcolormesh(move, cmap='hot', shading='gouraud')
+            self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
     def plot_frame_panel(self):
         """Update the current frame to be displayed in the panel server"""
@@ -149,8 +164,8 @@ class LandslideSimulation(ModuleTemplate):
 
     def show_box_release(self, ax, xy):
         """Show the options for painting release areas at origin xy """
-        patch = matplotlib.patches.Polygon(xy, fill=False, edgecolor='white')
-        ax.add_patch(patch)
+        self._patch = matplotlib.patches.Polygon(xy, fill=False, edgecolor='white')
+        ax.add_patch(self._patch)
 
     def select_simulation_data(self, simulation_path, release_id):
         """Make sure that the simulation data corresponds to the loaded topography"""
@@ -170,7 +185,6 @@ class LandslideSimulation(ModuleTemplate):
 
     # Widgets
     def show_widgets(self):
-        self._create_widgets()
         tabs = pn.Tabs(('Load and Save Module', self.Load_Area.show_widgets()),
                        ('Landslide simulation module', self.show_landslide_widgets()))
         self.Load_Area._widget_npz_filename.value = self.topo_folder + "Topography1.npz"
@@ -184,6 +198,35 @@ class LandslideSimulation(ModuleTemplate):
         return tabs
 
     def widgets_controller_simulation(self):
+        self._widget_show_release = pn.widgets.Checkbox(name='Show release area', value=self.box_release_area,
+                                                        disabled=True)
+        self._widget_show_release.param.watch(self._callback_show_release, 'value',
+                                              onlychanged=False)
+
+        self._widget_select_direction = pn.widgets.RadioButtonGroup(
+            name='Flow history selector',
+            options=['None', 'Height', 'Velocity'],
+            value=['None'],
+            button_type='success'
+        )
+        self._widget_select_direction.param.watch(self._callback_set_direction, 'value', onlychanged=False)
+
+        self._widget_frame_selector = pn.widgets.IntSlider(
+            name='5 seconds time step',
+            value=self.frame_selector,
+            start=0,
+            end=self.counter
+        )
+        self._widget_frame_selector.param.watch(self._callback_select_frame, 'value', onlychanged=False)
+
+        self._widget_simulation = pn.widgets.RadioButtonGroup(
+            name='Run or stop simulation',
+            options=['Run', 'Stop'],
+            value=['Stop'],
+            button_type='success'
+        )
+        self._widget_simulation.param.watch(self._callback_simulation, 'value', onlychanged=False)
+
         widgets = pn.Column("### Interaction widgets",
                             self._widget_show_release,
                             '<b>Select Flow </b>',
@@ -197,6 +240,22 @@ class LandslideSimulation(ModuleTemplate):
         return panel
 
     def widgets_load_simulation(self):
+        self._widget_simulation_folder = pn.widgets.TextInput(name='Specify the folder path to load the simulation:')
+        self._widget_simulation_folder.param.watch(self._callback_filename, 'value', onlychanged=False)
+        self._widget_simulation_folder.value = self.simulation_folder
+        self._widget_load = pn.widgets.Button(name='Refresh list', button_type='warning')
+        self._widget_load.param.watch(self._callback_load_files_folder, 'clicks', onlychanged=False)
+        self._widget_load_release_area = pn.widgets.Button(name='Load selected release area',
+                                                           button_type="success")
+        self._widget_load_release_area.param.watch(self._callback_load_release_area, 'clicks',
+                                                   onlychanged=False)
+        self._widget_available_release_areas = pn.widgets.RadioBoxGroup(name='Available release areas',
+                                                                        options=self.release_id_all,
+                                                                        inline=False,
+                                                                        value=None)
+        self._widget_available_release_areas.param.watch(self._callback_available_release_areas, 'value',
+                                                         onlychanged=False)
+
         col1 = pn.Column("## Load widget",
                             '<b>File path</b>',
                             self._widget_simulation_folder,
@@ -208,64 +267,6 @@ class LandslideSimulation(ModuleTemplate):
                           pn.WidgetBox(self._widget_available_release_areas))
         panel = pn.Row(col1, col2)
         return panel
-
-    def _create_widgets(self):
-        #self._widget_activate_LoadSaveModule = pn.widgets.Button(name='Activate Load Save Module', button_type="success")
-        #self._widget_activate_LoadSaveModule.param.watch(self._callback_activate_LoadSaveModule, 'clicks', onlychanged=False)
-#
-        #self._widget_activate_LandslideModule = pn.widgets.Button(name='Activate Landslide Module',
-        #                                                         button_type="success")
-        #self._widget_activate_LandslideModule.param.watch(self._callback_activate_LandslideModule, 'clicks',
-        #                                                 onlychanged=False)
-        self._widget_frame_selector = pn.widgets.IntSlider(
-            name='5 seconds time step',
-            value=self.frame_selector,
-            start=0,
-            end=self.counter
-        )
-        self._widget_frame_selector.param.watch(self._callback_select_frame, 'value', onlychanged=False)
-
-        self._widget_select_direction = pn.widgets.RadioButtonGroup(
-            name='Flow history selector',
-            options=['None', 'Height', 'Velocity'],
-            value=['None'],
-            button_type='success'
-        )
-        self._widget_select_direction.param.watch(self._callback_set_direction, 'value', onlychanged=False)
-
-        self._widget_simulation = pn.widgets.RadioButtonGroup(
-            name='Run or stop simulation',
-            options=['Run', 'Stop'],
-            value=['Stop'],
-            button_type='success'
-        )
-        self._widget_simulation.param.watch(self._callback_simulation, 'value', onlychanged=False)
-
-        # Load widgets
-        self._widget_simulation_folder = pn.widgets.TextInput(name='Specify the folder path to load the simulation:')
-        self._widget_simulation_folder.param.watch(self._callback_filename, 'value', onlychanged=False)
-        self._widget_simulation_folder.value = self.simulation_folder
-
-        self._widget_load = pn.widgets.Button(name='Refresh list', button_type='warning')
-        self._widget_load.param.watch(self._callback_load_files_folder, 'clicks', onlychanged=False)
-
-        self._widget_available_release_areas = pn.widgets.RadioBoxGroup(name='Available release areas',
-                                                                     options=self.release_id_all,
-                                                                     inline=False,
-                                                                        value=None)
-        self._widget_available_release_areas.param.watch(self._callback_available_release_areas, 'value',
-                                                      onlychanged=False)
-
-        self._widget_load_release_area = pn.widgets.Button(name='Load selected release area',
-                                                                 button_type="success")
-        self._widget_load_release_area.param.watch(self._callback_load_release_area, 'clicks',
-                                                         onlychanged=False)
-
-        self._widget_show_release = pn.widgets.Checkbox(name='Show release area', value=self.box_release_area, disabled=True)
-        self._widget_show_release.param.watch(self._callback_show_release, 'value',
-                                                    onlychanged=False)
-
-        return True
 
     def _callback_set_direction(self, event):
         self.flow_selector = event.new

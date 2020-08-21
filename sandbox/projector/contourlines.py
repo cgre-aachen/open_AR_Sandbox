@@ -128,6 +128,7 @@ class ContourLinesModule:
                                 linewidths=self.contours_width,
                                 colors=self.contours_color,
                                 extent=extent,
+                                zorder=5
                                 )
 
 
@@ -137,6 +138,7 @@ class ContourLinesModule:
                                 linewidths=self.contours_width_minor,
                                 colors=self.contours_color,
                                 extent=extent,
+                                zorder=4
                                 )
 
     def add_label_contours(self, ax, extent=None):

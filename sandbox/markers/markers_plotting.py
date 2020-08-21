@@ -28,9 +28,8 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         return self.df
 
     def plot_aruco(self, ax, df_position=None):
-        ax.texts = []
         if len(df_position) > 0:
-
+            ax.texts = []
             if self.aruco_scatter:
                 if self._scat is not None and self._scat() not in ax.collections:
                     self.scat = None
@@ -80,13 +79,12 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
 
             ax.set_axis_off()
         else:
-            #if self.lines is not None: self.lines.remove()
-            #self.lines = None
-            #if self.scat is not None:
-            #    self.scat.remove()
-            #    self.scat = None
-            #ax.texts = []
-            pass
+            if self.lines is not None: self.lines.remove()
+            self.lines = None
+            if self.scat is not None:
+                self.scat.remove()
+                self.scat = None
+            ax.texts = []
 
         return ax
 

@@ -6,6 +6,7 @@ import panel as pn
 pn.extension()
 import matplotlib.pyplot as plt
 import pandas as pd
+import traceback
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -109,21 +110,32 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            self.sb_params['ax'].cla()
+            #plt.pause(0.1)
+
         self.sb_params['marker'] = df
-        self.lock.acquire()
-        for key in self.modules.keys():
-            self.modules[key].lock = self.lock
-            self.sb_params = self.modules[key].update(self.sb_params)
-        self.lock.release()
+
+        #TODO: Use the modules in a big try and except?
+        try:
+            self.lock.acquire()
+            for key in self.modules.keys():
+                self.modules[key].lock = self.lock
+                self.sb_params = self.modules[key].update(self.sb_params)
+            self.lock.release()
+        except Exception:
+            traceback.print_exc()
+            self.lock.release()
+            self.thread_status = 'stopped'
+
         self.sb_params['ax'].set_xlim(xmin=self.sb_params['extent'][0], xmax=self.sb_params['extent'][1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params['extent'][2], ymax=self.sb_params['extent'][3])
         #self.cmap_frame.update(self.sb_params)
         #plot the contour lines
         #self.contours.update(self.sb_params)
-        if self.ARUCO_ACTIVE:
+        if isinstance(self.Aruco, MarkerDetection):
             _ = self.Aruco.plot_aruco(self.sb_params['ax'], self.sb_params['marker'])
+        self.lock.acquire()
         self.projector.trigger()
+        self.lock.release()
 
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
