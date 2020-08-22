@@ -257,7 +257,7 @@ class LoadSaveTopoModule(ModuleTemplate):
             #                                             :shape_frame[1]])
             self.loaded = self.absolute_topo[:shape_frame[0], :shape_frame[1]]
             #if self._lod is None:
-            self._lod = ax.imshow(self.loaded, cmap='gist_earth',# origin="lower left",
+            self._lod = ax.imshow(self.loaded, cmap='gist_earth_r', origin="lower left", #TODO: data is inverted, need to fix this for all the landsladides topography data
                                       zorder=2, extent=self.to_box_extent)
             #else:
              #   self._lod.set_array(self.loaded[:-1,:-1].ravel())
@@ -333,6 +333,8 @@ class LoadSaveTopoModule(ModuleTemplate):
 
     @property
     def to_box_extent(self):
+        """When using imshow to plot data over the image. pass this as extent argumment to display the
+        image in the correct area of the sandbox box-area"""
         return (self.box_origin[0], self.box_width+self.box_origin[0],
                 self.box_origin[1], self.box_height+self.box_origin[1])
 
@@ -417,7 +419,7 @@ class LoadSaveTopoModule(ModuleTemplate):
     def snapshotFrame(self):
         """This will display the saved topography and display it in the panel bokeh"""
         self.ax.cla()
-        self.ax.imshow(self.absolute_topo, cmap='gist_earth',origin = "lower left", aspect='auto')
+        self.ax.imshow(self.absolute_topo, cmap='gist_earth', origin = "lower left", aspect='auto')
         self.ax.axis('equal')
         self.ax.set_axis_off()
         self.ax.set_title('Loaded Topography')
@@ -434,9 +436,9 @@ class LoadSaveTopoModule(ModuleTemplate):
             print("Unknown file id")
 
     def show_widgets(self):
-        tabs = pn.Tabs(('Box widgets', self.widgets_box()),
+        tabs = pn.Tabs(('Load Topography', self.widgets_load()),
+                       ('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
-                       ('Load Topography', self.widgets_load()),
                        ('Save Topography', self.widgets_save())
                        )
         return tabs

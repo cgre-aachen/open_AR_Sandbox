@@ -1,6 +1,7 @@
 import os
 import panel as pn
 pn.extension()
+import time
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib
@@ -14,7 +15,7 @@ class LandslideSimulation(ModuleTemplate):
     """
     Module to show the results of landslides simulations
     """
-
+    #TODO: set the vmix and vmax of the landslides frames constant
     def __init__(self, *args, extent: list = None, **kwargs):
         self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
@@ -26,6 +27,9 @@ class LandslideSimulation(ModuleTemplate):
         self._patch = None
         self._lan = None
 
+        self._start = None #For the real time simulations
+        self._end = None
+
         self.height_flow = None
         self.velocity_flow = None
 
@@ -34,6 +38,7 @@ class LandslideSimulation(ModuleTemplate):
         self.counter = 1
         self.simulation_frame = 0
         self.running_simulation = False
+        self.real_time = False
 
         self.simulation_folder = _test_data['landslide_simulation']
         self.release_folder = _test_data['landslide_release']
@@ -52,6 +57,7 @@ class LandslideSimulation(ModuleTemplate):
         self.ax2 = self.figure.add_subplot(212)
         self.plot_flow_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
+        self.widget_all = self.show_widgets()
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -88,57 +94,90 @@ class LandslideSimulation(ModuleTemplate):
         Returns:
         """
         if self.running_simulation:
-            self.simulation_frame += 1
+
+            if self.real_time:
+                if self._start is None:
+                    self._start = time.time()
+                self._end = time.time()
+                if (self._end - self._start) >= 5:
+                    self.simulation_frame += 1
+                    self._start = None
+            else:
+                self.simulation_frame += 1
+
+                #3plt.pause(5) #TODO: maybe find a better way to stop the time but not the thread
+
             if self.simulation_frame == (self.counter+1):
                 self.simulation_frame = 0
 
         if self.flow_selector == 'Height':
+            if self.height_flow is None:
+                return
             if self.running_simulation:
-                move = self.height_flow[:, :, self.simulation_frame]
+                move = self.height_flow[..., self.simulation_frame]
             else:
-                move = self.height_flow[:, :, self.frame_selector]
-
+                move = self.height_flow[..., self.frame_selector]
             move = numpy.round(move, decimals=1)
-            move[move == 0] = numpy.nan
-            move = self.Load_Area.modify_to_box_coordinates(move)
-            self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
+            move = numpy.ma.masked_where(move <= 0, move)
+            if self._lan is None:
+                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower left',
+                                      extent=self.Load_Area.to_box_extent, zorder=10)
+            else:
+                self._lan.set_data(move)
+
+            #move = self.Load_Area.modify_to_box_coordinates(move)
+            #self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
         elif self.flow_selector == 'Velocity':
+            if self.velocity_flow is None:
+                return
             if self.running_simulation:
-                move = self.velocity_flow[:, :, self.simulation_frame]
+                move = self.velocity_flow[..., self.simulation_frame]
             else:
-                move = self.velocity_flow[:, :, self.frame_selector]
-
+                move = self.velocity_flow[..., self.frame_selector]
             move = numpy.round(move, decimals=1)
-            move[move == 0] = numpy.nan
-            move = self.Load_Area.modify_to_box_coordinates(move)
-            self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
+            move = numpy.ma.masked_where(move <= 0, move)
+            if self._lan is None:
+                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower left',
+                                      extent=self.Load_Area.to_box_extent, zorder=10)
+            else:
+                self._lan.set_data(move)
+
+        else:
+            if self._lan is not None:
+                self._lan.remove()
+                self._lan = None
+            #move = numpy.round(move, decimals=1)
+            #move[move == 0] = numpy.nan
+            #move = self.Load_Area.modify_to_box_coordinates(move)
+            #self._lan = ax.pcolormesh(move, cmap='hot', shading='gouraud')
 
     def plot_frame_panel(self):
         """Update the current frame to be displayed in the panel server"""
-        self.ax1.cla()
-        self.ax2.cla()
+        if self.height_flow is not None and self.velocity_flow is not None:
+            self.ax1.cla()
+            self.ax2.cla()
 
-        x_move = numpy.round(self.height_flow[:, :, self.frame_selector], decimals=1)
-        x_move[x_move == 0] = numpy.nan
-        hor = self.ax1.pcolormesh(x_move, cmap='hot')
-        self.ax1.axis('equal')
-        self.ax1.set_axis_off()
-        self.ax1.set_title('Flow Height')
-        cb1 = self.figure.colorbar(hor, ax=self.ax1, label='meter')
+            x_move = numpy.round(self.height_flow[..., self.frame_selector], decimals=1)
+            x_move = numpy.ma.masked_where(x_move <= 0, x_move)
+            hor = self.ax1.imshow(x_move, cmap='hot', origin="lower left")
+            self.ax1.axis('equal')
+            self.ax1.set_axis_off()
+            self.ax1.set_title('Flow Height')
+            cb1 = self.figure.colorbar(hor, ax=self.ax1, label='meter')
 
-        y_move = numpy.round(self.velocity_flow[:, :, self.frame_selector], decimals=1)
-        y_move[y_move == 0] = numpy.nan
-        ver = self.ax2.pcolormesh(y_move, cmap='hot')
-        self.ax2.axis('equal')
-        self.ax2.set_axis_off()
-        self.ax2.set_title('Flow Velocity')
-        cb2 =self.figure.colorbar(ver, ax=self.ax2, label='meter/sec')
+            y_move = numpy.round(self.velocity_flow[..., self.frame_selector], decimals=1)
+            y_move = numpy.ma.masked_where(y_move <= 0, y_move)
+            ver = self.ax2.imshow(y_move, cmap='hot', origin="lower left")
+            self.ax2.axis('equal')
+            self.ax2.set_axis_off()
+            self.ax2.set_title('Flow Velocity')
+            cb2 =self.figure.colorbar(ver, ax=self.ax2, label='meter/sec')
 
-        self.plot_flow_frame.param.trigger('object')
+            self.plot_flow_frame.param.trigger('object')
 
-        cb1.remove()
-        cb2.remove()
+            cb1.remove()
+            cb2.remove()
 
     def load_simulation_data_npz(self, infile):
         """Load landslide simulation from a .npz file """
@@ -157,10 +196,13 @@ class LandslideSimulation(ModuleTemplate):
         for i in list_files:
             temp = [str(s) for s in i if s.isdigit()]
             if len(temp) > 0:
-                if temp[-2] == self.Load_Area.file_id:
-                    self.release_options.append(i)
-                    self.release_id_all.append(temp[-1])
-                    self.release_area_all.append(numpy.load(data_path+i))
+                try:
+                    if temp[-2] == self.Load_Area.file_id:
+                        self.release_options.append(i)
+                        self.release_id_all.append(temp[-1])
+                        self.release_area_all.append(numpy.load(data_path+i))
+                except:
+                    print("file ", i, " is not compatible with the loading format")
 
     def show_box_release(self, ax, xy):
         """Show the options for painting release areas at origin xy """
@@ -175,7 +217,7 @@ class LandslideSimulation(ModuleTemplate):
             if len(temp) > 0:
                 if temp[0] == self.Load_Area.file_id and temp[2] == release_id:
                     file_name = i
-        file_location = simulation_path+file_name
+        file_location = simulation_path + file_name
         self.load_simulation_data_npz(file_location)
 
     def modify_to_box_coordinates(self, id):
@@ -192,8 +234,8 @@ class LandslideSimulation(ModuleTemplate):
         return tabs
 
     def show_landslide_widgets(self):
-        tabs = pn.Tabs(('Controllers', self.widgets_controller_simulation()),
-                       ('Load Simulation', self.widgets_load_simulation())
+        tabs = pn.Tabs(('Load Simulation', self.widgets_load_simulation()),
+                       ('Controllers', self.widgets_controller_simulation())
                        )
         return tabs
 
@@ -227,6 +269,10 @@ class LandslideSimulation(ModuleTemplate):
         )
         self._widget_simulation.param.watch(self._callback_simulation, 'value', onlychanged=False)
 
+        self._widget_real_time = pn.widgets.Checkbox(name='Show simulation in real time', value=self.real_time)
+        self._widget_real_time.param.watch(self._callback_real_time, 'value',
+                                              onlychanged=False)
+
         widgets = pn.Column("### Interaction widgets",
                             self._widget_show_release,
                             '<b>Select Flow </b>',
@@ -234,28 +280,29 @@ class LandslideSimulation(ModuleTemplate):
                             '<b>Select Frame </b>',
                             self._widget_frame_selector,
                             '<b>Run Simulation</b>',
-                            self._widget_simulation
+                            self._widget_simulation,
+                            self._widget_real_time
                             )
         panel = pn.Row(widgets, self.plot_flow_frame)
         return panel
 
     def widgets_load_simulation(self):
         self._widget_simulation_folder = pn.widgets.TextInput(name='Specify the folder path to load the simulation:')
-        self._widget_simulation_folder.param.watch(self._callback_filename, 'value', onlychanged=False)
         self._widget_simulation_folder.value = self.simulation_folder
-        self._widget_load = pn.widgets.Button(name='Refresh list', button_type='warning')
-        self._widget_load.param.watch(self._callback_load_files_folder, 'clicks', onlychanged=False)
-        self._widget_load_release_area = pn.widgets.Button(name='Load selected release area',
-                                                           button_type="success")
-        self._widget_load_release_area.param.watch(self._callback_load_release_area, 'clicks',
-                                                   onlychanged=False)
         self._widget_available_release_areas = pn.widgets.RadioBoxGroup(name='Available release areas',
                                                                         options=self.release_id_all,
                                                                         inline=False,
                                                                         value=None)
+        self._widget_load = pn.widgets.Button(name='Refresh list', button_type='warning')
+        self._widget_load_release_area = pn.widgets.Button(name='Load selected release area',
+                                                           button_type="success")
+        self._widget_simulation_folder.param.watch(self._callback_filename, 'value', onlychanged=False)
         self._widget_available_release_areas.param.watch(self._callback_available_release_areas, 'value',
                                                          onlychanged=False)
+        self._widget_load.param.watch(self._callback_load_files_folder, 'clicks', onlychanged=False)
 
+        self._widget_load_release_area.param.watch(self._callback_load_release_area, 'clicks',
+                                                   onlychanged=False)
         col1 = pn.Column("## Load widget",
                             '<b>File path</b>',
                             self._widget_simulation_folder,
@@ -291,18 +338,6 @@ class LandslideSimulation(ModuleTemplate):
             self.running_simulation = True
         else:
             self.running_simulation = False
-        #self.plot_landslide_frame()
-
-    #def _callback_activate_LoadSaveModule(self, event):
-     #   #self.Load_Area.setup()
-     #   #self.Load_Area.run()
-     #   pass
-
-    #def _callback_activate_LandslideModule(self, event):
-     #   #self.Load_Area.stop()
-     #   #self.setup()
-     #   #self.run()
-     #   pass
 
     def _callback_available_release_areas(self, event):
         if event.new is not None:
@@ -320,3 +355,6 @@ class LandslideSimulation(ModuleTemplate):
 
     def _callback_show_release(self, event):
         self.box_release_area = event.new
+
+    def _callback_real_time(self, event):
+        self.real_time = event.new

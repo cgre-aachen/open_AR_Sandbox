@@ -15,7 +15,7 @@ class SearchMethodsModule(ModuleTemplate):
     #TODO: have deterministic and probabilistic search methods and later combine them
     """
     def __init__(self, *args, extent, **kwargs):
-        self.lock = None
+
         self.speed_alpha = 2
         self.tolerance = 1e-10
 
@@ -83,12 +83,14 @@ class SearchMethodsModule(ModuleTemplate):
         self.histogram = pn.pane.Matplotlib(plt.figure(), tight=False)#, height=335)
         plt.close()
         self.trigger = None
+        self.lock = None
 
         self._create_widgets()
 
 
     def update(self, sb_params: dict):
         self.frame = sb_params.get('frame')
+        self.lock = sb_params.get('lock_frame')
         ax = sb_params.get('ax')
         #extent=sb_params.get('extent')
         same_frame = sb_params.get('same_frame')
@@ -101,7 +103,7 @@ class SearchMethodsModule(ModuleTemplate):
             sb_params['freeze_frame'] = True
         marker = sb_params.get('marker')
         if len(marker) > 0:
-            self.xy_aruco = marker.loc[marker.is_inside_box == True, ('box_x', 'box_y')].values
+            self.xy_aruco = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
         else:
             self.xy_aruco=[]
 
@@ -114,8 +116,8 @@ class SearchMethodsModule(ModuleTemplate):
         if self.active_gradient_descend:
             self.x_grad, self.y_grad = self.gradient_descent(self.xy_aruco, self.mesh, self.mesh_dx, self.mesh_dy, self.direction_search)
             for i in range(len(self.x_grad)):
-               ax.plot(self.x_grad[i], self.y_grad[i], "r*-")
-               ax.plot(self.x_grad[i][-1], self.y_grad[i][-1], "b*", markersize=20)
+                ax.plot(self.x_grad[i], self.y_grad[i], "r*-")
+                ax.plot(self.x_grad[i][-1], self.y_grad[i][-1], "b*", markersize=20)
 
         if self.search_active:
             self.plot_search(self.method, self.xy, ax)
@@ -149,7 +151,7 @@ class SearchMethodsModule(ModuleTemplate):
 
         return mesh
 
-    def update_mesh(self, norm_frame, fill_value=numpy.nan, margins_crop=0):
+    def update_mesh(self, frame, fill_value=numpy.nan, margins_crop=0):
         """
         create the mesh for the current frame and its derivatives
         Args:
@@ -159,20 +161,20 @@ class SearchMethodsModule(ModuleTemplate):
 
         Returns:
         """
-        der_y, der_x = numpy.gradient(norm_frame)
+        der_y, der_x = numpy.gradient(frame)
         self.mesh_dx = self.create_mesh(der_x, margins_crop=margins_crop, fill_value=fill_value)
         self.mesh_dy = self.create_mesh(der_y, margins_crop=margins_crop, fill_value=fill_value)
 
-        norm_frame = 1.0 / numpy.sum(norm_frame) * norm_frame
-        self.mesh = self.create_mesh(norm_frame, margins_crop=margins_crop, fill_value=fill_value)
+        frame = 1.0 / numpy.sum(frame) * frame
+        self.mesh = self.create_mesh(frame, margins_crop=margins_crop, fill_value=fill_value)
 
-        hm_frame = (-1) * (numpy.log(norm_frame))
+        hm_frame = (-1) * (numpy.log(frame))
         self.mesh_hm = self.create_mesh(hm_frame, margins_crop=margins_crop, fill_value=fill_value)
         der_y_hm, der_x_hm = numpy.gradient(hm_frame)
         self.mesh_dx_hm = self.create_mesh(der_x_hm, margins_crop=margins_crop, fill_value=fill_value)
         self.mesh_dy_hm = self.create_mesh(der_y_hm, margins_crop=margins_crop, fill_value=fill_value)
 
-        self.frame_norm = norm_frame
+        self.frame_norm = frame
         self.frame_hm = hm_frame
 
         return True
@@ -191,6 +193,7 @@ class SearchMethodsModule(ModuleTemplate):
         if self.plot_contour_xy:
             ax.collections = [] #TODO: Improve this
             ax = sns.kdeplot(self.x_list, self.y_list, ax=ax)
+            self.trigger()
 
         if self.plot_xy:
             ax.plot(self.x_list,

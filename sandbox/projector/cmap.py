@@ -44,7 +44,7 @@ class CmapModule:
         self.norm = norm  # TODO: Future feature
         self.lot = lot  # TODO: Future feature
         self.col = None
-        self._col = None
+        self._col = None #weakreference of self.col
         self.active = True
 
     def update(self, sb_params: dict):# data, extent, ax, cmap, norm):
@@ -65,24 +65,25 @@ class CmapModule:
         self.vmin = extent[-2]
         self.vmax = extent[-1]
 
-        #if self._col is not None and self._col() not in ax.images:
-        #    self.col = None
-
-        #if self.col is None and self.active and active:
-        if len(ax.images)==0:
-            self.render_frame(data, ax, vmin=self.vmin, vmax=self.vmax, extent=extent[:4])
         if active and self.active:
-            self.set_data(data)
-            self.set_cmap(cmap, 'k', 'k', 'k')
-            self.set_norm(norm)
-            self.set_extent(extent)
-            sb_params['cmap'] = self.cmap
+            if self._col is not None and self._col() not in ax.images:
+                self.col = None
+            if self.col is None:# and self.active and active:
+            #if len(ax.images)==0:
+                self.render_frame(data, ax, vmin=self.vmin, vmax=self.vmax, extent=extent[:4])
+            else:
+                self.set_data(data)
+                self.set_cmap(cmap, 'k', 'k', 'k')
+                self.set_norm(norm)
+                self.set_extent(extent)
+                sb_params['cmap'] = self.cmap
         else:
-            ax.images[0].remove()
-            #if self.col is not None:
-            #    self.col.remove(self._col)
-            #    self.col = None
-
+            #ax.images[0].remove()
+            if self.col is not None:
+                self.col.remove()
+                self.col = None
+            if self._col is not None and self._col() in ax.images:
+                ax.images.remove(self._col)
         return sb_params
 
     def set_extent(self, extent):
@@ -163,7 +164,7 @@ class CmapModule:
         self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
                              cmap=self.cmap, norm=self.norm,
                              origin='lower left', aspect='auto', zorder=-1, extent=extent)
-        #self._col = weakref.ref(self.col)
+        self._col = weakref.ref(self.col)
 
         ax.set_axis_off()
         ax.get_xaxis().set_visible(False)

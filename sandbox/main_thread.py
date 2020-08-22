@@ -31,6 +31,7 @@ class MainThread:
             check_change:
             **kwargs:
         """
+        #TODO: in all the modules be carefull with zorder
         self.sensor = sensor
         self.projector = projector
         self.projector.ax.cla()
@@ -67,6 +68,7 @@ class MainThread:
                           'active_cmap': True,
                           'active_contours': True,
                           'same_frame': False,
+                          'lock_thread': self.lock,
                           'trigger': self.projector.trigger} #TODO: Carefull with this use because it can make to paint the figure incompletely
 
                           #'freeze_frame': False}
@@ -138,7 +140,7 @@ class MainThread:
         try:
             self.lock.acquire()
             for key in self.modules.keys():
-                self.modules[key].lock = self.lock
+                #self.modules[key].lock = self.lock
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
         except Exception:
