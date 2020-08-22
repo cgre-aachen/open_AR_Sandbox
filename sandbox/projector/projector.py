@@ -34,7 +34,7 @@ class Projector(object):
     }
     '''
 
-    def __init__(self, calibprojector: str = None, use_panel: bool = True):
+    def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800, **kwargs): #Native resolution of projector
         """
 
         Args:
@@ -47,8 +47,8 @@ class Projector(object):
         self.json_filename = calibprojector
         
         if calibprojector is None:
-            self.p_width = 1280
-            self.p_height = 800
+            self.p_width = p_width
+            self.p_height = p_height
             self.p_frame_top = 50
             self.p_frame_left = 50
             self.p_frame_width = 700

@@ -5,11 +5,14 @@ import panel as pn
 import traceback
 import json
 
-from sandbox.calibration.calibration import CalibrationData
-from sandbox.sensor.sensor_api import Sensor
-from sandbox.projector.projector import Projector
+from sandbox import _calibration_dir
 
-from sandbox.markers.aruco import ArucoMarkers
+from sandbox.projector import Projector
+from sandbox.sensor import Sensor, CalibSensor
+
+from sandbox.markers import MarkerDetection
+
+
 
 from sandbox.calibration.calibration_module import CalibModule
 from sandbox.modules import GradientModule, LandslideSimulation, LoadSaveTopoModule, TopoModule, SearchMethodsModule
@@ -24,38 +27,46 @@ if verbose:
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         )
 
-def calibrate_sandbox(sensor_name='kinect_v2', aruco_marker=True):
-    calib = CalibrationData(p_width=1280, p_height=800)
-    sensor = Sensor(calib, sensor_name)
-    projector = Projector(calib)
-    if aruco_marker:
-        aruco = ArucoMarkers(sensor, calib)
-        module = CalibModule(calib, sensor, projector, Aruco=aruco)
-    else:
-        module = CalibModule(calib, sensor, projector)
-    module.setup()
-    module.run()
-    module.show_widgets().show()
+def calibrate_projector():
+    proj = Projector(use_panel=True)
+    widget = proj.calibrate_projector()
+    widget.show()
 
-def start_server(calibration_file=None, sensor_name='kinect_v2', aruco_marker=True, geo_model=None):
-    if calibrate_sandbox is None:
-        calib = CalibrationData(p_width=1280, p_height=800)
-    else:
-        calib = CalibrationData(file=calibration_file)
+def calibrate_sensor(filename_projector: str = "my_projector_calibration.json", name: str = "kinect_v2"):
+    _calibprojector = _calibration_dir + filename_projector
+    module = CalibSensor(calibprojector=_calibprojector, name=name)
+    widget = module.calibrate_sensor()
+    widget.show()
 
-    sensor = Sensor(calib, sensor_name)
-    projector = Projector(calib)
-    if aruco_marker:
-        aruco = ArucoMarkers(sensor, calib)
-        if geo_model is not None:
-            module = Sandbox(calib, sensor, projector, aruco=aruco, geo_model=geo_model)
-        else:
-            module = Sandbox(calib, sensor, projector, aruco=aruco)
+def start_server(filename_projector: str = None, # =_calibration_dir + "my_projector_calibration.json",
+                 filename_sensor: str = None, # = _calibration_dir + "my_sensor_calibration.json",
+                 sensor_name='kinect_v2',
+                 aruco_marker=True,
+                 gempy_module=False,
+                 **kwargs):
+                 #**projector_kwargs,
+                 #**sensor_kwargs,
+                 #**gempy_kwargs):
+
+    if filename_projector is None:
+        projector = Projector(use_panel=True, **kwargs)
     else:
-        if geo_model is not None:
-            module = Sandbox(calib, sensor, projector, geo_model=geo_model)
-        else:
-            module = Sandbox(calib, sensor, projector)
+        projector = Projector(calibprojector=filename_projector, use_panel=True, **kwargs)
+
+    if filename_sensor is None:
+        sensor = Sensor(name=sensor_name, **kwargs)
+    else:
+        sensor = Sensor(calibsensor=filename_sensor, name=sensor_name, **kwargs)
+
+    if aruco_marker:
+        aruco = MarkerDetection(sensor=sensor)
+    else:
+        aruco = None
+
+    if gempy_module:
+        module = Sandbox(sensor=sensor, projector=projector, aruco=aruco, **kwargs)
+    else:
+        module = Sandbox(sensor=sensor, projector=projector, aruco=aruco)
 
     module.start()
 
@@ -65,22 +76,24 @@ def start_server(calibration_file=None, sensor_name='kinect_v2', aruco_marker=Tr
 class Sandbox:
     # Wrapping API-class
 
-    def __init__(self, calibrationdata, sensor, projector, aruco=None, geo_model=None, **kwargs):
-        self.calib = calibrationdata
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, **kwargs):
         self.sensor = sensor
         self.projector = projector
         self.aruco = aruco
-        if isinstance(self.aruco, ArucoMarkers):
+        if isinstance(self.aruco, MarkerDetection):
             self.disable_aruco = False
             self.ARUCO_ACTIVE = True
         else:
             self.disable_aruco = True
             self.ARUCO_ACTIVE = False
 
-        self.geo_model = geo_model
-
         self.module = None
         self.module_active = False
+
+        #Gempy Module
+        self.geo_model = kwargs.get('geo_model')
+        self.load_example = kwargs.get('load_examples')
+        self.name_example = kwargs.get('name_example')
 
     def setup_server(self, module):
         if module == 'GradientModule':
