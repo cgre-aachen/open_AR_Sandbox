@@ -3,6 +3,7 @@ Welcome to the Open_AR_Sandbox repository. If you do not know what this is all a
 
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
 
+[![What is AR-Sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
 
 ![Python 3](https://img.shields.io/badge/Python-3-blue.svg)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
