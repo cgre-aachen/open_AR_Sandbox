@@ -22,6 +22,7 @@ For this reason, we have developed open-AR-Sandbox, an augmented reality sandbox
 * versatile model creation with the powerful GemPy library
 * open-source under LGPL v3.0 license
 * fully customizable color map, contours and fault line visualization
+* We recently added computer vision algorithms to the sandbox that open up a whole new field of possibilities! By placing printed markers into the sandbox, thew user can trigger actions or define points, lines and areas in the sandbox without using the computer
 
 Some of the modules already implemented include:
 * TopoModule: Normalize the depth image to display a topography map with fully customizable contour lines and variable heights.
@@ -31,10 +32,10 @@ Some of the modules already implemented include:
 * SearchMethodsModule: Takes the depth image and performs Monte-Carlo simulation algorithms to construct the probability distribution based on the structure of the current DEM in an interactive way. (https://chi-feng.github.io/mcmc-demo/app.html)
 * PrototypingModule: Create your own module with the help of this module to link the live threading of the sandbox with your ideas
 * GemPyModule: Use the full advantage of the powerful [GemPy](https://github.com/cgre-aachen/gempy) package to construct geological models and visualize them on the sandbox in real-time
-* MarkerDetection: check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
+* MarkerDetection: Place virtual boreholes in the model, Define a cross section with multiple markers, Set the start position for simulations (landslides, earthquakes, etc.) check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
 
 
-Check the video below for some of the features in action:s
+Check the video below for some of the features in action:
 [![Open AR Sandbox Features](https://img.youtube.com/vi/t0fyPVMIH4g/0.jpg)](https://www.youtube.com/watch?v=t0fyPVMIH4g)
 
 The open_AR_Sandbox as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
