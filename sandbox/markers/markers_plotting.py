@@ -18,7 +18,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.aruco_scatter = True
         self.aruco_annotate = True
         self.aruco_color = 'red'
-        print("Aruco detection ready")
+        return print("Aruco detection ready")
 
 
     def update(self, **kwargs):

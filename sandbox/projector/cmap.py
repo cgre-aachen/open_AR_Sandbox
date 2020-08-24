@@ -41,7 +41,7 @@ class CmapModule:
 
         self.cmap = plt.cm.get_cmap(cmap)#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
         self._cmap = None
-        self.norm = norm  # TODO: Future feature
+        self.norm = norm
         self.lot = lot  # TODO: Future feature
         self.col = None
         self._col = None #weakreference of self.col
@@ -176,7 +176,7 @@ class CmapModule:
         self.col.remove()
         return None
 
-    def widgets_plot(self):
+    def show_widgets(self):
         self._create_widgets()
 
         panel = pn.Column("<b> Colormap </b>",

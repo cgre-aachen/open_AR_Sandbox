@@ -44,6 +44,7 @@ class ContourLinesModule:
                 atol (float): absolute tolerance for checking the change
             """
             self.lock = None  # For locking the multithreading while using bokeh server
+            self._active = True
             self.major = None
             self.minor = None
             self.label = None
@@ -160,7 +161,7 @@ class ContourLinesModule:
         return numpy.arange(self.vmin, self.vmax, self.contours_step_minor)
 
 
-    def widgets_plot(self):
+    def show_widgets(self):
         self._create_widgets()
         panel = pn.Column("<b> Contour lines </b>",
                           self._widget_plot_contours,

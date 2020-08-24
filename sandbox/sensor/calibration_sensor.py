@@ -18,9 +18,9 @@ class CalibSensor: #TODO: include automatic
         # margin patches setup
         self.c_margin = '#084C61'
         self.margin_alpha = 0.5
-
+        self.calibprojector = calibprojector
         self.sensor = Sensor(name=name, invert=False, **kwargs)
-        self.projector = Projector(calibprojector=calibprojector, **kwargs)
+        self.projector = Projector(calibprojector=self.calibprojector, **kwargs)
         self.cmap = plt.cm.get_cmap('Greys_r')
         self.cmap.set_over(self.c_over)
         self.cmap.set_under(self.c_under)
@@ -39,7 +39,8 @@ class CalibSensor: #TODO: include automatic
         self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
 
         self.frame_raw = self.sensor.get_raw_frame()
-        self.ax_notebook_frame.pcolormesh(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap)
+        self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
+                                      origin="lower left", aspect="auto")
         self.calib_notebook_frame.param.trigger('object')
         self._create_widgets()
 
@@ -50,10 +51,12 @@ class CalibSensor: #TODO: include automatic
 
     def _refresh_panel_frame(self):
         self.projector.ax.cla()
-        self.fig_frame = self.projector.ax.pcolormesh(self.sensor.get_frame(),
+        self.fig_frame = self.projector.ax.imshow(self.sensor.get_frame(),
                                                       vmin=self.sensor.s_min,
                                                       vmax=self.sensor.s_max,
-                                                      cmap=self.cmap)
+                                                      cmap=self.cmap,
+                                                  origin="lower left",
+                                                  aspect="auto")
 
     def update(self):
         self.update_panel_frame(self.projector.ax)
@@ -63,8 +66,7 @@ class CalibSensor: #TODO: include automatic
         frame = self.sensor.get_frame()
         self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
         self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
-        self.fig_frame.set_array(frame.flatten()) #TODO: This method when moving the sensor to the right or left the array move and the image get distorted
-        self.projector.trigger()
+        self.fig_frame.set_data(frame)
 
     def update_notebook_frame(self):
         """ Adds margin patches to the current plot object.
@@ -72,7 +74,8 @@ class CalibSensor: #TODO: include automatic
         """
 
         self.ax_notebook_frame.cla()
-        self.ax_notebook_frame.pcolormesh(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap)
+        self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
+                                      origin="lower left", aspect="auto")
 
         rec_t = plt.Rectangle((0, self.sensor.s_height - self.sensor.s_top), self.sensor.s_width, self.sensor.s_top,
                               fc=self.c_margin, alpha=self.margin_alpha)
@@ -89,7 +92,10 @@ class CalibSensor: #TODO: include automatic
         self.calib_notebook_frame.param.trigger('object')
 
     def calibrate_sensor(self):
-        widgets = pn.WidgetBox('<b>Distance from edges (pixel)</b>',
+        widgets = pn.WidgetBox('<b>Load a projector calibration file</b>',
+                               self._widget_json_filename_load_projector,
+                               self._widget_json_load_projector,
+                               '<b>Distance from edges (pixel)</b>',
                                self._widget_s_top,
                                self._widget_s_right,
                                self._widget_s_bottom,
@@ -208,6 +214,13 @@ class CalibSensor: #TODO: include automatic
         self._widget_json_save = pn.widgets.Button(name='Save calibration')
         self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
 
+        self._widget_json_filename_load_projector = pn.widgets.TextInput(name='Choose the projector calibration filename:')
+        self._widget_json_filename_load_projector.param.watch(self._callback_json_filename_load_projector, 'value', onlychanged=False)
+        self._widget_json_filename_load_projector.value = _calibration_dir + 'my_projector_calibration.json'
+
+        self._widget_json_load_projector = pn.widgets.Button(name='Load calibration')
+        self._widget_json_load_projector.param.watch(self._callback_json_load_projector, 'clicks', onlychanged=False)
+
         return True
 
         # sensor callbacks
@@ -218,7 +231,7 @@ class CalibSensor: #TODO: include automatic
 
     def _callback_s_right(self, event):
         self.sensor.s_right = event.new
-        self._refresh_panel_frame() #TODO: dirty workaround
+        #self._refresh_panel_frame() #TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_bottom(self, event):
@@ -227,17 +240,17 @@ class CalibSensor: #TODO: include automatic
 
     def _callback_s_left(self, event):
         self.sensor.s_left = event.new
-        self._refresh_panel_frame()  # TODO: dirty workaround
+        #self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_min(self, event):
         self.sensor.s_min = event.new
-        self._refresh_panel_frame()  # TODO: dirty workaround
+        #self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_max(self, event):
         self.sensor.s_max = event.new
-        self._refresh_panel_frame()  # TODO: dirty workaround
+        #self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_refresh_frame(self, event):
@@ -252,6 +265,13 @@ class CalibSensor: #TODO: include automatic
     def _callback_json_save(self, event):
         if self.sensor.json_filename is not None:
             self.sensor.save_json(file=self.sensor.json_filename)
+
+    def _callback_json_filename_load_projector(self, event):
+        self.calibprojector = event.new
+
+    def _callback_json_load_projector(self, event):
+        if self.calibprojector is not None:
+            self.projector = Projector(self.calibprojector)
 
     def _callback_box_width(self, event):
         self.sensor.box_width = float(event.new)

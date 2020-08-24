@@ -86,11 +86,12 @@ class SearchMethodsModule(ModuleTemplate):
         self.lock = None
 
         self._create_widgets()
+        return print("SearchMethodsModule loaded succesfully")
 
 
     def update(self, sb_params: dict):
         self.frame = sb_params.get('frame')
-        self.lock = sb_params.get('lock_frame')
+        self.lock = sb_params.get('lock_thread')
         ax = sb_params.get('ax')
         #extent=sb_params.get('extent')
         same_frame = sb_params.get('same_frame')

@@ -6,6 +6,7 @@ Created on 15/04/2020
 """
 # Main information for all the modules to work (calibration data, projector and sensor)
 import os
+
 #from . import projector, sensor, markers, calibration, modules
 
 _test_data = {'topo': os.path.dirname(__file__) +
@@ -23,7 +24,7 @@ _test_data = {'topo': os.path.dirname(__file__) +
 _calibration_dir = os.path.dirname(__file__) + '/../notebooks/calibration_files/'
 
 #from .main_thread import MainThread
-
+from sandbox.sandbox_api import calibrate_projector, calibrate_sensor, start_server
 
 if __name__ == '__main__':
     pass

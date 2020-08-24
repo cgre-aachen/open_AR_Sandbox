@@ -31,3 +31,8 @@ class ModuleTemplate(ABC):
     @abstractmethod
     def plot(self, frame, ax):
         pass
+
+    #only if using panel widgets for the module
+    @abstractmethod
+    def show_widgets(self):
+        pass

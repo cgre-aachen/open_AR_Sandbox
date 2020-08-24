@@ -15,7 +15,6 @@ class GradientModule(ModuleTemplate):
 
     def __init__(self, *args, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
-        self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]
@@ -43,6 +42,8 @@ class GradientModule(ModuleTemplate):
         self.ve = 0.25
         self.set_lightsource()
 
+        return print("GradientModule loaded succesfully")
+
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
@@ -59,7 +60,7 @@ class GradientModule(ModuleTemplate):
         sb_params['ax'] = ax
         sb_params['cmap'] = cmap
         sb_params['extent'] = extent
-        sb_params['active_contours'] = False
+        #sb_params['active_contours'] = False
         if cmap is None:
             sb_params['active_cmap'] = False
         else:

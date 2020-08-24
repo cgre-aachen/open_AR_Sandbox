@@ -14,7 +14,6 @@ class TopoModule(ModuleTemplate):
     """
 
     def __init__(self, *args, extent: list = None, **kwargs):
-        self.lock = None  # For locking the multithreading while using bokeh server
         self.max_height = 1500
         self.center = 300
         self.min_height = 0
@@ -29,6 +28,8 @@ class TopoModule(ModuleTemplate):
         self.normalize = True
         self.norm = None
         self.cmap = None
+
+        return print("TopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -75,7 +76,7 @@ class TopoModule(ModuleTemplate):
                                              vmax=self.max_height)
         return div_norm
 
-    def widgets(self):
+    def show_widgets(self):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
                           #self._widget_normalize,

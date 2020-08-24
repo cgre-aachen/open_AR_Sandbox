@@ -8,9 +8,9 @@ pn.extension('vtk')
 import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
-from .utils import get_scale, Grid
-from .plot import plot_gempy
-from .example_models import create_model_dict, all_models
+from sandbox.modules.gempy.utils import get_scale, Grid
+from sandbox.modules.gempy.plot import plot_gempy
+from sandbox.modules.gempy.example_models import create_model_dict, all_models
 
 try:
     import gempy
@@ -157,6 +157,7 @@ class GemPyModule(ModuleTemplate):
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
         marker = sb_params.get('marker')
+        self.lock = sb_params.get('lock_thread')
         self.frame = frame #Store the current frame
         self.vmin = frame.min()
         self.vmax = frame.max()

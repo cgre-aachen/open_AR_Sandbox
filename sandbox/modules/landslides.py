@@ -17,7 +17,6 @@ class LandslideSimulation(ModuleTemplate):
     """
     #TODO: set the vmix and vmax of the landslides frames constant
     def __init__(self, *args, extent: list = None, **kwargs):
-        self.lock = None  # For locking the multithreading while using bokeh server
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]
@@ -57,7 +56,8 @@ class LandslideSimulation(ModuleTemplate):
         self.ax2 = self.figure.add_subplot(212)
         self.plot_flow_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
-        self.widget_all = self.show_widgets()
+        return print("LandslideSimulation loaded succesfully")
+        #self.widget_all = self.show_widgets()
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')

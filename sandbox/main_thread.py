@@ -34,18 +34,14 @@ class MainThread:
         #TODO: in all the modules be carefull with zorder
         self.sensor = sensor
         self.projector = projector
-        self.projector.ax.cla()
-        self.extent = sensor.extent
-        self.box = sensor.physical_dimensions
-        self.contours = ContourLinesModule(extent=self.extent)
-        self.cmap_frame = CmapModule(extent=self.extent)
+        self.projector.clear_axes()
+        self.contours = ContourLinesModule(extent=self.sensor.extent)
+        self.cmap_frame = CmapModule(extent=self.sensor.extent)
 
         #start the modules
-        self.modules = collections.OrderedDict({'cmap_frame': self.cmap_frame, 'contours': self.contours})
-
-        # flags
-        self.crop = crop
-        self.clip = clip
+        #self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
+        self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
+        self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
 
         # threading
         self.lock = threading.Lock()
@@ -62,6 +58,7 @@ class MainThread:
         self.sb_params = {'frame': self.sensor.get_frame(),
                           'ax': self.projector.ax,
                           'extent': self.sensor.extent,
+                          'box_dimensions': self.sensor.physical_dimensions,
                           'marker': pd.DataFrame(),
                           'cmap': plt.cm.get_cmap('gist_earth'),
                           'norm': None,
@@ -74,7 +71,8 @@ class MainThread:
                           #'freeze_frame': False}
 
         self.previous_frame = self.sb_params['frame']
-        #self.freeze_frame = False
+
+        #To reduce the noise of the data
         self.check_change = check_change
         self._rtol = 0.2
         self._atol = 5
@@ -83,6 +81,9 @@ class MainThread:
         # plot the contour lines
         self.contours.plot_contour_lines(self.sb_params['frame'], self.sb_params['ax'])
         self.projector.trigger()
+
+        self._create_widgets()
+
 
     #@property @TODO: test if this works
     #def sb_params(self):
@@ -105,17 +106,10 @@ class MainThread:
         Returns:
 
         """
-        #self.sb_params['ax'].cla()
-        #self.delete_axes(self.sb_params['ax'])
-        #self.sb_params['freeze_frame'] = self.freeze_frame
-        #if self.sb_params['freeze_frame']:
-        #    frame = self.previous_frame
-        #else:
+        self.sb_params['ax'] = self.projector.ax
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
-        #self.sb_params['ax'].set_xlim(xmin=self.sensor.extent[0], xmax=self.sensor.extent[1])
-        #self.sb_params['ax'].set_ylim(ymin=self.sensor.extent[2], ymax=self.sensor.extent[3])
-        #self.sb_params['cmap'] = self.cmap_frame.cmap
+
         # This is to avoid noise in the data
         if self.check_change:
             if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
@@ -139,8 +133,7 @@ class MainThread:
         #TODO: Use the modules in a big try and except?
         try:
             self.lock.acquire()
-            for key in self.modules.keys():
-                #self.modules[key].lock = self.lock
+            for key in list(self.modules.keys()): #reversed so the contourlines and cmap that were added first, get painted at last
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
         except Exception:
@@ -150,11 +143,10 @@ class MainThread:
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
-        #self.cmap_frame.update(self.sb_params)
-        #plot the contour lines
-        #self.contours.update(self.sb_params)
+
         if isinstance(self.Aruco, MarkerDetection):
             _ = self.Aruco.plot_aruco(self.sb_params['ax'], self.sb_params['marker'])
+
         self.lock.acquire()
         self.projector.trigger()
         self.lock.release()
@@ -162,32 +154,32 @@ class MainThread:
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
         self.modules[name] = module
-        self.modules.move_to_end(name, last=False)
+        self._modules[name] = module
+        #self.modules.move_to_end(name, last=True)
         print('module ' + name + ' added to modules')
 
     def remove_module(self, name: str):
         """Remove a current module from the main thread"""
         if name in self.modules.keys():
+            self.lock.acquire()
             self.modules.pop(name)
             print( 'module ' + name + ' removed')
+            self.lock.release()
         else:
             print('No module with name ' + name + ' was found')
 
-    def delete_axes(self, ax):
-        """
-        #TODO: Need to find a better a way to delete the axes rather than ax.cla()
-        Args:
-            ax:
-        Returns:
+    def module_manager(self, active_modules: list = []):
+        #add a module
+        for name_module in active_modules:
+            if name_module not in self.modules:
+                self.add_module(name=name_module, module=self._modules[name_module])
+        #delete the module
+        if len(active_modules) > 0:
+            [self.remove_module(name) for name in self.modules if name not in active_modules]
 
-        """
-        #self.cmap_frame.delete_image()
-        #ax.cla()
-        #self.extent = self.sensor.extent
-        #ax.collections = []
-        #ax.artists = []
-        #ax.text = []
-        pass
+        if self._widget_module_selector is not None:
+            self._widget_module_selector.options = list(self._modules.keys())
+            self._widget_module_selector.value = list(self.modules.keys())
 
     def thread_loop(self):
         while self.thread_status == 'running':
@@ -228,12 +220,12 @@ class MainThread:
     def widget_plot_module(self):
         if isinstance(self.Aruco, MarkerDetection):
             marker = pn.Column(self.widgets_aruco_visualization(), self.widget_thread_controller())
-            widgets = pn.Column(self.cmap_frame.widgets_plot(),
-                                self.contours.widgets_plot())
+            widgets = pn.Column(self.cmap_frame.show_widgets(),
+                                self.contours.show_widgets())
             rows = pn.Row(widgets, marker)
         else:
-            widgets = pn.Column(self.cmap_frame.widgets_plot(),
-                                self.contours.widgets_plot())
+            widgets = pn.Column(self.cmap_frame.show_widgets(),
+                                self.contours.show_widgets())
             rows = pn.Row(widgets, self.widget_thread_controller())
 
         panel = pn.Column("## Plotting interaction widgets", rows)
@@ -241,6 +233,16 @@ class MainThread:
 
 
     def widget_thread_controller(self):
+        panel = pn.Column("##<b>Thread Controller</b>",
+                          self._widget_thread_selector,
+                          self._widget_check_difference,
+                          self._widget_module_selector,
+                          self._widget_clear_axes
+                          #self._widget_freeze_frame)
+                          )
+        return panel
+
+    def _create_widgets(self):
         self._widget_thread_selector = pn.widgets.RadioButtonGroup(name='Thread controller',
                                                                    options=["Start", "Stop"],
                                                                    value="Start",
@@ -251,22 +253,28 @@ class MainThread:
         self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
                                                   onlychanged=False)
 
-        #self._widget_freeze_frame = pn.widgets.Checkbox(name='Freeze frame acquisition', value=self.freeze_frame)
-        #self._widget_freeze_frame.param.watch(self._callback_freeze_frame, 'value',
-        #                                          onlychanged=False)
+        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list", button_type="warning")
+        self._widget_clear_axes.param.watch(self._callback_clear_axes, 'clicks',
+                                            onlychanged=False)
 
-        panel = pn.Column("##<b>Thread Controller</b>",
-                          self._widget_thread_selector,
-                          self._widget_check_difference,
-                          #self._widget_freeze_frame)
-                          )
-        return panel
+        self._widget_module_selector = pn.widgets.CrossSelector(name="Module manager",
+                                                                value=list(self.modules.keys()),
+                                                                options=list(self._modules.keys()),
+                                                                definition_order=False)
+        self._widget_module_selector.param.watch(self._callback_module_selector, 'value',
+                                                 onlychanged=False)
+
+
+    def _callback_clear_axes(self, event):
+        self.projector.clear_axes()
+        self._widget_module_selector.options = list(self._modules.keys())
+        self._widget_module_selector.value = list(self.modules.keys())
 
     def _callback_check_difference(self, event):
         self.check_change = event.new
 
-    #def _callback_freeze_frame(self, event):
-    #    self.freeze_frame = event.new
+    def _callback_module_selector(self, event):
+        self.module_manager(event.new)
 
     def _callback_thread_selector(self, event):
         if event.new == "Start":

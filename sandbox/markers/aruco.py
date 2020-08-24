@@ -98,6 +98,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if PYKINECT_INSTALLED and sensor is not None:
             while len(self.CoordinateMap) < 5:
                 self.CoordinateMap = self.create_CoordinateMap()
+        return print('Aruco detection ready')
 
     def aruco_detect(self, image):
         """ Function to detect an aruco marker in a color image
