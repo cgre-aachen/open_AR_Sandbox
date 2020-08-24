@@ -39,7 +39,7 @@ Check the video below for some of the features in action:s
 
 The open_AR_Sandbox as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
 
-* More Tutorials, examples and Documentation to help you develop your own modules
+* More Tutorials, examples, Tests and Documentation to help you develop your own modules
 * GemPy optimization for (much!) higher framerates
 * module for seismic wave modelling in the sandbox
 * Landscape generations using machine learning codes extracted from the sandbox
