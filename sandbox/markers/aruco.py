@@ -4,7 +4,7 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 from scipy.spatial.distance import cdist
-
+from sandbox.sensor.kinectV2 import KinectV2
 try:
     from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
     from pykinect2 import PyKinectRuntime
@@ -12,6 +12,7 @@ try:
 except ImportError:
     warn('pykinect2 module not found, Coordinate Mapping will not work.')
     PYKINECT_INSTALLED = False
+
 
 try:
     import cv2
@@ -28,30 +29,38 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     An Area of interest can be specified, markers outside this area will be ignored
     """
 
-    def __init__(self, sensor, calibration, aruco_dict=None, area=None):
+    def __init__(self, sensor=None, aruco_dict=None, **kwargs):
         if not aruco_dict:
             self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
         else:
             self.aruco_dict = aruco_dict
-        self.area = area  # set a square Area of interest here (Hot-Area)
-        self.kinect = sensor.Sensor
-        self.calib = calibration
-        self.ir_markers = None
-        if self.calib.aruco_corners is not None:
-            self.rgb_markers = pd.read_json(self.calib.aruco_corners)
+        #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
+        if sensor is not None:
+            if isinstance(sensor.Sensor, KinectV2):
+                self.kinect = sensor.Sensor
+                self.calib = sensor
+                print("KinectV2 loaded")
+            else: warn("Kinect version not supported")
         else:
-            self.rgb_markers = None
+            warn("No sensor loaded. Detection will only work in color image")
+            self.kinect = None
+
+        self.ir_markers = None
+        #if self.calib is not None:
+        #    if self.calib.aruco_corners is not None:
+        ##        self.rgb_markers = pd.read_json(self.calib.aruco_corners)
+        #    else:
+        #        self.rgb_markers = None
         self.projector_markers = None
         self.dict_markers_current = None  # markers that were detected in the last frame
         # self.dict_markers_all = all markers ever detected with their last known position and timestamp
         self.dict_markers_all = self.dict_markers_current
-        #self.lock = threading.Lock  # thread lock object to avoid read-write collisions in multithreading.
-        self.ArucoImage = self.create_aruco_marker()
+
         self.middle = None
         self.corner_middle = None
         # TODO: correction in x and y direction for the mapping between color space and depth space
-        self.correction_x = 8
-        self.correction_y = 65
+        self._correction_x = 8
+        self._correction_y = 65
 
         self.point_markers = None
 
@@ -59,63 +68,77 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         #dataframes and variables used in the update loop:
         self.markers_in_frame = pd.DataFrame()
         self.aruco_markers = pd.DataFrame()
-        self.threshold = 10.0
+        self._threshold = 10.0
 
         #Pose Estimation
-        if self.calib.camera_dist is not None:
-            self.mtx = numpy.array((self.calib.camera_mtx))
-            self.dist = numpy.array((self.calib.camera_dist))
-        else:
-            self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575], #Hardcoded distorion parameter
-                                    [0.0, 2098.757943278828, 962.426967248953],
-                                    [0.0, 0.0, 1.0]])
-            self.dist = numpy.array([[-0.1521704243263453], #hard-coded distortion parameters
-                                     [-0.5137710352422746],
-                                     [-0.010673768065933672],
-                                     [0.01065954734833698],
-                                     [2.2812034123550817],
-                                     [0.15820606213404878],
-                                     [0.5618247374672848],
-                                     [-2.195963638734801],
-                                     [0.0],
-                                     [0.0],
-                                     [0.0],
-                                     [0.0],
-                                     [0.0],
-                                     [0.0]])
-        self.size_of_marker = 0.02  # size of aruco markers in meters
-        self.length_of_axis = 0.05  # length of the axis drawn on the frame in meters
+        self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575], #Hardcoded distorion parameter
+                                [0.0, 2098.757943278828, 962.426967248953],
+                                [0.0, 0.0, 1.0]])
+        self.dist = numpy.array([[-0.1521704243263453], #hard-coded distortion parameters
+                                 [-0.5137710352422746],
+                                 [-0.010673768065933672],
+                                 [0.01065954734833698],
+                                 [2.2812034123550817],
+                                 [0.15820606213404878],
+                                 [0.5618247374672848],
+                                 [-2.195963638734801],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0]])
+        self._size_of_marker = 0.02  # size of aruco markers in meters
+        self._length_of_axis = 0.05  # length of the axis drawn on the frame in meters
 
         #Automatic calibration
-        self.load_corners_ids()
+        #self.load_corners_ids()
 
         self.CoordinateMap = pd.DataFrame()
-        if PYKINECT_INSTALLED:
+        if PYKINECT_INSTALLED and sensor is not None:
             while len(self.CoordinateMap) < 5:
                 self.CoordinateMap = self.create_CoordinateMap()
+        return print('Aruco detection ready')
 
-    def load_corners_ids(self):
-        if self.calib.aruco_corners is not None:
-            self.aruco_corners = pd.read_json(self.calib.aruco_corners)
-            temp = self.aruco_corners.loc[numpy.argsort(self.aruco_corners.Color_x)[:2]]
-            self.corner_id_LU = int(temp.loc[temp.Color_y == temp.Color_y.min()].ids.values)
-            temp1 = self.aruco_corners.loc[numpy.argsort(self.aruco_corners.Color_x)[-2:]]
-            self.corner_id_DR = int(temp1.loc[temp1.Color_y == temp1.Color_y.max()].ids.values)
-            self.center_id = 20
+    def aruco_detect(self, image):
+        """ Function to detect an aruco marker in a color image
+        Args:
+            image: numpy array containing a color image (BGR type)
+        Returns:
+            corners: x, y location of a detected aruco marker(detect the 4 croners of the aruco)
+            ids: id of the detected aruco
+            rejectedImgPoints: show x, y coordinates of searches for aruco markers but not succesfull
+       """
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        aruco_dict = aruco.Dictionary_get(self.aruco_dict)
+        parameters = aruco.DetectorParameters_create()
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        return corners, ids, rejectedImgPoints
 
-        # TODO: pixel distance from the frame corner so the aruco is always projected inside the sandbox
-        self.offset = 100
-        # TODO: move the image this amount of pixels so when moving the image is at this distance from the detected aruco
-        self.pixel_displacement = 10
+    def get_location_marker(self, corners):
+        """Get the middle position from the detected corners
+         Args:
+             corners: List containing the position x, y of the aruco marker
+         Returns:
+             pr1: x location
+             pr2: y location
+        """
+        pr1 = int(numpy.mean(corners[:, 0]))
+        pr2 = int(numpy.mean(corners[:, 1]))
+        return pr1, pr2
 
-    def search_aruco(self):
+    def search_aruco(self, frame: numpy.ndarray = None) -> pd.DataFrame:
         """
         searches for aruco markers in the current kinect image and writes detected markers to
-         self.markers_in_frame. call this first in the update function.
-        :return:
+        self.markers_in_frame. call this first in the update function.
+        Args
+            frame: gets the color frame to search the markers on
+        Returns
+            markers_in_frame
         """
 
-        frame = self.kinect.get_color()
+        if frame is None:
+            frame = self.kinect.get_color()
         corners, ids, rejectedImgPoints = self.aruco_detect(frame)
         if ids is not None:
             labels = {"ids", "x", "y", "Counter"}
@@ -143,16 +166,18 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
     def update_marker_dict(self):
         """
-        updates existing marker positions in self.aruco_markers. new found markers are auomatically added.
-        A marker that is not detected for more than *self.threshold* frames is removed from the list.
+        updates existing marker points in self.aruco_markers. new found markers are automatically added.
+        A marker that is not detected for more than *self._threshold* frames is removed from the list.
         call in update after self.search_aruco():
-        :return:
+        Returns:
+            changes in place
         """
         for j in self.markers_in_frame.index:
             if j not in self.aruco_markers.index:
+                #add new aruco
                 self.aruco_markers = self.aruco_markers.append(self.markers_in_frame.loc[j])
-
             else:
+                #Update aruco
                 df_temp = self.markers_in_frame.loc[j]
                 self.aruco_markers.at[j] = df_temp
 
@@ -160,7 +185,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             if i not in self.markers_in_frame.index:
                 self.aruco_markers.at[i, 'counter'] += 1.0
 
-            if self.aruco_markers.loc[i]['counter'] >= self.threshold:
+            if self.aruco_markers.loc[i]['counter'] >= self._threshold:
                 self.aruco_markers = self.aruco_markers.drop(i)
 
         #return self.aruco_markers
@@ -169,10 +194,10 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         """
         checks if aruco markers are within the dimensions of the sandbox (boolean: is_inside_box)
         and converts the location to box coordinates x,y. call after self.update_markers in the update loop
-        :return:
+        Returns:
         """
-        if len(self.aruco_markers)>0:
-            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x']- self.calib.s_left
+        if len(self.aruco_markers) > 0:
+            self.aruco_markers['box_x'] = self.aruco_markers['Depth_x'] - self.calib.s_left
             self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
             for j in self.aruco_markers.index:
                 self.aruco_markers['is_inside_box'].loc[j] = self.calib.s_frame_width > (self.aruco_markers['Depth_x'].loc[j] - self.calib.s_left) and \
@@ -180,40 +205,16 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
                                                   (self.calib.s_frame_height > (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) and \
                                                   (self.calib.s_height - self.aruco_markers['Depth_y'].loc[j] - self.calib.s_bottom) > 0)
 
-    def aruco_detect(self, image):
-        """ Function to detect one aruco marker in a color image
-        :param:
-            image: numpy array containing a color image (BGR type)
-        :return:
-            corners: x, y location of a detected aruco marker(detect the 4 croners of the aruco)
-            ids: id of the detected aruco
-            rejectedImgPoints: show x, y coordinates of searches for aruco markers but not succesfull
-       """
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        aruco_dict = aruco.Dictionary_get(self.aruco_dict)
-        parameters = aruco.DetectorParameters_create()
-        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-        return corners, ids, rejectedImgPoints
 
-    def get_location_marker(self, corners):
-        """Get the middle position from the detected corners
-         :param:
-             corners: List containing the position x, y of the aruco marker
-         :return:
-             pr1: x location
-             pr2: y location
-        """
+    ############### Utilities ########################
 
-        pr1 = int(numpy.mean(corners[:, 0]))
-        pr2 = int(numpy.mean(corners[:, 1]))
-        return pr1, pr2
-
-    def find_markers_ir(self, amount=None):
+    def find_markers_ir(self, IR=None, amount=None):
         """ Function to search for a determined amount of arucos in the infrared image. It will continue searching in
         different frames of the image until it finds all the markers
-        :param:
+        Args:
+            IR= search in the infrared frame. If None then captures a new frame
             amount: specify the number of arucos to search
-        :return:
+        Returns:
             ir_marker: DataFrame with the id, x, y coordinates for the location of the aruco
                         And rotation and translation vectors for the pos estimation
         """
@@ -225,7 +226,8 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
                 minim = 0
                 maxim = numpy.arange(1000, 30000, 500)
-                IR = self.kinect.get_ir_frame_raw()
+                if IR is None:
+                    IR = self.kinect.get_ir_frame_raw()
                 for i in maxim:
                     ir_use = numpy.interp(IR, (minim, i), (0, 255)).astype('uint8')
                     ir3 = numpy.stack((ir_use, ir_use, ir_use), axis=2)
@@ -235,7 +237,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
                         for j in range(len(ids)):
                             if ids[j] not in df.ids.values:
                                 rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]],
-                                                                                    self.size_of_marker,
+                                                                                    self._size_of_marker,
                                                                                     self.mtx, self.dist)
                                 x_loc, y_loc = self.get_location_marker(corners[j][0])
                                 df_temp = pd.DataFrame(
@@ -246,12 +248,13 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         self.ir_markers = df.reset_index(drop=True)
         return self.ir_markers
 
-    def find_markers_rgb(self, amount=None):
+    def find_markers_rgb(self, color=None, amount=None):
         """ Function to search for a determined amount of arucos in the color image. It will continue searching in
         different frames of the image until it finds all the markers
-        :param:
+        Args:
+            color: search in the color frame. If None then captures a new frame
             amount: specify the number of arucos to search
-        :return:
+        Returns:
             rgb_markers: DataFrame with the id, x, y coordinates for the location of the aruco
                         and rotation and translation vectors for the pos estimation
         """
@@ -261,14 +264,15 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         if amount is not None:
             while len(df) < amount:
-                color = self.kinect.get_color()
+                if color is None:
+                    color = self.kinect.get_color()
                 #color = color[self.kinect.calib.s_bottom:-self.kinect.calib.s_top, self.kinect.calib.s_left:-self.kinect.calib.s_right]
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if not ids is None:
                     for j in range(len(ids)):
                         if ids[j] not in df.ids.values:
-                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self.size_of_marker,
+                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self._size_of_marker,
                                                                                   self.mtx, self.dist)
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
@@ -279,12 +283,13 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         self.rgb_markers = df.reset_index(drop=True)
         return self.rgb_markers
 
-    def find_markers_projector(self, amount=None):
+    def find_markers_projector(self, color=None, amount=None):
         """ Function to search for a determined amount of arucos in the projected image. It will continue searching in
         different frames of the image until it finds all the markers
-        :param:
+        Args:
+            color: search in the color frame. If None then captures a new frame
             amount: specify the number of arucos to search
-        :return:
+        Returns:
             projector_markers: DataFrame with the id, x, y coordinates for the location of the aruco
                                 and rotation and translation vectors for the pos estimation
             corner_middle: list that include the location of the central corner aruco with id=20
@@ -295,7 +300,8 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         if amount is not None:
             while len(df) < amount:
-                color = self.kinect.get_color()
+                if color is None:
+                    color = self.kinect.get_color()
                 corners, ids, rejectedImgPoints = self.aruco_detect(color)
 
                 if ids is not None:
@@ -305,7 +311,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
                             # method used to calculate the scaling factor
                             self.corner_middle = corners[j][0]
                         if ids[j] not in df.ids.values:
-                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self.size_of_marker,
+                            rvec, tvec, trash = aruco.estimatePoseSingleMarkers([corners[j][0]], self._size_of_marker,
                                                                                 self.mtx, self.dist)
                             x_loc, y_loc = self.get_location_marker(corners[j][0])
                             df_temp = pd.DataFrame(
@@ -320,7 +326,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     def create_CoordinateMap(self):
         """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
         camera space. This method requires the depth frame to assign a depth value to the color point.
-        :return:
+        Returns:
             CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
             real world values of x,y and z in meters
         """
@@ -354,8 +360,8 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
                     camera_x.append(cam.x)
                     camera_y.append(cam.y)
                     camera_z.append(cam.z)
-                    color_x.append(int(col.x)+self.correction_x) ####TODO: constants addded since image is not exact when doing the transformation
-                    color_y.append(int(col.y)-self.correction_y)
+                    color_x.append(int(col.x)+self._correction_x) ####TODO: constants addded since image is not exact when doing the transformation
+                    color_y.append(int(col.y)-self._correction_y)
 
         self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
                                            'Depth_y': depth_y,
@@ -368,33 +374,47 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         return self.CoordinateMap
 
-    def create_aruco_marker(self, id = 1, resolution = 50, show=False, save=False):
+    def create_aruco_marker(self, id: int = 1, resolution: int = 50, show: bool = False,
+                            save: bool = False, path: str = './'):
         """ Function that creates a single aruco marker providing its id and resolution
-        :param:
+        Args:
             id: int indicating the id of the aruco to create
             resolution: int
             show: boolean. Display the created aruco marker
             save: boolean. save the created aruco marker as an image "Aruco_Markers.jpg"
-        :return:
+            path: path to where the aruco will be saved. If none specified will be saved in the same direcory of execution the code
+        Returns:
             ArucoImage: numpy array with the aruco information
         """
         self.ArucoImage = 0
 
         aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
         img = aruco.drawMarker(aruco_dictionary, id, resolution)
+        fig, ax = plt.subplots()
+        ax.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
+        ax.axis("off")
         if show is True:
-            plt.imshow(img, cmap=plt.cm.gray, interpolation="nearest")
-            plt.axis("off")
+            fig.show()
         else:
-            plt.close()
+            plt.close(fig)
 
         if save is True:
-            plt.savefig("Aruco_Markers.png")
+            fig.savefig(path + "Aruco_Markers.png")
 
         self.ArucoImage = img
         return self.ArucoImage
 
-    def create_arucos_pdf(self, nx = 5, ny = 5, resolution = 50):
+    def create_arucos_pdf(self, nx: int = 5, ny: int = 5, resolution: int = 50, path: str ='./'):
+        """
+        FUnction to create a pdf file with nx X ny number of arucos and save them in specified path
+        Args:
+            nx: number of rows
+            ny: number of columns
+            resolution: resolution of the image (arucos)
+            path: path to where the aruco will be saved. If none specified will be saved in the same direcory of execution the code
+        Returns:
+            image of the arucos and the saved pdf
+        """
         aruco_dictionary = aruco.Dictionary_get(self.aruco_dict)
         fig = plt.figure()
         for i in range(1, nx * ny + 1):
@@ -403,16 +423,17 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             plt.imshow(img, cmap='gray')
             plt.imshow(img, cmap='gray')
             ax.axis("off")
-        plt.savefig("markers.pdf")
-        plt.show()
+        fig.savefig(path+"markers.pdf")
+        fig.show()
+        return fig
 
     def plot_aruco_location(self, string_kind = 'RGB'):
         """ Function to visualize the location of the detected aruco markers in the image.
-        :param:
+        Args:
             string_kind: IR -> Infrarred detection of aruco and visualization in infrared image
                          RGB -> Detection of aruco in color space and visualization as color image
                          Projector -> Detection of projected arucos inside sandbox and visualization in color image
-        :return:
+        Returns:
             image plot
         """
         plt.figure(figsize=(20, 20))
@@ -438,11 +459,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     def convert_color_to_depth(self, ids, map, strg=None, data=None):
         """ Function to search in the previously created CoordinateMap - "create_CoordinateMap()" - the position of any
         detected aruco marker from the color space to the depth space.
-        :param:
+        Args:
             strg: "Proj" or "Real". Select which type of aruco want to be converted
             ids: int. indicate the id of the aruco that want to be converted
             map: DataFrame. From the create_CoordinateMap() function
-        :return:
+        Returns:
             value: Return the line from the CoordinateMap DataFrame showing the equivalence of its position in the color
             space to the depth space
         """
@@ -478,12 +499,12 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         return value
 
-    def location_points(self, amount = None, plot = True):
+    def location_points(self, amount=None, plot=True):
         """ Function to search for a determined amount of arucos to introduce as a data point to the depth space
-        :param:
+        Args:
             amount: specify the number of arucos to search
             plot: boolean to show the plot on color space and depth space if the mapped values are right
-        :return:
+        Returns:
             point_markers: DataFrame with the id, x, y coordinates for the location of the aruco
         """
         labels = {"ids", "x", "y"}
@@ -531,15 +552,15 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         return self.point_markers
 
     def calibrate_camera_charucoBoard(self):
-        '''
+        """
         Method to obtain the camera intrinsic parameters to perform the aruco pose estimation
-
-        :return:
+        Args:
+        Returns:
             mtx: cameraMatrix Output 3x3 floating-point camera matrix
             dist: Output vector of distortion coefficient
             rvecs: Output vector of rotation vectors (see Rodrigues ) estimated for each board view
             tvecs: Output vector of translation vectors estimated for each pattern view.
-        '''
+        """
 
         aruco_dict = aruco.Dictionary_get(self.aruco_dict)
         board = aruco.CharucoBoard_create(7, 5, 1, .8, aruco_dict)
@@ -598,10 +619,10 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         return mtx, dist, rvecs, tvecs
 
     def real_time_poseEstimation(self):
-        '''
+        """
         Method that display real time detection of the aruco markers with the pose estimation and id of each
-        :return:
-        '''
+        Returns:
+        """
         cv2.namedWindow("Aruco")
         #frame = self.kinect.get_color()
         frame = self.kinect.get_color()#[270:900,640:1400]
@@ -615,9 +636,9 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             if ids is not None:
                 frame = aruco.drawDetectedMarkers(frame, corners, ids)
                 # side lenght of the marker in meter
-                rvecs, tvecs, trash = aruco.estimatePoseSingleMarkers(corners, self.size_of_marker, self.mtx, self.dist)
+                rvecs, tvecs, trash = aruco.estimatePoseSingleMarkers(corners, self._size_of_marker, self.mtx, self.dist)
                 for i in range(len(tvecs)):
-                    frame = aruco.drawAxis(frame, self.mtx, self.dist, rvecs[i], tvecs[i], self.length_of_axis)
+                    frame = aruco.drawAxis(frame, self.mtx, self.dist, rvecs[i], tvecs[i], self._length_of_axis)
 
             cv2.imshow("Aruco", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             #frame = self.kinect.get_color()
@@ -630,22 +651,22 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         cv2.destroyWindow("Aruco")
 
     def drawPoseEstimation(self, df, frame):
-        '''
+        """
         Method that draws over the frame the coordinate system of each aruco marker in relation to the camera space
-        :param
+        Args:
             df: data frame containing the information of the tranlation and rotation vectors previously detected
             frame: frame to draw the coordinate sytems
-        :return:
+        Returns:
             frame: with the resulting coordinate system
 
-        '''
+        """
         for i in range(len(df)):
             frame = aruco.drawAxis(frame,
                                self.mtx,
                                self.dist,
                                df.loc[i].Rotation_vector[0],
                                df.loc[i].Translation_vector[0],
-                               self.length_of_axis)
+                               self._length_of_axis)
         return frame.get()
 
     def p_arucoMarker(self):
@@ -654,7 +675,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         second one in the central part of the image.
         The id of the left-upper aruco is determined by the aruco position in the corner with resolution of 50
         The id in the center of the image is set to be 20 and resolution of 100
-        :return.
+        Returns:
             Frame as numpy array with the information of the aruco markers
         """
         width = self.calib.p_frame_width
@@ -681,7 +702,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     def move_image(self):
         """ Method to determine the distances between the aruco position in the corner of the sandbox in relation
         with the projected frame and the projected aruco marker.
-        :return:
+        Returns:
             p_frame_left: new value to update the calib.p_frame_left
             p_frame_top: new value to update the calib.p_frame_top
             p_frame_width: new value to update the calib.p_frame_width
@@ -732,7 +753,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
     def crop_image_aruco(self):
         """ Method that takes the location of the 4 real corners and crop the sensor extensions to this frame
-        :return:
+        Returns:
             s_top: new value to update the calib.s_top
             s_left: new value to update the calib.s_left
             s_bottom: new value to update the calib.s_bottom
@@ -747,3 +768,18 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         s_right = int(self.calib.s_width - id_DR.Depth_x)
 
         return s_top, s_left, s_bottom, s_right
+
+    def load_corners_ids(self):
+        """DEPRECATED"""
+        if self.calib.aruco_corners is not None:
+            self.aruco_corners = pd.read_json(self.calib.aruco_corners)
+            temp = self.aruco_corners.loc[numpy.argsort(self.aruco_corners.Color_x)[:2]]
+            self.corner_id_LU = int(temp.loc[temp.Color_y == temp.Color_y.min()].ids.values)
+            temp1 = self.aruco_corners.loc[numpy.argsort(self.aruco_corners.Color_x)[-2:]]
+            self.corner_id_DR = int(temp1.loc[temp1.Color_y == temp1.Color_y.max()].ids.values)
+            self.center_id = 20
+
+        # TODO: pixel distance from the frame corner so the aruco is always projected inside the sandbox
+        self.offset = 100
+        # TODO: move the image this amount of pixels so when moving the image is at this distance from the detected aruco
+        self.pixel_displacement = 10

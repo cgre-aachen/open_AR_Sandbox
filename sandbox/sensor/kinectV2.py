@@ -24,10 +24,6 @@ class KinectV2:
         self.color_height = 1080
         self.depth = None
         self.color = None
-        self.device = None
-        self.setup()
-
-    def setup(self):
         self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
                                                       PyKinectV2.FrameSourceTypes_Depth |
                                                       PyKinectV2.FrameSourceTypes_Infrared)

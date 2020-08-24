@@ -6,28 +6,21 @@ import random
 import seaborn as sns
 import panel as pn
 
-from sandbox.modules.module_main_thread import Module
+from .template import ModuleTemplate
 
 
-class SearchMethodsModule(Module):
+class SearchMethodsModule(ModuleTemplate):
     """
     Module for visualization of different search techniques based on gradients and
     #TODO: have deterministic and probabilistic search methods and later combine them
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, contours=True,
-                         cmap='gist_earth_r',
-                         over='k',
-                         under='k',
-                         contours_label=False,
-                         minor_contours=True,
-                         **kwargs)
+    def __init__(self, *args, extent, **kwargs):
 
         self.speed_alpha = 2
         self.tolerance = 1e-10
 
         self.xy = (100, 100)
-        self.method = 'None'
+
         self.show_frame = True
         self.search_active = False
         self.sleep = 0.4
@@ -40,7 +33,7 @@ class SearchMethodsModule(Module):
         self.mesh = None
         self.mesh_dx = None
         self.mesh_dy = None
-        self.ymax, self.xmax = (self.calib.s_frame_height, self.calib.s_frame_width)
+        self.ymax, self.xmax = (extent[3], extent[1])
         self.margins_crop = 20
         self.step_variance = 400
         self.init_search = (100, 100)
@@ -85,61 +78,55 @@ class SearchMethodsModule(Module):
                         'Adaptive HM step',
                         'Hamiltonian MC',
                         'Hamiltonian MC step']
+        self.method = 'None'
 
         self.histogram = pn.pane.Matplotlib(plt.figure(), tight=False)#, height=335)
         plt.close()
+        self.trigger = None
+        self.lock = None
 
         self._create_widgets()
+        return print("SearchMethodsModule loaded succesfully")
 
-    def setup(self):
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-            frame = self.clip_frame(frame)
 
-        # Create normalized mesh
-        self.update_mesh(frame, margins_crop=self.margins_crop, fill_value=0)
-
-        self.plot.render_frame(frame)
-        self.projector.frame.object = self.plot.figure
-        if self.ARUCO_ACTIVE:
-            self.plot.aruco_connect = False
-
-    def update(self):
-        # with self.lock:
+    def update(self, sb_params: dict):
+        self.frame = sb_params.get('frame')
+        self.lock = sb_params.get('lock_thread')
+        ax = sb_params.get('ax')
+        #extent=sb_params.get('extent')
+        same_frame = sb_params.get('same_frame')
+        self.trigger = sb_params.get('trigger')
         if self.activate_frame_capture:
-            frame = self.sensor.get_frame()
-            if self.crop:
-                frame = self.crop_frame(frame)
-                frame = self.clip_frame(frame)
-
-            equal = numpy.allclose(self.frame, frame, atol=5, rtol=1e-1, equal_nan=True)
-            if not equal:
-                self.update_mesh(frame, margins_crop=self.margins_crop, fill_value=0)
-
-            self.plot.render_frame(self.frame)
-
+            if not same_frame:
+                self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)#, extent=extent)
+            sb_params['freeze_frame'] = False
         else:
-            self.plot.render_frame(self.frame)
+            sb_params['freeze_frame'] = True
+        marker = sb_params.get('marker')
+        if len(marker) > 0:
+            self.xy_aruco = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
+        else:
+            self.xy_aruco=[]
 
-        # if aruco Module is specified: update, plot aruco markers
-        if self.ARUCO_ACTIVE:
-            self.update_aruco()
-            self.plot.plot_aruco(self.Aruco.aruco_markers)
-            self.xy_aruco = self._aruco_inside()
+        self.plot(ax)
 
+        return sb_params
+
+    def plot(self, ax):
+        self.remove_lines(ax)
         if self.active_gradient_descend:
             self.x_grad, self.y_grad = self.gradient_descent(self.xy_aruco, self.mesh, self.mesh_dx, self.mesh_dy, self.direction_search)
             for i in range(len(self.x_grad)):
-               self.plot.ax.plot(self.x_grad[i], self.y_grad[i], "r*-")
-               self.plot.ax.plot(self.x_grad[i][-1], self.y_grad[i][-1], "b*", markersize=20)
+                ax.plot(self.x_grad[i], self.y_grad[i], "r*-")
+                ax.plot(self.x_grad[i][-1], self.y_grad[i][-1], "b*", markersize=20)
 
         if self.search_active:
-            self.plot_search(self.method, self.xy)
+            self.plot_search(self.method, self.xy, ax)
 
-        self.projector.trigger() # triggers the update of the bokeh plot
+    def remove_lines(self, ax):
+        [lines.remove() for lines in reversed(ax.lines) if isinstance(lines, matplotlib.lines.Line2D)]
 
-    def create_mesh(self, frame, fill_value=numpy.nan, margins_crop = 0):
+    def create_mesh(self, frame, fill_value=numpy.nan, margins_crop: int = 0):
         """
         Create a mseh from the topography that can be evaluated in every point.
         Avoid conflicts between pixels(int) and floats
@@ -175,29 +162,27 @@ class SearchMethodsModule(Module):
 
         Returns:
         """
-        norm_frame = self.calib.s_max - frame
-        der_y, der_x = numpy.gradient(norm_frame)
+        der_y, der_x = numpy.gradient(frame)
         self.mesh_dx = self.create_mesh(der_x, margins_crop=margins_crop, fill_value=fill_value)
         self.mesh_dy = self.create_mesh(der_y, margins_crop=margins_crop, fill_value=fill_value)
 
-        norm_frame = 1.0 / numpy.sum(norm_frame) * norm_frame
-        self.mesh = self.create_mesh(norm_frame, margins_crop=margins_crop, fill_value=fill_value)
+        frame = 1.0 / numpy.sum(frame) * frame
+        self.mesh = self.create_mesh(frame, margins_crop=margins_crop, fill_value=fill_value)
 
-        hm_frame = - numpy.log(norm_frame)
+        hm_frame = (-1) * (numpy.log(frame))
         self.mesh_hm = self.create_mesh(hm_frame, margins_crop=margins_crop, fill_value=fill_value)
         der_y_hm, der_x_hm = numpy.gradient(hm_frame)
         self.mesh_dx_hm = self.create_mesh(der_x_hm, margins_crop=margins_crop, fill_value=fill_value)
         self.mesh_dy_hm = self.create_mesh(der_y_hm, margins_crop=margins_crop, fill_value=fill_value)
 
-        self.frame = frame
-        self.frame_norm = norm_frame
+        self.frame_norm = frame
         self.frame_hm = hm_frame
 
         return True
 
-    def plot_search(self, method, xy):
+    def plot_search(self, method, xy, ax):
         """
-        selected over the possible options a seacrh algorithm
+        selected over the possible options a search algorithm
         Args:
             mesh:
             method:
@@ -206,20 +191,24 @@ class SearchMethodsModule(Module):
         Returns:
 
         """
+        if self.plot_contour_xy:
+            ax.collections = [] #TODO: Improve this
+            ax = sns.kdeplot(self.x_list, self.y_list, ax=ax)
+            self.trigger()
+
         if self.plot_xy:
-            self.plot.ax.plot(self.x_list,
+            ax.plot(self.x_list,
                               self.y_list,
                               color = self.point_color,
                               marker = self.marker,
                               markersize = self.marker_size,
                               linestyle = self.linestyle)
-        if self.plot_contour_xy:
-            sns.kdeplot(self.x_list, self.y_list, ax=self.plot.ax)
-            self.plot.ax.get_xaxis().set_visible(False)
-            self.plot.ax.get_yaxis().set_visible(False)
-            self.plot.ax.set_xlim(0, self.calib.s_frame_width)
-            self.plot.ax.set_ylim(0, self.calib.s_frame_height)
-            self.plot.ax.set_axis_off()
+
+            #ax.get_xaxis().set_visible(False)
+            #ax.get_yaxis().set_visible(False)
+            #ax.set_xlim(0, self.calib.s_frame_width)
+            #self.plot.ax.set_ylim(0, self.calib.s_frame_height)
+            #self.plot.ax.set_axis_off()
 
         if method == self.options[1]:
             #self.activate_frame_capture = True
@@ -237,7 +226,7 @@ class SearchMethodsModule(Module):
                 else:
                     self.x, self.y = self.init_search
 
-            self.x, self.y = self.mcmc_random_step(self.mesh, self.x, self.y)
+            self.x, self.y = self.mcmc_random_step(self.mesh, self.x, self.y, ax)
 
         elif method == self.options[3]:
             #self.activate_frame_capture = True
@@ -255,7 +244,7 @@ class SearchMethodsModule(Module):
                 else:
                     self.x, self.y = self.init_search
 
-            self.x, self.y = self.mcmc_adaptiveMH_step(self.mesh, self.x, self.y)
+            self.x, self.y = self.mcmc_adaptiveMH_step(self.mesh, self.x, self.y, ax)
 
         elif method == self.options[5]:
             #self.activate_frame_capture = True
@@ -278,18 +267,11 @@ class SearchMethodsModule(Module):
                                                           self.mesh_dx_hm,
                                                           self.mesh_dy_hm,
                                                           self.x,
-                                                          self.y)
+                                                          self.y, ax)
         else:
             return False
 
         return True
-
-    def _aruco_inside(self):
-        df_position = self.Aruco.aruco_markers
-        xy = []
-        if len(df_position) > 0:
-            xy = df_position.loc[df_position.is_inside_box==True, ('box_x', 'box_y')].values
-        return xy
 
     def gradient_descent(self, xy, mesh, dx, dy, direction):
         x_sol = []
@@ -347,7 +329,7 @@ class SearchMethodsModule(Module):
 
         return ax, ay
 
-    def mcmc_random_step(self, mesh, x, y):
+    def mcmc_random_step(self, mesh, x, y, ax):
         x_1, y_1 = numpy.random.multivariate_normal(mean=[x, y],
                                                     cov=[[self.step_variance, 0],
                                                          [0, self.step_variance]])
@@ -363,15 +345,15 @@ class SearchMethodsModule(Module):
             #point = self.plot.ax.plot(x, y, "r.")
             circle1 = plt.Circle((x, y), numpy.sqrt(self.step_variance), fill=False, linewidth = 5)
             circle2 = plt.Circle((x, y), numpy.sqrt(self.step_variance)*2, fill=False, linewidth = 5)
-            self.plot.ax.add_artist(circle1)
-            self.plot.ax.add_artist(circle2)
-            arrow = self.plot.ax.arrow(x, y,
+            ax.add_artist(circle1)
+            ax.add_artist(circle2)
+            arrow = ax.arrow(x, y,
                                        (x_sample - x),
                                        (y_sample - y),
                                        length_includes_head=True,
                                        width=1,
                                        color="black")
-            self.projector.trigger()
+            self.trigger()
             plt.pause(self.sleep)
 
         if u < accept_prob:  #
@@ -380,12 +362,12 @@ class SearchMethodsModule(Module):
             # gren#
             if self.start_plotting:
                 arrow.set_color("green")
-                self.projector.trigger()
+                self.trigger()
                 plt.pause(self.sleep)
         else:
             if self.start_plotting:
                 arrow.set_color("red")
-                self.projector.trigger()
+                self.trigger()
                 plt.pause(self.sleep)
 
         if self.start_plotting:
@@ -482,7 +464,7 @@ class SearchMethodsModule(Module):
 
         return bx_sample, by_sample
 
-    def mcmc_adaptiveMH_step(self, mesh, x, y):
+    def mcmc_adaptiveMH_step(self, mesh, x, y, ax):
         a = 0.23  # resable accept_prob
         epil = 0.01
 
@@ -521,15 +503,15 @@ class SearchMethodsModule(Module):
                                                      2*numpy.sqrt(self.step_variance),
                                                      fill=False,
                                                      linewidth=5)
-                self.plot.ax.add_artist(ellipse1)
-                self.plot.ax.add_artist(ellipse2)
-                arrow = self.plot.ax.arrow(x, y,
+                ax.add_artist(ellipse1)
+                ax.add_artist(ellipse2)
+                arrow = ax.arrow(x, y,
                                            (x_sample - x),
                                            (y_sample - y),
                                            length_includes_head=True,
                                            width=1,
                                            color="black")
-                self.projector.trigger()
+                self.trigger()
                 plt.pause(self.sleep)
 
             if u < accept_prob:  #
@@ -540,12 +522,12 @@ class SearchMethodsModule(Module):
                 self.counter_total += 1
                 if self.start_plotting:
                     arrow.set_color("green")
-                    self.projector.trigger()
+                    self.trigger()
                     plt.pause(self.sleep)
             else:
                 if self.start_plotting:
                     arrow.set_color("red")
-                    self.projector.trigger()
+                    self.trigger()
                     plt.pause(self.sleep)
 
             self.counter_t += 1
@@ -632,7 +614,7 @@ class SearchMethodsModule(Module):
 
         return x_list, y_list
 
-    def mcmc_hamiltonianMC_step(self, mesh, dx_mesh, dy_mesh, x, y):
+    def mcmc_hamiltonianMC_step(self, mesh, dx_mesh, dy_mesh, x, y, ax):
         #for t in range(self.number_samples):
         # sample random momentum
         proposed_momentum_vector = numpy.random.multivariate_normal(mean=[0, 0],
@@ -661,8 +643,8 @@ class SearchMethodsModule(Module):
             x_temp.append(x_sample)
             y_temp.append(y_sample)
         # last half step
-        self.plot.ax.plot(x_temp, y_temp, "k*-")
-        self.projector.trigger()
+        ax.plot(x_temp, y_temp, "k*-")
+        self.trigger()
         plt.pause(self.sleep)
 
         x_sample, y_sample = numpy.array([x_sample, y_sample]) + self.leapfrog_step * momentum_vector
@@ -706,14 +688,14 @@ class SearchMethodsModule(Module):
 
         fig = plt.figure(figsize=(10, 10))
         ax_x = fig.add_subplot(121)
-        sns.distplot(self.x_list, bins=self.bins, ax=ax_x)
+        ax_x = sns.distplot(self.x_list, bins=self.bins, ax=ax_x)
         #ax_x.hist(self.x_list, bins=self.bins)
         #ax_x.plot(range(len(x)), x, "r--")
         ax_x.set_title('x_direction')
 
         ax_y = fig.add_subplot(122)
         #ax_y.hist((self.y_list), bins=self.bins)
-        sns.distplot(self.y_list, bins=self.bins, ax=ax_y)
+        ax_x = sns.distplot(self.y_list, bins=self.bins, ax=ax_y)
         #ax_y.plot(range(len(y)), y, "r--")
         ax_y.set_title('y direction')
 
@@ -753,7 +735,7 @@ class SearchMethodsModule(Module):
 
         tabs = pn.Tabs(('Controllers', row),
                        ("Histogram plot", histogram),
-                       ("Plot", self.widget_plot_module()))
+                       )
 
         return tabs
 
@@ -790,21 +772,22 @@ class SearchMethodsModule(Module):
         self._widget_activate_gradient_descend.param.watch(self._callback_active_gradient_descend, 'value',
                                                         onlychanged=False)
 
-        self._widget_refresh_frame = pn.widgets.Button(name="Manually refresh frame", button_type="success")
+        self._widget_refresh_frame = pn.widgets.Button(name="Manually refresh mesh", button_type="success")
         self._widget_refresh_frame.param.watch(self._callback_refresh_frame, 'clicks',
                                           onlychanged=False)
 
         self._widget_sleep = pn.widgets.FloatSlider(name='Step delay (seconds)',
                                                   value=self.sleep,
                                                   start=0.0,
-                                                  end=5.0)
+                                                  end=5.0,
+                                                    step=0.05)
         self._widget_sleep.param.watch(self._callback_sleep, 'value', onlychanged=False)
 
         self._widget_histogram_refresh = pn.widgets.Button(name="Manually refresh histogram", button_type="success")
         self._widget_histogram_refresh.param.watch(self._callbak_histogram_refresh, 'clicks',
                                                onlychanged=False)
 
-        self._widget_variance = pn.widgets.Spinner(name='Proposed Variance', value=self.step_variance)
+        self._widget_variance = pn.widgets.Spinner(name='Proposed Variance', value=self.step_variance, step =10)
         self._widget_variance.param.watch(self._callback_variance, 'value', onlychanged=False)
 
         self._widget_speed_gradient_descend = pn.widgets.FloatSlider(name='Speed convergence',
@@ -868,20 +851,22 @@ class SearchMethodsModule(Module):
     def _callback_active_gradient_descend(self, event): self.active_gradient_descend = event.new
 
     def _callback_refresh_frame(self, event):
-        self.pause()
-        frame = self.sensor.get_frame()
-        if self.crop:
-            frame = self.crop_frame(frame)
-            frame = self.clip_frame(frame)
-        self.update_mesh(frame, margins_crop=self.margins_crop, fill_value=0)
-        self.run()
+        self.lock.acquire()
+        #self.pause()
+        #frame = self.sensor.get_frame()
+        #if self.crop:
+        #    frame = self.crop_frame(frame)
+        #    frame = self.clip_frame(frame)
+        self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)
+        self.lock.release()
+        #self.run()
 
     def _callback_sleep(self, event): self.sleep = event.new
 
     def _callbak_histogram_refresh(self, event):
-        self.pause()
+        self.lock.acquire()
         self.histogram.object = self.hist_distribution()
-        self.run()
+        self.lock.acquire()
 
     def _callback_variance(self, event): self.step_variance = event.new
 

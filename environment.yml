@@ -1,0 +1,28 @@
+usage: conda-env [-h] {create,export,list,remove,update,config} ...
+
+positional arguments:
+  {create,export,list,remove,update,config}
+    create              Create an environment based on an environment file
+    export              Export a given environment
+    list                List the Conda environments
+    remove              Remove an environment
+    update              Update the current environment based on environment
+                        file
+    config              Configure a conda environment
+
+optional arguments:
+  -h, --help            Show this help message and exit.
+
+conda commands available from other packages:
+  build
+  convert
+  debug
+  develop
+  env
+  index
+  inspect
+  metapackage
+  render
+  server
+  skeleton
+  verify

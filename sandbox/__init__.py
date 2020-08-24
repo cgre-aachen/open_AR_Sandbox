@@ -2,24 +2,29 @@
 Module initialisation for sandbox
 Created on 15/04/2020
 
-@author: Daniel Escallon
+@authors: Daniel Escallon, Simon Virgo, Miguel de la Varga
 """
 # Main information for all the modules to work (calibration data, projector and sensor)
-from .calibration import *
+import os
 
-from .projector.projector import Projector
+#from . import projector, sensor, markers, calibration, modules
 
-from .sensor import *
+_test_data = {'topo': os.path.dirname(__file__) +
+                       '/../notebooks/tutorials/06_LoadSaveTopoModule/saved_DEMs/',
+              'landslide_topo': os.path.dirname(__file__) +
+                                '/../notebooks/tutorials/07_LandslideSimulation/saved_DEMs/',
+              'landslide_release': os.path.dirname(__file__) +
+                                   '/../notebooks/tutorials/07_LandslideSimulation/saved_ReleaseAreas/',
+              'landslide_simulation': os.path.dirname(__file__) +
+                                   '/../notebooks/tutorials/07_LandslideSimulation/simulation_data/',
+              'gempy_data': os.path.dirname(__file__) +
+                            '/../notebooks/tutorials/04_GempyModule/Example_Models/inputdata/',
+              'test': os.path.dirname(__file__) + '/../tests/test_data/'}
 
-# Optional functionality (aruco markers)
-from .markers.aruco import ArucoMarkers
+_calibration_dir = os.path.dirname(__file__) + '/../notebooks/calibration_files/'
 
-# To all the modules to work
-
-from .modules import *
-
-# or all can be sumarized with
-from .modules.sandbox_api import *
+#from .main_thread import MainThread
+from sandbox.sandbox_api import calibrate_projector, calibrate_sensor, start_server
 
 if __name__ == '__main__':
     pass

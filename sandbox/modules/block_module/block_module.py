@@ -3,9 +3,9 @@ import pickle
 import matplotlib
 import skimage
 import panel as pn
-from sandbox.modules.module_main_thread import Module
+from sandbox.modules.template import ModuleTemplate
 
-class BlockModule(Module):
+class BlockModule(ModuleTemplate):
     # child class of Model
 
     def __init__(self, calibrationdata, sensor, projector, crop=True, **kwarg):
