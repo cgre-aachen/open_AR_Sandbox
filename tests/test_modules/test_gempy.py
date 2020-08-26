@@ -336,3 +336,7 @@ def test_widgets_with_arucos():
     widgets = module.show_widgets()
     widgets.show()
 
+def test_gempy_imshow_plotting():
+    geo_model = create_example_model(name='Anticline')
+    gp.compute_model(geo_model)
+    gp.plot_2d(geo_model)
