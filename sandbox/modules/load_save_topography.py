@@ -73,6 +73,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         #Stores the axes
         self._lod = None
         #self._dif = None
+        self.frame = None
         return print("LoadSaveTopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
@@ -257,7 +258,7 @@ class LoadSaveTopoModule(ModuleTemplate):
             #                                             :shape_frame[1]])
             self.loaded = self.absolute_topo[:shape_frame[0], :shape_frame[1]]
             #if self._lod is None:
-            self._lod = ax.imshow(self.loaded, cmap='gist_earth_r', origin="lower left", #TODO: data is inverted, need to fix this for all the landsladides topography data
+            self._lod = ax.imshow(self.loaded, cmap='gist_earth', origin="lower left", #TODO: data is inverted, need to fix this for all the landsladides topography data
                                       zorder=2, extent=self.to_box_extent, aspect="auto")
             #else:
              #   self._lod.set_array(self.loaded[:-1,:-1].ravel())

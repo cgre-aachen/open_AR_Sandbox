@@ -116,5 +116,8 @@ tests/test_data/temp/*.png
 tests/test_data/temp/*.pkl
 tests/test_data/temp/*.pdf
 
+notebooks/tutorials/09_landscapeGeneration/results/train_1k/
+notebooks/tutorials/09_landscapeGeneration/checkpoints/train_1k/
+
 
 grids_do_not_push/
