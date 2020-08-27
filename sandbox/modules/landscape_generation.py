@@ -33,11 +33,15 @@ class LandscapeGeneration(ModuleTemplate):
             self.image_landscape(ax)
 
     def remove_image(self):
+        """For each frame we need to clear the loaded image so if we change position size or the image
+        itself then it will display the most actual one without occupying memory """
         if self._img is not None:
             self._img.remove()
             self._img = None
 
     def get_image_modify(self):
+        """From the LoadSaveTopoModule acquire the dem. If a frame have not been yet loaded then capture a new frame.
+        at today 27/08/2020 the image must be doubled for the method to work"""
         if self.LoadArea.absolute_topo is None:
             self.DEM, _ = self.LoadArea.extractTopo()
         else:
@@ -49,6 +53,16 @@ class LandscapeGeneration(ModuleTemplate):
     def save_image(self, image: numpy.ndarray = None,
                    name: str = 'landscape_image.png',
                    pathname: str = _test_data['landscape_generation']+'saved_DEMs/test/'):
+        """
+        Takes the image and saves it as a .png 'image' in the 'patchname' folder with 'name' as name
+        Args:
+            image: Takes a numpy array to be saved as an image. If none then it gets a new image from self.get_image_modify
+            name: name of the image. Must include the .png extension
+            pathname: location of the image to be saved
+
+        Returns:
+            the figure that will be saved
+        """
         if image is None:
             image = self.get_image_modify()
         self.lock.acquire()
@@ -65,9 +79,21 @@ class LandscapeGeneration(ModuleTemplate):
     def run_cmd(self,
                 package_dir: str,
                 dataroot_dir: str = _test_data['landscape_generation']+'saved_DEMs/',
-                checkpoints_dir:str = _test_data['landscape_generation']+'checkpoints/',
+                checkpoints_dir: str = _test_data['landscape_generation']+'checkpoints/',
                 results_dir: str = _test_data['landscape_generation']+'results/',
-                ):
+                cmd_string=None):
+        """
+        Construct the string that will be run in the command line command.
+        Args:
+            package_dir: The location of the pytorch-CycleGAN-and-pix2pix folder
+            dataroot_dir: The location of the image
+            checkpoints_dir: The location of the trained model
+            results_dir: The location where the results will be saved
+            cmd_string: If not None then it will run this string instead of the previous arguments
+
+        Returns:
+
+        """
 
         to_string = 'python'+' '+os.path.abspath(package_dir)+'/test.py'+' '+\
                     '--dataroot'+' '+os.path.abspath(dataroot_dir)+' '+\
@@ -76,13 +102,26 @@ class LandscapeGeneration(ModuleTemplate):
                     '--name train_1k --model pix2pix --gpu_ids -1 --direction AtoB'
 
         os.popen('call activate sandbox')
-
-        os.popen(to_string)
+        if cmd_string is None:
+            os.popen(to_string)
+        else:
+            os.popen(cmd_string)
 
         print('Landscape generated')
         return to_string
 
-    def read_result(self, name: str = 'landscape_image.png', result_dir: str = _test_data['landscape_generation']+'results\\train_1k\\test_latest\\images'):
+    def read_result(self, name: str = 'landscape_image.png',
+                    result_dir: str = _test_data['landscape_generation']+'results\\train_1k\\test_latest\\images'):
+        """
+        Read the result image from the self.run_cmd(*args) function. It reads the results from the
+        'result_dir' that have name 'name'. Be sure to include the .png extension
+        Args:
+            name: name of image input (.png)
+            result_dir: folder of results
+
+        Returns:
+
+        """
         if os.path.isdir(os.path.abspath(result_dir)):
             try:
                 self.img = plt.imread(os.path.abspath(result_dir) +'\\'+ name[:-4]+"_fake_B.png")
@@ -93,13 +132,22 @@ class LandscapeGeneration(ModuleTemplate):
             print("No image found in %dir", result_dir)
 
     def image_landscape(self, ax):
-        if self.img is not None:
+        """
+        Show the loaded image in the sandbox
+        Args:
+            ax: axes of the sandbox
+
+        Returns:
+
+        """
+
+        if self.DEM is not None:
             if self._img is None:
                 self._img = ax.imshow(self.img, aspect='auto', extent=self.LoadArea.to_box_extent) #origin='lower left',
             else:
                 self._img.set_data(self.img)
         else:
-            print("No image to show")
+            print("No DEM image to show")
 
 
     def show_widgets(self):
