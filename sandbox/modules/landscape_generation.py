@@ -1,4 +1,5 @@
 import os
+import time
 import matplotlib.pyplot as plt
 import numpy
 import traceback
@@ -10,7 +11,7 @@ class LandscapeGeneration(ModuleTemplate):
     """Class to generate landscapes using DEMs from the sandbox and a pre-trained model with the
     pytorch-CycleGAN-and-pix2pix library"""
 
-    def __init__(self, extent: list = None):
+    def __init__(self, extent: list = None, package_dir: str = None):
         self.depth_image = None
         self.LoadArea = LoadSaveTopoModule(extent=extent)
         self.show_landscape = False
@@ -18,11 +19,21 @@ class LandscapeGeneration(ModuleTemplate):
         self.DEM = None
         self._img = None
         self.lock = None
+        self.last_modified = None
+        self.package_dir = package_dir
+        self.live_update = True
+        #DEM = self.get_image_modify()
+        #fig = self.save_image(DEM)
+        #self.run_cmd(self.package_dir)
 
     def update(self, sb_params: dict):
         sb_params = self.LoadArea.update(sb_params)
         ax = sb_params.get('ax')
         self.lock = sb_params.get('lock_thread')
+        change = sb_params.get('same_frame')
+        #TODO: Include live update of the image
+        #if not change and self.live_update:
+        #    self.update_model()
         self.plot(ax)
 
         return sb_params
@@ -31,6 +42,22 @@ class LandscapeGeneration(ModuleTemplate):
         self.remove_image()
         if self.show_landscape:
             self.image_landscape(ax)
+
+    def update_model(self):
+        result_file = _test_data['landscape_generation'] + 'results\\train_1k\\test_latest\\images\\landscape_image_fake_B.png'
+        DEM = self.get_image_modify()
+        fig = self.save_image(DEM)
+        self.run_cmd(self.package_dir)
+        if self.last_modified is None:
+            self.read_result()
+        if self.last_modified != time.ctime(os.path.getmtime(result_file)):
+            self.read_result()
+        self.last_modified = time.ctime(os.path.getmtime(result_file))
+
+        return print("model updated")
+
+    def set_package_dir(self, package_dir):
+        self.package_dir = package_dir
 
     def remove_image(self):
         """For each frame we need to clear the loaded image so if we change position size or the image
@@ -77,7 +104,7 @@ class LandscapeGeneration(ModuleTemplate):
         return fig
 
     def run_cmd(self,
-                package_dir: str,
+                package_dir: str = None,
                 dataroot_dir: str = _test_data['landscape_generation']+'saved_DEMs/',
                 checkpoints_dir: str = _test_data['landscape_generation']+'checkpoints/',
                 results_dir: str = _test_data['landscape_generation']+'results/',
@@ -94,6 +121,8 @@ class LandscapeGeneration(ModuleTemplate):
         Returns:
 
         """
+        if package_dir is None:
+            package_dir = self.package_dir
 
         to_string = 'python'+' '+os.path.abspath(package_dir)+'/test.py'+' '+\
                     '--dataroot'+' '+os.path.abspath(dataroot_dir)+' '+\
@@ -124,12 +153,15 @@ class LandscapeGeneration(ModuleTemplate):
         """
         if os.path.isdir(os.path.abspath(result_dir)):
             try:
-                self.img = plt.imread(os.path.abspath(result_dir) +'\\'+ name[:-4]+"_fake_B.png")
+                file = os.path.abspath(result_dir) +'\\'+ name[:-4]+"_fake_B.png"
+                self.img = plt.imread(file)
+                if self.last_modified is None:
+                    self.last_modified = time.ctime(os.path.getmtime(file))
                 print('Image loaded succesfully')
             except Exception:
                 traceback.print_exc()
         else:
-            print("No image found in %dir", result_dir)
+            print("No image found in %s" %result_dir)
 
     def image_landscape(self, ax):
         """
