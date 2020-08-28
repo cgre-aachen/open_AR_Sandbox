@@ -1,7 +1,6 @@
 import os
 import gempy as gp
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
-from sandbox import _test_data
 all_models = ['Horizontal_layers', 'Recumbent_fold', 'Anticline',
                   'Pinchout', 'Fault', 'Unconformity']
 data_path = 'https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/'
@@ -19,10 +18,8 @@ def create_model_dict(model_name: list = all_models, **kwargs):
     return model_dict
 
 
-
-
-def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=False,
-                         change_color=False, data_path=path_to_data, resolution= [50, 50, 50],
+def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1500], do_sections=False,
+                         change_color=False, data_path=path_to_data, resolution= [2, 2, 2],
                          theano_optimizer='fast_compile'):
                          #_test_data['gempy_data'], theano_optimizer='fast_compile'):
     """

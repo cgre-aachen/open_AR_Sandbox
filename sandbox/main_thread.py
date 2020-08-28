@@ -130,7 +130,6 @@ class MainThread:
 
         self.sb_params['marker'] = df
 
-        #TODO: Use the modules in a big try and except?
         try:
             self.lock.acquire()
             for key in list(self.modules.keys()): #reversed so the contourlines and cmap that were added first, get painted at last
