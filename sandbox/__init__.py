@@ -22,7 +22,7 @@ _test_data = {'topo': os.path.dirname(__file__) +
               'test': os.path.dirname(__file__) + '/../tests/test_data/'}
 
 _calibration_dir = os.path.dirname(__file__) + '/../notebooks/calibration_files/'
-
+_package_dir = os.path.dirname(__file__)
 #from .main_thread import MainThread
 from sandbox.sandbox_api import calibrate_projector, calibrate_sensor, start_server
 
