@@ -10,8 +10,10 @@ Open Ubuntu app in Windows and run:
 
 3). checkout for latest commit 
 
+git fetch origin
 git checkout seismic
 git pull 
+git lfs pull
 
 3). open notebook 
 
