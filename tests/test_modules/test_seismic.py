@@ -3,6 +3,9 @@ from sandbox.modules import SeismicModule
 import matplotlib.pyplot as plt
 import pytest
 import numpy as np
+import pandas as pd
+
+df = pd.read_pickle(_test_data['test']+"arucos.pkl")
 file = np.load(_test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 frame = frame + np.abs(np.amin(frame))
@@ -15,7 +18,7 @@ pytest.sb_params = {'frame': frame,
                     'ax': ax,
                     'fig': fig,
                     'extent': extent,
-                    'marker': [],
+                    'marker': df,
                     'cmap': plt.cm.get_cmap('viridis'),
                     'norm': None,
                     'active_cmap': True,
@@ -98,6 +101,8 @@ def test_inject_source():
     seis.inject_source(src0)
     seis.inject_source(src1)
 
+    seis.plot_velocity(seis.model, source=seis.src, receiver=seis.rec)
+
 def test_operator():
     seis = SeismicModule(devito_dir=devito_dir)
     seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
@@ -114,15 +119,15 @@ def test_receivers():
     seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
     seis.create_time_axis(t0=0, tn=1000)
     seis.create_time_function()
-    seis.create_receivers(name='rec', n_receivers=100, depth_receivers=200, show_receivers=True )
+    rec = seis.create_receivers(name='rec', n_receivers=100, depth_receivers=200, show_receivers=True )
 
 def test_interpolate_receivers():
     seis = SeismicModule(devito_dir=devito_dir)
     seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
     seis.create_time_axis(t0=0, tn=1000)
     seis.create_time_function()
-    seis.create_receivers(name='rec', n_receivers=100, depth_receivers=200, show_receivers=True)
-    seis.interpolate_receiver()
+    rec=seis.create_receivers(name='rec', n_receivers=100, depth_receivers=200, show_receivers=True)
+    seis.interpolate_receiver(rec)
 
 def test_operator_receiver():
     seis = SeismicModule(devito_dir=devito_dir)
@@ -131,77 +136,102 @@ def test_operator_receiver():
     seis.create_time_function()
     seis.solve_PDE()
 
-    seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
-    seis.interpolate_receiver()
+    rec=seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
+    seis.interpolate_receiver(rec)
 
     src = seis.create_source(name="src", f0=0.025, source_coordinates=None, show_wavelet=False, show_model=False)
     seis.inject_source(src)
     seis.operator_and_solve()
 
-    seis.plot_velocity(seis.model, source=seis.src.coordinates.data,
-              receiver=seis.rec.coordinates.data[::4, :])
+    seis.plot_velocity(seis.model, source=src.coordinates.data,
+              receiver=rec.coordinates.data[::4, :])
 
 def test_plot_shot_record():
     seis = SeismicModule(devito_dir=devito_dir)
-    #seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
-    seis.create_velocity_model(None, norm=False, smooth=False, show_velocity=True)
+    seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
+    #seis.create_velocity_model(None, norm=False, smooth=False, show_velocity=True)
     seis.create_time_axis(t0=0, tn=1000)
     seis.create_time_function()
     seis.solve_PDE()
 
-    seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
-    seis.interpolate_receiver()
+    rec = seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
+    seis.interpolate_receiver(rec)
 
     src = seis.create_source(name="src", f0=0.01, source_coordinates=(500,20), show_wavelet=False, show_model=False)
     seis.inject_source(src)
     seis.operator_and_solve()
-    seis.plot_shotrecord(seis.rec.data, seis.model, 0, 1000)
+    seis.plot_shotrecord(rec.data, seis.model, 0, 1000)
 
 def test_plot_wavefield():
     seis = SeismicModule(devito_dir=devito_dir)
-    # seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, show_velocity=False)
-    seis.create_velocity_model(None, norm=False, smooth=False, show_velocity=False)
+    seis.create_velocity_model(frame, vmax=5, vmin=2, sigma_x=5, sigma_y=5, nbl=40, show_velocity=False)
+    #seis.create_velocity_model(None, norm=False, smooth=False, show_velocity=False)
     seis.create_time_axis(t0=0, tn=1000)
     seis.create_time_function()
     seis.solve_PDE()
 
-    seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
-    seis.interpolate_receiver()
+    rec=seis.create_receivers(name='rec', n_receivers=100, depth_receivers=20, show_receivers=False)
+    seis.interpolate_receiver(rec)
 
-    src = seis.create_source(name="src", f0=0.01, source_coordinates=(500, 20), show_wavelet=False, show_model=False)
+    src = seis.create_source(name="src", f0=0.025, source_coordinates=(500, 400), show_wavelet=False, show_model=False)
+    src1 = seis.create_source(name="src1", f0=0.025, source_coordinates=(800, 800), show_wavelet=False, show_model=False)
     seis.inject_source(src)
+    seis.inject_source(src1)
     seis.operator_and_solve()
 
-    seis.plot_velocity(seis.model, source=seis.src.coordinates.data,
-                       receiver=seis.rec.coordinates.data)
+    seis.plot_velocity(seis.model, source=seis.src_coordinates,
+                       receiver=rec.coordinates.data)
+    seis.plot_wavefield(timeslice=10)
+    seis.plot_wavefield(timeslice=50)
+    seis.plot_wavefield(timeslice=100)
+    seis.plot_wavefield(timeslice=200)
+    seis.plot_wavefield(timeslice=300)
+    seis.plot_wavefield(timeslice=400)
 
-    extent = [seis.model.origin[0], seis.model.origin[0] + 1e-3 * seis.model.shape[0] * seis.model.spacing[0],
-              seis.model.origin[1] + 1e-3 * seis.model.shape[1] * seis.model.spacing[1], seis.model.origin[1]]
-    data_param = dict(vmin=-1e0, vmax=1e0, cmap=plt.get_cmap('Greys'), aspect=1, interpolation='none', extent=extent)
-    model_param = dict(vmin=1.5, vmax=2.5, cmap=plt.get_cmap('GnBu'), aspect=1, extent=extent, alpha=.3)
-    time_slice = 0
-    thrshld = 0.01
-    wf_data = seis.wavefield
-    wf_data_normalize = wf_data / np.amax(wf_data)
-    n_frames = 50
-    framerate = np.int(np.ceil(wf_data.shape[0] / n_frames))
-    waves = wf_data_normalize[0::framerate, :, :]
-    waves = waves[5, :, :]
-    waves = np.ma.masked_where(np.abs(waves) <= thrshld, waves)
+    seis.plot_wavefield(timeslice=5000)
 
-    plt.imshow(waves, **data_param)
-    plt.imshow(seis.vp.T, **model_param)
+def test_init_all_velocity_model():
+    seis = SeismicModule(devito_dir=devito_dir)
+    file = np.load(_test_data['test'] + "frame1.npz")
+    frame = seis.crop_frame(origin=(20,20), width=200, height=180, frame=file['arr_0'])
+    seis.init_model(vmin=2, vmax=4, frame=np.transpose(frame))
+    plt.imshow(frame, origin="lower left", cmap ="gist_earth")
     plt.show()
+    seis.plot_velocity(seis.model)
 
-    plt.imshow(seis.wavefield[5,:,:].T, **data_param)
-    plt.imshow(seis.vp.T, **model_param)
-    plt.show()
+def test_insert_aruco_source():
+    seis = SeismicModule(devito_dir=devito_dir)
+    file = np.load(_test_data['test'] + "frame1.npz")
+    frame = seis.crop_frame(origin=(10, 10), width=230, height=180, frame=file['arr_0'])
+    seis.init_model(vmin=2, vmax=4, frame=np.transpose(frame))
 
-    plt.imshow(seis.wavefield[200, :, :].T, **data_param)
-    plt.imshow(seis.vp.T, **model_param)
-    plt.show()
+    marker = pytest.sb_params['marker']
+    seis.xy_aruco=marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
+    seis.insert_aruco_source()
 
-    plt.imshow(seis.wavefield[400, :, :].T, **data_param)
-    plt.imshow(seis.vp.T, **model_param)
-    plt.show()
+    seis.plot_velocity(seis.model, source=seis.src_coordinates)
+    print(seis.src_coordinates)
 
+def test_run_aruco_source():
+    seis = SeismicModule(devito_dir=devito_dir)
+    file = np.load(_test_data['test'] + "frame1.npz")
+    frame = seis.crop_frame(origin=(10, 10), width=230, height=180, frame=file['arr_0'])
+    seis.init_model(vmin=2, vmax=4, frame=np.transpose(frame), nbl=40)
+
+    marker = pytest.sb_params['marker']
+    seis.xy_aruco=marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
+    seis.insert_aruco_source()
+
+    seis.plot_velocity(seis.model, source=seis.src_coordinates)
+    print(seis.src_coordinates)
+    seis.operator_and_solve()
+
+    seis.plot_velocity(seis.model, source=seis.src_coordinates)
+    seis.plot_wavefield(timeslice=10)
+    seis.plot_wavefield(timeslice=50)
+    seis.plot_wavefield(timeslice=100)
+    seis.plot_wavefield(timeslice=200)
+    seis.plot_wavefield(timeslice=300)
+    seis.plot_wavefield(timeslice=400)
+
+    seis.plot_wavefield(timeslice=5000)
