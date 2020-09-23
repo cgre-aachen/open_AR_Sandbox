@@ -1,10 +1,18 @@
+#from sandbox import _
 import numpy
+import sys
+import platform
+_platform = platform.system()
 
 try:
-    from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
-    from pykinect2 import PyKinectRuntime
+    if _platform =='Windows':
+        from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
+        from pykinect2 import PyKinectRuntime
+    elif _platform =='Linux':
+        import pylibfreenect2
 except ImportError:
     print('pykinect2 module not found, KinectV2 will not work.')
+
 
 
 class KinectV2:

@@ -5,5 +5,4 @@ panel
 scipy
 scikit-image
 opencv-contrib-python
-pykinect2
 pytest

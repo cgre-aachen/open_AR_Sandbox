@@ -46,3 +46,8 @@ def test_get_frame():
     print(sensor.get_frame())
     plt.pcolormesh(sensor.depth, cmap = 'viridis', origin="lower left")
     plt.show()
+
+def test_linux():
+    import platform
+    print(platform.system())
+    import pylibfreenect2
