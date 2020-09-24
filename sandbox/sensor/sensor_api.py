@@ -6,7 +6,7 @@ from warnings import warn
 import json
 
 from .kinectV1 import KinectV1
-from .kinectV2 import KinectV2
+from .kinectV2 import KinectV2, _platform
 from .dummy import DummySensor
 
 
@@ -64,7 +64,10 @@ class Sensor:
                 raise ImportError('Kinect v1 dependencies are not installed')
         elif name == 'kinect_v2':
             try:
-                import pykinect2
+                if _platform == 'Windows':
+                    import pykinect2
+                elif _platform == 'Linux':
+                    import pylibfreenect2
                 self.Sensor = KinectV2()
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')
