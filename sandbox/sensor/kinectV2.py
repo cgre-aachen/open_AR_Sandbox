@@ -10,19 +10,20 @@ try:
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform =='Linux':
-        from pylibfreenect2 import Freenect2, SyncMultiFrameListener
-        from pylibfreenect2 import FrameMap, FrameType, Registration, Frame
-        try:
-            from pylibfreenect2 import OpenGLPacketPipeline
-            pipeline = OpenGLPacketPipeline()
-        except:
-            try:
-                from pylibfreenect2 import OpenCLPacketPipeline
-                pipeline = OpenCLPacketPipeline()
-            except:
-                from pylibfreenect2 import CpuPacketPipeline
-                pipeline = CpuPacketPipeline()
-        print("Packet pipeline:", type(pipeline).__name__)
+        #from pylibfreenect2 import Freenect2, SyncMultiFrameListener
+        #from pylibfreenect2 import FrameMap, FrameType, Registration, Frame
+        #try:
+        #    from pylibfreenect2 import OpenGLPacketPipeline
+        #    pipeline = OpenGLPacketPipeline()
+        #except:
+        #    try:
+        #        from pylibfreenect2 import OpenCLPacketPipeline
+        #        pipeline = OpenCLPacketPipeline()
+        #    except:
+        #        from pylibfreenect2 import CpuPacketPipeline
+        #        pipeline = CpuPacketPipeline()
+        #print("Packet pipeline:", type(pipeline).__name__)
+        from freenect2 import Device, FrameType
 except ImportError:
     print('dependencies not found for KinectV2 to work. Check installation and try again')
 
@@ -47,10 +48,8 @@ class KinectV2:
         self.color = None
         self._init_device()
 
-        #self.depth = self.get_frame()
-        #self.color = self.get_color()
-        # self.ir_frame_raw = self.get_ir_frame_raw()
-        # self.ir_frame = self.get_ir_frame()
+        self.depth = self.get_frame()
+        self.color = self.get_color()
         print("KinectV2 initialized.")
 
     def _init_device(self):
@@ -59,47 +58,7 @@ class KinectV2:
                                                       PyKinectV2.FrameSourceTypes_Depth |
                                                       PyKinectV2.FrameSourceTypes_Infrared)
         elif _platform == 'Linux':
-            fn = Freenect2()
-            num_devices = fn.enumerateDevices()
-            assert num_devices > 0
-
-            serial = fn.getDeviceSerialNumber(0)
-            self.device = fn.openDevice(serial, pipeline=pipeline)
-
-            self.listener = SyncMultiFrameListener(
-                FrameType.Color | FrameType.Ir | FrameType.Depth)
-
-            # Register listeners
-            self.device.setColorFrameListener(self.listener)
-            self.device.setIrAndDepthFrameListener(self.listener)
-
-            #self.device.startStreams(rgb=True, depth=True)
-            self.device.start()
-            self.registration = Registration(self.device.getIrCameraParams(), self.device.getColorCameraParams())
-
-            self.undistorted = Frame(512, 424, 4)
-            self.registered = Frame(512, 424, 4)
-
-            #frames = FrameMap()
-            frames = self.listener.waitForNewFrame()
-
-            color = frames[FrameType.Color]
-            ir = frames[FrameType.Ir]
-            depth = frames[FrameType.Depth]
-
-            self.registration.apply(color, depth, self.undistorted, self.registered)
-            self.registration.undistortDepth(depth, self.undistorted)
-            self.listener.release(frames)
-            #assert color.asarray().shape == (1080, 1920)
-            #assert color.bytes_per_pixel == 4
-
-            #assert ir.asarray().shape == (self.depth_height, self.depth_width)
-            #assert ir.bytes_per_pixel == 4
-
-            #assert depth.asarray().shape == (self.depth_height, self.depth_width)
-            #assert depth.bytes_per_pixel == 4
-            #self.listener.release(frames)
-
+           self.device = Device()
         else:
             print(_platform)
             raise NotImplementedError
@@ -113,31 +72,34 @@ class KinectV2:
         Returns:
 
         """
-        #frames = FrameMap()
-        frames = self.listener.waitForNewFrame()#milliseconds=10000)
-        #if frames:
-        color = frames[FrameType.Color].asarray()
-        ir = frames[FrameType.Ir].asarray()
-        depth = frames[FrameType.Depth].asarray()
-        self.listener.release(frames)
-        #else:
-         #   raise ValueError
+        frames = {}
+        with self.device.running():
+            for type_, frame in self.device:
+                frames[type_] = frame
+                if FrameType.Color in frames and FrameType.Depth in frames and FrameType.Ir in frames:
+                    break
         if typ == 'depth':
+            depth = frames[FrameType.Depth].to_array()
             return depth
         elif typ == 'ir':
+            ir = frames[FrameType.Ir].to_array()
             return ir
         elif typ == 'color':
+            color = frames[FrameType.Color].to_array()
             resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2
             palette = numpy.reshape(color, (resolution_camera, 4))[:, [2, 1, 0]]
             position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (self.color_height, self.color_width))
             color = palette[position_palette]
             return color
         else:
+            color = frames[FrameType.Color].to_array()
             resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2
             palette = numpy.reshape(color, (resolution_camera, 4))[:, [2, 1, 0]]
             position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (self.color_height, self.color_width))
             color = palette[position_palette]
-            return color, depth.asarray(), ir.asarray()
+            depth = frames[FrameType.Depth].to_array()
+            ir = frames[FrameType.Ir].to_array()
+            return color, depth, ir
 
     def get_frame(self):
         """

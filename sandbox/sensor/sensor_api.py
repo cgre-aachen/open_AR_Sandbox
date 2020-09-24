@@ -67,7 +67,7 @@ class Sensor:
                 if _platform == 'Windows':
                     import pykinect2
                 elif _platform == 'Linux':
-                    import pylibfreenect2
+                    import freenect2
                 self.Sensor = KinectV2()
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')

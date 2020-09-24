@@ -154,11 +154,11 @@ To make open_AR_Sandbox talk to the first generation kinect you will need the
 The installation is kind of straight forward for Linux and MacOS but 
 challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
 
-#### Kinect v2 - pylibfreenect2
+#### Kinect v2 - freenect2
 For this we are going to use a python interface for the library [libfreenect2](https://github.com/OpenKinect/libfreenect2)
-called [pylibfreenect2](https://github.com/r9y9/pylibfreenect2). 
-* First we need to install the [libfreenect2](https://github.com/OpenKinect/libfreenect2) as described in the installation guide. 
-The steps can be summarized as follows (refer to any problems regarding installation in to [link](https://github.com/OpenKinect/libfreenect2))
+called [freenect2](https://github.com/rjw57/freenect2-python). 
+* First we need to install the [freenect2](https://github.com/rjw57/freenect2-python) as described in the installation guide. 
+The steps can be summarized as follows (refer to any problems regarding installation in to [link](https://rjw57.github.io/freenect2-python/))
 ```
 git clone https://github.com/OpenKinect/libfreenect2.git
 cd libfreenect2
@@ -186,21 +186,19 @@ installation guide for more detailed instructions of installation
 * If everything is working until now, we can install the python wrapper. For this first we need to indicate where the `freenect2` folder can be found.
 ```
 export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
-export LIBFREENECT2_INSTALL_PREFIX=$HOME/freenect2
-export LD_LIBRARY_PATH=$HOME/freenect2/lib:/usr/lib:/lib
 ```
 NOTE: if you installed the `freenect2` in other location, specify variables with the corresponding path
-* now we can use `pip install` , or any other method described in the [pylibfreenect2](http://r9y9.github.io/pylibfreenect2/stable/installation.html) 
+* now we can use `pip install` , or any other method described in the [freenect2](https://github.com/rjw57/freenect2-python) 
 installation guide. 
 ```
-pip install pylibfreenect2
+pip install freenect2
 ```
 IMPORTANT: To this point will work in any python that starts with the terminal. Nevertheless, if we start python from another source, the error 
 `ImportError: libfreenect2.so.0.2: cannot open shared object file: No such file or directory` will appear every time we import the package. To fix this problem we will need
 to export the variables again or if you want a more permanent solution, open the `.bashrc` file and paste the following at the end of the file:
 ```
-# set PATH to pylibfreenect2 to be imported in python
-export LD_LIBRARY_PATH=$HOME/freenect2/lib:/usr/lib:/lib
+# set PATH to freenect2 to be imported in python
+export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 ```
 * With this it will always work for any python open from the terminal. Including jupyter notebooks
 * But now if we want to run this package in Pycharm or symilar, we can directly copy the 3 files (`libfreenect2.2.s0...`) from the `freenect2/lib` folder into the 
