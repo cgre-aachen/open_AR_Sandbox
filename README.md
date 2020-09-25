@@ -121,9 +121,9 @@ You can also have a local installation of the sandbox by using the File "setup.p
 
 `pip install -e . `
 
-###Kinect Installation 
+### Kinect Installation 
  
-###For Windows
+### For Windows
 
 #### Kinect v1 - Future
 
