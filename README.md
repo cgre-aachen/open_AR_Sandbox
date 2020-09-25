@@ -90,8 +90,21 @@ More details on how to set up the kinect and projector can be found in the `cali
 
 Installation 
 -----
-First of all you will need a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed installation instructions.
+First of all you will need a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed installation instructions.\
+Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
+1. First clone the repository:
+```
+git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
+```
+2. Create a new anaconda environment
+```
+conda create -n sandbox-env python=3.7
+```
+3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the environment before starting anything
+```
+conda activate sandbox-env
+```
 ### Standard packages
 
 The standard packages 
@@ -102,11 +115,7 @@ The standard packages
 
 or simply use our `requirements.txt file`
 
-```pip install requirements.txt file```
-
-
-
-Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
+```pip install -r requirements.txt file```
 
 You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
@@ -145,6 +154,7 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
 
 ### For Linux
+!!!Not stable!!!
 
 #### Kinect v1 - libfreenect
 
@@ -155,6 +165,7 @@ The installation is kind of straight forward for Linux and MacOS but
 challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
 
 #### Kinect v2 - freenect2
+or pylibfreenect2 \
 For this we are going to use a python interface for the library [libfreenect2](https://github.com/OpenKinect/libfreenect2)
 called [freenect2](https://github.com/rjw57/freenect2-python). 
 * First we need to install the [freenect2](https://github.com/rjw57/freenect2-python) as described in the installation guide. 
@@ -205,7 +216,7 @@ export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 `lib` folder of your environment. Ej:
  * if you are using an anaconda environment, open the folder:
 ```
-<your_path>/Anaconda3/envs/<sandbox-environment>/lib
+<your_path>/Anaconda3/envs/<sandbox-env>/lib
 ```
 * And in this folder paste the previous copied files (3 files!!!). Keep in mind that you need to 
 replace the <...> with your specific path.
@@ -222,6 +233,22 @@ To clone and use this repository, and specially have the landslides simulations 
 
 Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
 explains how to set up Git LFS for LSST development.
+
+####Windows
+1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
+2. Run the windows installer    
+Start a command prompt/or git for windows prompt and run git lfs install`
+
+
+#####Linux
+
+```
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt-get install git-lfs
+git lfs install
+```
+
+
 
 External Packages
 ---------

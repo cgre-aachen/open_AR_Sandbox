@@ -51,6 +51,11 @@ def test_init_kinectv2_linux():
     from sandbox.sensor.kinectV2 import KinectV2
     kinect = KinectV2()
 
+def test_kinectv2_linux_frame():
+    from sandbox.sensor.kinectV2 import KinectV2
+    kinect = KinectV2()
+    kinect.get_linux_frame(typ="all")
+
 def test_get_depth_frame_lx():
     from sandbox.sensor.kinectV2 import KinectV2
     kinect = KinectV2()
@@ -139,3 +144,78 @@ def test_linux_2_1():
     undistorted, registered, big_depth = device.registration.apply(
         rgb, depth, with_big_depth=True)
 
+def test_simplyfy_linux():
+    # An example using startStreams
+    import numpy as np
+    from pylibfreenect2 import Freenect2, SyncMultiFrameListener
+    from pylibfreenect2 import FrameType, Registration, Frame
+
+    try:
+        from pylibfreenect2 import OpenGLPacketPipeline
+        pipeline = OpenGLPacketPipeline()
+    except:
+        try:
+            from pylibfreenect2 import OpenCLPacketPipeline
+            pipeline = OpenCLPacketPipeline()
+        except:
+            from pylibfreenect2 import CpuPacketPipeline
+            pipeline = CpuPacketPipeline()
+    print("Packet pipeline:", type(pipeline).__name__)
+
+    enable_rgb = False
+    enable_depth = True
+
+    fn = Freenect2()
+    num_devices = fn.enumerateDevices()
+    assert num_devices > 0
+
+    serial = fn.getDeviceSerialNumber(0)
+    device = fn.openDevice(serial, pipeline=pipeline)
+
+    listener = SyncMultiFrameListener(
+        FrameType.Color | FrameType.Ir | FrameType.Depth)
+
+    # Register listeners
+    device.setColorFrameListener(listener)
+    device.setIrAndDepthFrameListener(listener)
+
+    device.start()
+
+    registration = Registration(device.getIrCameraParams(), device.getColorCameraParams())
+
+    undistorted = Frame(512, 424, 4)
+    registered = Frame(512, 424, 4)
+
+    def _frames():
+        frames = listener.waitForNewFrame(milliseconds=1000)
+
+        color = frames[FrameType.Color]
+        ir = frames[FrameType.Ir]
+        depth = frames[FrameType.Depth]
+
+        registration.apply(color, depth, undistorted, registered)
+        registration.undistortDepth(depth, undistorted)
+
+        assert color.width == 1920
+        assert color.height == 1080
+        assert color.bytes_per_pixel == 4
+
+        assert ir.width == 512
+        assert ir.height == 424
+        assert ir.bytes_per_pixel == 4
+
+        assert depth.width == 512
+        assert depth.height == 424
+        assert depth.bytes_per_pixel == 4
+
+        print(color.asarray().shape)
+        print(ir.asarray().shape)
+        print(depth.asarray().shape)
+
+        listener.release(frames)
+    _frames()
+    import time
+    time.sleep(3)
+    _frames()
+    time.sleep(3)
+    _frames()

@@ -10,24 +10,37 @@ try:
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform =='Linux':
-        #from pylibfreenect2 import Freenect2, SyncMultiFrameListener
-        #from pylibfreenect2 import FrameMap, FrameType, Registration, Frame
-        #try:
-        #    from pylibfreenect2 import OpenGLPacketPipeline
-        #    pipeline = OpenGLPacketPipeline()
-        #except:
-        #    try:
-        #        from pylibfreenect2 import OpenCLPacketPipeline
-        #        pipeline = OpenCLPacketPipeline()
-        #    except:
-        #        from pylibfreenect2 import CpuPacketPipeline
-        #        pipeline = CpuPacketPipeline()
-        #print("Packet pipeline:", type(pipeline).__name__)
-        from freenect2 import Device, FrameType
+        try:
+            from pylibfreenect2 import Freenect2, SyncMultiFrameListener
+            from pylibfreenect2 import FrameMap, FrameType, Registration, Frame
+            try:
+                from pylibfreenect2 import OpenGLPacketPipeline
+                pipeline = OpenGLPacketPipeline()
+            except:
+                try:
+                    from pylibfreenect2 import OpenCLPacketPipeline
+                    pipeline = OpenCLPacketPipeline()
+                except:
+                    from pylibfreenect2 import CpuPacketPipeline
+                    pipeline = CpuPacketPipeline()
+            print("Packet pipeline:", type(pipeline).__name__)
+            _pylib=True
+        except:
+            _pylib=False
+            print("No package pylibfreenect2")
+        try:
+            from freenect2 import Device, FrameType
+            _lib = True
+        except:
+            _lib = False
+            print("No package freeenect2")
+        if not _pylib and not _lib:
+            print('dependencies not found for KinectV2 to work. Check installation and try again')
+            raise ImportError
 except ImportError:
     print('dependencies not found for KinectV2 to work. Check installation and try again')
 
-
+_pylib = False #For development change this
 
 class KinectV2:
     """
@@ -36,6 +49,47 @@ class KinectV2:
     Also we do gaussian blurring to get smoother surfaces.
 
     """
+    if _platform == 'Windows':
+        device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
+                                                      PyKinectV2.FrameSourceTypes_Depth |
+                                                      PyKinectV2.FrameSourceTypes_Infrared)
+
+    elif _platform == 'Linux':
+        if _pylib:
+            # self.device = Device()
+            fn = Freenect2()
+            num_devices = fn.enumerateDevices()
+            assert num_devices > 0
+
+            serial = fn.getDeviceSerialNumber(0)
+            device = fn.openDevice(serial, pipeline=pipeline)
+
+            listener = SyncMultiFrameListener(
+                FrameType.Color |
+                FrameType.Ir |
+                FrameType.Depth)
+
+            # Register listeners
+            device.setColorFrameListener(listener)
+            device.setIrAndDepthFrameListener(listener)
+
+            device.start()
+
+            registration = Registration(device.getIrCameraParams(), device.getColorCameraParams())
+
+            undistorted = Frame(512, 424, 4)
+            registered = Frame(512, 424, 4)
+
+            frames = listener.waitForNewFrame()
+            listener.release(frames)
+
+            device.stop()
+            device.close()
+        elif _lib:
+            device = Device()
+    else:
+        print(_platform)
+        raise NotImplementedError
 
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
@@ -46,22 +100,49 @@ class KinectV2:
         self.color_height = 1080
         self.depth = None
         self.color = None
-        self._init_device()
+        #self._init_device()
 
-        self.depth = self.get_frame()
-        self.color = self.get_color()
+        #self.depth = self.get_frame()
+        #self.color = self.get_color()
         print("KinectV2 initialized.")
 
-    def _init_device(self):
-        if _platform == 'Windows':
-            self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
-                                                      PyKinectV2.FrameSourceTypes_Depth |
-                                                      PyKinectV2.FrameSourceTypes_Infrared)
-        elif _platform == 'Linux':
-           self.device = Device()
+    #def _init_device(self):
+
+
+    def _get_linux_frame(self, typ:str='all'):
+        """
+        Manage to
+        Args:
+            typ:
+
+        Returns:
+
+        """
+        #self.device.start()
+        frames = self.listener.waitForNewFrame(milliseconds=1000)
+        if frames:
+            if typ == 'depth':
+                depth = frames[FrameType.Depth]
+                self.listener.release(frames)
+                return depth.asarray()
+            elif typ == 'ir':
+                ir = frames[FrameType.Ir]
+                self.listener.release(frames)
+                return ir.asarray()
+            if typ == 'color':
+                color = frames[FrameType.Color]
+                self.listener.release(frames)
+                return color.asarray()
+            if typ == 'all':
+                color = frames[FrameType.Color]
+                ir = frames[FrameType.Ir]
+                depth = frames[FrameType.Depth]
+                self.registration.apply(color, depth, self.undistorted, self.registered)
+                self.registration.undistortDepth(depth, self.undistorted)
+                self.listener.release(frames)
+                return depth.asarray(), color.asarray(), ir.asarray()
         else:
-            print(_platform)
-            raise NotImplementedError
+            raise FileNotFoundError
 
     def get_linux_frame(self, typ:str='all'):
         """
