@@ -44,10 +44,10 @@ def test_smooth_topo():
     seis = SeismicModule(devito_dir=devito_dir)
     new_frame = seis.smooth_topo(frame, 10, 5)
     print(new_frame==frame)
-    plt.imshow(frame, cmap="viridis", origin="lower left")
+    plt.imshow(frame, cmap="viridis", origin="lower")
     plt.show()
 
-    plt.imshow(new_frame, cmap="viridis",  origin="lower left")
+    plt.imshow(new_frame, cmap="viridis",  origin="lower")
     plt.show()
 
 def test_create_velocity_model():
@@ -195,7 +195,7 @@ def test_init_all_velocity_model():
     file = np.load(_test_data['test'] + "frame1.npz")
     frame = seis.crop_frame(origin=(20,20), width=200, height=180, frame=file['arr_0'])
     seis.init_model(vmin=2, vmax=4, frame=np.transpose(frame))
-    plt.imshow(frame, origin="lower left", cmap ="gist_earth")
+    plt.imshow(frame, origin="lower", cmap ="gist_earth")
     plt.show()
     seis.plot_velocity(seis.model)
 

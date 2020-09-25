@@ -317,7 +317,7 @@ class SeismicModule(ModuleTemplate):
                   self.model.origin[1] + domain_size[1], self.model.origin[1]]
 
         data_param = dict(vmin=-1e0, vmax=1e0, cmap=plt.get_cmap('seismic'), aspect=1, extent=extent, interpolation='none')#, alpha=.4)
-        model_param = dict(vmin=self.vp.max(), vmax=self.vp.min(), cmap=plt.get_cmap('jet'), aspect=1, extent=extent, origin="lower left")
+        model_param = dict(vmin=self.vp.max(), vmax=self.vp.min(), cmap=plt.get_cmap('jet'), aspect=1, extent=extent, origin="lower")
 
         _vp = plt.imshow(np.transpose(self.vp), **model_param)
         _wave = plt.imshow(np.transpose(self.wavefield(timeslice)), **data_param)
@@ -360,7 +360,7 @@ class SeismicModule(ModuleTemplate):
         fig, ax = plt.subplots()
         plot = ax.imshow(np.transpose(field), animated=True, cmap=cmap,
                           vmin=np.min(field), vmax=np.max(field),
-                          extent=extent, origin="lower left")
+                          extent=extent, origin="lower")
         ax.set_xlabel('X position (km)')
         ax.set_ylabel('Depth (km)')
 
