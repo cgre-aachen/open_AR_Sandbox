@@ -163,7 +163,7 @@ class CmapModule:
         #self.set_data(data)
         self.col = ax.imshow(data, vmin=vmin, vmax=vmax,
                              cmap=self.cmap, norm=self.norm,
-                             origin='lower left', aspect='auto', zorder=-1, extent=extent)
+                             origin='lower', aspect='auto', zorder=-1, extent=extent)
         self._col = weakref.ref(self.col)
 
         ax.set_axis_off()

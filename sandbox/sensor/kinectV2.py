@@ -49,47 +49,7 @@ class KinectV2:
     Also we do gaussian blurring to get smoother surfaces.
 
     """
-    if _platform == 'Windows':
-        device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
-                                                      PyKinectV2.FrameSourceTypes_Depth |
-                                                      PyKinectV2.FrameSourceTypes_Infrared)
 
-    elif _platform == 'Linux':
-        if _pylib:
-            # self.device = Device()
-            fn = Freenect2()
-            num_devices = fn.enumerateDevices()
-            assert num_devices > 0
-
-            serial = fn.getDeviceSerialNumber(0)
-            device = fn.openDevice(serial, pipeline=pipeline)
-
-            listener = SyncMultiFrameListener(
-                FrameType.Color |
-                FrameType.Ir |
-                FrameType.Depth)
-
-            # Register listeners
-            device.setColorFrameListener(listener)
-            device.setIrAndDepthFrameListener(listener)
-
-            device.start()
-
-            registration = Registration(device.getIrCameraParams(), device.getColorCameraParams())
-
-            undistorted = Frame(512, 424, 4)
-            registered = Frame(512, 424, 4)
-
-            frames = listener.waitForNewFrame()
-            listener.release(frames)
-
-            device.stop()
-            device.close()
-        elif _lib:
-            device = Device()
-    else:
-        print(_platform)
-        raise NotImplementedError
 
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
@@ -100,14 +60,58 @@ class KinectV2:
         self.color_height = 1080
         self.depth = None
         self.color = None
-        #self._init_device()
+        self._init_device()
 
         #self.depth = self.get_frame()
         #self.color = self.get_color()
         print("KinectV2 initialized.")
 
-    #def _init_device(self):
+    def _init_device(self):
+        if _platform == 'Windows':
+            device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
+                                                     PyKinectV2.FrameSourceTypes_Depth |
+                                                     PyKinectV2.FrameSourceTypes_Infrared)
 
+        elif _platform == 'Linux':
+            if _pylib:
+                # self.device = Device()
+                fn = Freenect2()
+                num_devices = fn.enumerateDevices()
+                assert num_devices > 0
+
+                serial = fn.getDeviceSerialNumber(0)
+                self.device = fn.openDevice(serial, pipeline=pipeline)
+
+                self.listener = SyncMultiFrameListener(
+                    FrameType.Color |
+                    FrameType.Ir |
+                    FrameType.Depth)
+
+                # Register listeners
+                self.device.setColorFrameListener(self.listener)
+                self.device.setIrAndDepthFrameListener(self.listener)
+
+                self.device.start()
+
+                self.registration = Registration(self.device.getIrCameraParams(), self.device.getColorCameraParams())
+
+                self.undistorted = Frame(512, 424, 4)
+                self.registered = Frame(512, 424, 4)
+
+                frames = self.listener.waitForNewFrame()
+                self.listener.release(frames)
+
+                self.device.stop()
+                self.device.close()
+            elif _lib:
+                try:
+                    self.device = Device()
+                except:
+                    traceback.print_exc()
+
+        else:
+            print(_platform)
+            raise NotImplementedError
 
     def _get_linux_frame(self, typ:str='all'):
         """

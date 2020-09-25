@@ -3,6 +3,8 @@ calib_dir = _test_data['test'] + 'temp/'
 from sandbox.sensor import Sensor
 import numpy as np
 import matplotlib.pyplot as plt
+import platform
+_platform = platform.system()
 
 #def test_init_kinect_v1():
 #    """ Test if detects the kinect 1"""
@@ -44,7 +46,7 @@ def test_extent_property():
 def test_get_frame():
     sensor = Sensor(name='kinect_v2', invert=False)
     print(sensor.get_frame())
-    plt.imshow(sensor.depth, cmap='viridis', origin="lower left")
+    plt.imshow(sensor.depth, cmap='viridis', origin="lower")
     plt.show()
 
 def test_init_kinectv2_linux():
@@ -61,12 +63,12 @@ def test_get_depth_frame_lx():
     kinect = KinectV2()
     frame = kinect.get_frame()
     print(frame.shape)
-    plt.imshow(frame, origin="lower left", cmap="jet")
+    plt.imshow(frame, origin="lower", cmap="jet")
     plt.colorbar()
     plt.show()
     frame = kinect.get_frame()
     print(frame.shape)
-    plt.imshow(frame, origin="lower left", cmap="jet")
+    plt.imshow(frame, origin="lower", cmap="jet")
     plt.colorbar()
     plt.show()
 
@@ -76,10 +78,10 @@ def test_get_color_frame_lx():
     color = kinect.get_color()
     print(color.shape)
     print(color[0])
-    plt.imshow(color, origin="lower left")
+    plt.imshow(color, origin="lower")
     plt.show()
     color = kinect.get_color()
-    plt.imshow(color, origin="lower left")
+    plt.imshow(color, origin="lower")
     plt.show()
 
 def test_get_IR_frame_lx():
@@ -87,16 +89,18 @@ def test_get_IR_frame_lx():
     kinect = KinectV2()
     IR = kinect.get_ir_frame(min=0, max =6000)
     print(IR.shape)
-    plt.imshow(IR, origin="lower left")
+    plt.imshow(IR, origin="lower")
     plt.colorbar()
     plt.show()
     IR = kinect.get_ir_frame(min=0, max=6000)
     print(IR.shape)
-    plt.imshow(IR, origin="lower left")
+    plt.imshow(IR, origin="lower")
     plt.colorbar()
     plt.show()
 
 def test_linux_2():
+    if _platform == 'Windows':
+        return
     from freenect2 import Device, FrameType
 
     # We use numpy to process the raw IR frame
@@ -126,6 +130,8 @@ def test_linux_2():
     ir_image = np.sqrt(ir_image)
 
 def test_linux_2_1():
+    if _platform == 'Windows':
+        return
     from freenect2 import Device, FrameType
     import numpy as np
 
@@ -145,6 +151,8 @@ def test_linux_2_1():
         rgb, depth, with_big_depth=True)
 
 def test_simplyfy_linux():
+    if _platform == 'Windows':
+        return
     # An example using startStreams
     import numpy as np
     from pylibfreenect2 import Freenect2, SyncMultiFrameListener

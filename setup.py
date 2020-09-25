@@ -17,7 +17,8 @@ setup(
         'scipy',
         'scikit-image',
         'opencv-contrib-python',
-        'pytest'
+        'pytest',
+        'jupyter'
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',

@@ -176,9 +176,7 @@ cd libfreenect2
 ```
 ```
 sudo apt-get install build-essential cmake pkg-config
-sudo apt-get install libusb-1.0-0-dev
-sudo apt-get install libturbojpeg0-dev
-sudo apt-get install libglfw3-dev
+sudo apt-get install libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev
 ```
 * With all the dependencies installed now we can make and install 
 ```
@@ -187,7 +185,8 @@ cmake .. -DENABLE_CXX11=ON -DENABLE_OPENCL=ON -DENABLE_OPENGL=ON -DBUILD_OPENNI2
 make
 make install
 ```
-* Now test if the kinect is correctly installed. Disconnect and plug in the kinect to the computer and then run
+* Set up udev rules for device access: `sudo cp ../platform/linux/udev/90-kinect2.rules /etc/udev/rules.d/, then replug the Kinect.
+* Now test if the kinect is correctly installed, run:
 ```
 ./bin/Protonect
 ```
@@ -216,13 +215,13 @@ export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 `lib` folder of your environment. Ej:
  * if you are using an anaconda environment, open the folder:
 ```
-<your_path>/Anaconda3/envs/<sandbox-env>/lib
+<your_path>/anaconda3/envs/<sandbox-env>/lib
 ```
 * And in this folder paste the previous copied files (3 files!!!). Keep in mind that you need to 
 replace the <...> with your specific path.
 * If you dont want the manual work then run directly (remember to change the paths according to your needs):
 ```
-sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/Anaconda3/envs/sandbox-env/lib/
+sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/envs/sandbox-env/lib/
 ```
 
 
@@ -234,13 +233,13 @@ To clone and use this repository, and specially have the landslides simulations 
 Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
 explains how to set up Git LFS for LSST development.
 
-####Windows
+#### Windows
 1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
 2. Run the windows installer    
-Start a command prompt/or git for windows prompt and run git lfs install`
+3. Start a command prompt/or git for windows prompt and run git lfs install`
 
 
-#####Linux
+##### Linux
 
 ```
 curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
@@ -257,12 +256,19 @@ External Packages
 To use implicit geological models inside the sandbox, go to [GemPy](https://github.com/cgre-aachen/gempy),
 clone or download the repository and follow the Gempy Installation instructions. With gempy installed 
 you can follow the tutorial [GempyModule](notebooks/tutorials/04_GempyModule/).
-
+```
+pip install gempy
+```
 ### Devito
 
 This package uses the power of [Devito](https://github.com/devitocodes/devito) to run wave proppagation simmulations.
 More about this can be found in `notebooks/tutorials/10_SeismicModule/`. Follow the Devito installation instructions. 
 * This module so far have only support in linux 
+```
+git clone https://github.com/devitocodes/devito.git
+cd devito
+pip install -e .
+```
 
 Getting started
 -------

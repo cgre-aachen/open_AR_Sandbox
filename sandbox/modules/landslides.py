@@ -120,7 +120,7 @@ class LandslideSimulation(ModuleTemplate):
             move = numpy.round(move, decimals=1)
             move = numpy.ma.masked_where(move <= 0, move)
             if self._lan is None:
-                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower left',
+                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower',
                                       extent=self.Load_Area.to_box_extent, zorder=10)
             else:
                 self._lan.set_data(move)
@@ -138,7 +138,7 @@ class LandslideSimulation(ModuleTemplate):
             move = numpy.round(move, decimals=1)
             move = numpy.ma.masked_where(move <= 0, move)
             if self._lan is None:
-                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower left',
+                self._lan = ax.imshow(move, cmap='hot', aspect='auto', origin='lower',
                                       extent=self.Load_Area.to_box_extent, zorder=10)
             else:
                 self._lan.set_data(move)
@@ -160,7 +160,7 @@ class LandslideSimulation(ModuleTemplate):
 
             x_move = numpy.round(self.height_flow[..., self.frame_selector], decimals=1)
             x_move = numpy.ma.masked_where(x_move <= 0, x_move)
-            hor = self.ax1.imshow(x_move, cmap='hot', origin="lower left")
+            hor = self.ax1.imshow(x_move, cmap='hot', origin="lower")
             self.ax1.axis('equal')
             self.ax1.set_axis_off()
             self.ax1.set_title('Flow Height')
@@ -168,7 +168,7 @@ class LandslideSimulation(ModuleTemplate):
 
             y_move = numpy.round(self.velocity_flow[..., self.frame_selector], decimals=1)
             y_move = numpy.ma.masked_where(y_move <= 0, y_move)
-            ver = self.ax2.imshow(y_move, cmap='hot', origin="lower left")
+            ver = self.ax2.imshow(y_move, cmap='hot', origin="lower")
             self.ax2.axis('equal')
             self.ax2.set_axis_off()
             self.ax2.set_title('Flow Velocity')
