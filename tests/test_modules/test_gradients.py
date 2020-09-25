@@ -31,7 +31,7 @@ def test_update_dx():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -44,7 +44,7 @@ def test_update_dy():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -56,7 +56,7 @@ def test_update_dxdy():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -68,8 +68,9 @@ def test_update_laplace():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
+
 
 def test_update_vectorfield():
     pytest.sb_params['ax'].cla()
@@ -79,7 +80,7 @@ def test_update_vectorfield():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 def test_update_stream():
@@ -90,7 +91,7 @@ def test_update_stream():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -102,7 +103,7 @@ def test_update_laplace_vectorfield():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -114,7 +115,7 @@ def test_update_laplace_stream():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 
@@ -126,27 +127,19 @@ def test_update_lightsource():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 def test_modify_lightsource():
     pytest.sb_params['ax'].cla()
     module = GradientModule(extent=extent)
+    module.set_lightsource(90, 30, 0.5)
     module.current_grad = module.grad_type[4]
     sb_params = module.update(pytest.sb_params)
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
-    fig.show()
-
-    module.set_lightsource(90, 30, 0.5)
-    pytest.sb_params['frame']=frame
-    sb_params = module.update(pytest.sb_params)
-    ax = sb_params['ax']
-    fig = sb_params['fig']
-    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), origin='lower left')
+              cmap=sb_params.get('cmap'), origin='lower')
     fig.show()
 
 def test_widget():

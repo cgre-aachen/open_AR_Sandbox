@@ -40,7 +40,7 @@ class CalibSensor: #TODO: include automatic
 
         self.frame_raw = self.sensor.get_raw_frame()
         self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
-                                      origin="lower left", aspect="auto")
+                                      origin="lower", aspect="auto")
         self.calib_notebook_frame.param.trigger('object')
         self._create_widgets()
 
@@ -55,7 +55,7 @@ class CalibSensor: #TODO: include automatic
                                                       vmin=self.sensor.s_min,
                                                       vmax=self.sensor.s_max,
                                                       cmap=self.cmap,
-                                                  origin="lower left",
+                                                  origin="lower",
                                                   aspect="auto")
 
     def update(self):
@@ -75,7 +75,7 @@ class CalibSensor: #TODO: include automatic
 
         self.ax_notebook_frame.cla()
         self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
-                                      origin="lower left", aspect="auto")
+                                      origin="lower", aspect="auto")
 
         rec_t = plt.Rectangle((0, self.sensor.s_height - self.sensor.s_top), self.sensor.s_width, self.sensor.s_top,
                               fc=self.c_margin, alpha=self.margin_alpha)
