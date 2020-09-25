@@ -3,6 +3,7 @@ from sandbox.modules import LoadSaveTopoModule
 import matplotlib.pyplot as plt
 import pytest
 import numpy as np
+
 file = np.load(test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
@@ -37,7 +38,7 @@ def update(module):
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower left')
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
 
 
@@ -118,27 +119,6 @@ def test_get_file_id():
     module = LoadSaveTopoModule(extent=extent)
     module._get_id(test_data['landslide_topo'] + 'Topography_1.npz')
     assert module.file_id == '1'
-
-def test_arucos_release_area():
-    try:
-        from sandbox.sensor import Sensor
-        from sandbox.markers import MarkerDetection
-        from sandbox import _calibration_dir, _test_data
-        color = np.load(_test_data['test']+'frame1.npz')['arr_1']
-        sensor = Sensor(calibsensor=_calibration_dir+'sensorcalib.json', name = 'kinect_v2')
-        aruco = MarkerDetection(sensor=sensor)
-        module = LoadSaveTopoModule(extent=sensor.extent)
-        fig, ax = plt.subplots()
-        df = aruco.update(frame=color)
-        module.box_width = 100
-        module.box_height = 50
-        pytest.sb_params['marker'] = df
-        pytest.sb_params['frame'] = sensor.get_frame()
-        pytest.sb_params['extent'] = sensor.extent
-        update(module)
-    except:
-        print("Not connected to kinect_v2")
-        raise ImportError
 
 def test_snapshot_frame():
     module = LoadSaveTopoModule(extent=extent)
