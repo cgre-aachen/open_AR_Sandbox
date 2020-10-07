@@ -163,6 +163,31 @@ To make open_AR_Sandbox talk to the first generation kinect you will need the
 [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). 
 The installation is kind of straight forward for Linux and MacOS but 
 challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
+The steps can be summarized as follows (refer to any problems regarding installation in to [link](https://github.com/OpenKinect/libfreenect))
+To build libfreenect, you'll need
+
+- [libusb](http://libusb.info) >= 1.0.18 (Windows needs >= 1.0.22)
+- [CMake](http://cmake.org) >= 3.12.4 (you can visit [this](https://www.claudiokuenzler.com/blog/796/install-upgrade-cmake-3.12.1-ubuntu-14.04-trusty-alternatives)
+page for detailed instructions for the installation)
+
+Once these are installed we can follow the next commands
+```
+sudo apt-get install git cmake build-essential libusb-1.0-0-dev
+sudo apt-get install freeglut3-dev libxmu-dev libxi-dev
+git clone https://github.com/OpenKinect/libfreenect
+cd libfreenect
+mkdir build
+cd build
+cmake -L .. # -L lists all the project options
+cmake .. -DBUILD_PYTHON3=ON
+make 
+
+
+cd ../wrappers/python
+python setup.py install
+# now you can see if the installation worked running an example
+python demo_cv2_async.py
+```
 
 #### Kinect v2 - freenect2
 or pylibfreenect2 \
