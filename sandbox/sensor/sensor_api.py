@@ -58,7 +58,7 @@ class Sensor:
 
         if name == 'kinect_v1':
             try:
-                import freenct
+                import freenect
                 self.Sensor = KinectV1()
             except ImportError:
                 raise ImportError('Kinect v1 dependencies are not installed')

@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib
-import numpy
+import copy
 import panel as pn
 pn.extension()
 import weakref
@@ -113,7 +113,7 @@ class CmapModule:
         if self._cmap is not None and self._cmap.name != cmap.name:
             cmap = self._cmap
             self._cmap = None
-
+        cmap = copy.copy(cmap)
         if over is not None:
             cmap.set_over(over, 1.0)
         if under is not None:
