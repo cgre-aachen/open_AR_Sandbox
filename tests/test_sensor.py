@@ -185,3 +185,7 @@ def test_thread():
         key = cv2.waitKey(20)
         if key == 27:  # exit on ESC
             break
+
+def test_thread_linux():
+    from sandbox.sensor.kinectV2 import KinectV2
+    kinect = KinectV2()
