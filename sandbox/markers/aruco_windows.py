@@ -1,88 +1,87 @@
-from warnings import warn
-try:
-    from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
-    from pykinect2 import PyKinectRuntime
-    PYKINECT_INSTALLED = True
-except ImportError:
-    warn('pykinect2 module not found, Coordinate Mapping will not work.')
-    PYKINECT_INSTALLED = False
-
-try:
-    import cv2
-    from cv2 import aruco
-    CV2_IMPORT = True
-except ImportError:
-    CV2_IMPORT = False
-    warn('opencv is not installed. Object detection will not work')
-
-#%%
 import numpy as np
-import cv2
-import sys
-from pylibfreenect2 import Freenect2, SyncMultiFrameListener
-from pylibfreenect2 import FrameType, Registration, Frame
-from pylibfreenect2 import createConsoleLogger, setGlobalLogger
-from pylibfreenect2 import LoggerLevel
+import pandas as pd
+from sandbox.sensor.kinectV2 import KinectV2
 
-try:
-    from pylibfreenect2 import OpenGLPacketPipeline
-    pipeline = OpenGLPacketPipeline()
-except:
-    try:
-        from pylibfreenect2 import OpenCLPacketPipeline
-        pipeline = OpenCLPacketPipeline()
-    except:
-        from pylibfreenect2 import CpuPacketPipeline
-        pipeline = CpuPacketPipeline()
-print("Packet pipeline:", type(pipeline).__name__)
-
-# Create and set logger
-logger = createConsoleLogger(LoggerLevel.Debug)
-setGlobalLogger(logger)
-
-fn = Freenect2()
-num_devices = fn.enumerateDevices()
-if num_devices == 0:
-    print("No device connected!")
-    sys.exit(1)
-
-serial = fn.getDeviceSerialNumber(0)
-device = fn.openDevice(serial, pipeline=pipeline)
-
-listener = SyncMultiFrameListener(
-    FrameType.Color | FrameType.Ir | FrameType.Depth)
-
-# Register listeners
-device.setColorFrameListener(listener)
-device.setIrAndDepthFrameListener(listener)
-
-device.start()
-
-# NOTE: must be called after device.start()
-registration = Registration(device.getIrCameraParams(),
-                            device.getColorCameraParams())
-
-undistorted = Frame(512, 424, 4)
-registered = Frame(512, 424, 4)
-
-# Optinal parameters for registration
-# set True if you need
-need_bigdepth = True
-need_color_depth_map = True
-
-bigdepth = Frame(1920, 1082, 4) if need_bigdepth else None
-color_depth_map = np.zeros((424, 512),  np.int32).ravel() \
-    if need_color_depth_map else None
 #%%
-frames = listener.waitForNewFrame()
+device = None
+x_correction = 0
+y_correction = 0
 
-color = frames[FrameType.Color]
-ir = frames[FrameType.Ir]
-depth = frames[FrameType.Depth]
+#%%
+def set_correction(x, y):
+    global x_correction, y_correction
+    x_correction = x
+    y_correction = y
 
-registration.apply(color, depth, undistorted, registered,
-                   bigdepth=bigdepth,
-                   color_depth_map=color_depth_map)
+def set_device(kinect):
+    global device
+    device = kinect.device
+
+def start_mapping(kinect: KinectV2):
+    """
+    Takes the kinect sensor and create the map to convert color space to depth space
+    Args:
+        kinect: Sensor
+
+    Returns:
+        pd.Dataframe
+    """
+    set_device(kinect)
+    df = create_CoordinateMap(kinect.get_frame())
+    return df
+
+def create_CoordinateMap(depth):
+    """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
+    camera space. This method requires the depth frame to assign a depth value to the color point.
+    Returns:
+        CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
+        real world values of x,y and z in meters
+    """
+    from pykinect2 import PyKinectV2
+    height, width = depth.shape
+    x = np.arange(0, width)
+    y = np.arange(0, height)
+    xx, yy = np.meshgrid(x, y)
+    xy_points = np.vstack([xx.ravel(), yy.ravel()]).T
+    depth_x = []
+    depth_y = []
+    depth_z = []
+    camera_x = []
+    camera_y = []
+    camera_z = []
+    color_x = []
+    color_y = []
+    for i in range(len(xy_points)):
+        x_point = xy_points[i, 0]
+        y_point = xy_points[i, 1]
+        z_point = depth[y_point][x_point]
+        if z_point != 0:   # values that do not have depth information cannot be projected to the color space
+            point = PyKinectV2._DepthSpacePoint(x_point, y_point)
+            col = device._mapper.MapDepthPointToColorSpace(point, z_point)
+            cam = device._mapper.MapDepthPointToCameraSpace(point, z_point)
+            # since the position of the camera and sensor are different, they will not have the same coverage. Specially in the extremes
+            if col.y > 0:
+                depth_x.append(x_point)
+                depth_y.append(y_point)
+                depth_z.append(z_point)
+                camera_x.append(cam.x)
+                camera_y.append(cam.y)
+                camera_z.append(cam.z)
+                ####TODO: constants addded since image is not exact when doing the transformation
+                color_x.append(int(col.x) + x_correction)
+                color_y.append(int(col.y) + y_correction)
+
+    CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
+                                  'Depth_y': depth_y,
+                                  'Depth_Z(mm)': depth_z,
+                                  'Color_x': color_x,
+                                  'Color_y': color_y,
+                                  'Camera_x(m)': camera_x,
+                                  'Camera_y(m)': camera_y,
+                                  'Camera_z(m)': camera_z
+                                  })
+
+    return CoordinateMap
 
 
 

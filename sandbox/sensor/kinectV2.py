@@ -1,37 +1,15 @@
-#from sandbox import _
 import numpy
-import sys
 import platform
-import traceback
 import threading
-
 _platform = platform.system()
-
 try:
     if _platform =='Windows':
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform =='Linux':
-        #from freenect2 import Device, FrameType
-        from pylibfreenect2 import Freenect2, SyncMultiFrameListener
-        from pylibfreenect2 import FrameType, Registration, Frame
-        try:
-            from pylibfreenect2 import OpenGLPacketPipeline
-
-            pipeline = OpenGLPacketPipeline()
-        except:
-            try:
-                from pylibfreenect2 import OpenCLPacketPipeline
-
-                pipeline = OpenCLPacketPipeline()
-            except:
-                from pylibfreenect2 import CpuPacketPipeline
-
-                pipeline = CpuPacketPipeline()
-        print("Packet pipeline:", type(pipeline).__name__)
+        from freenect2 import Device, FrameType
 except ImportError:
     print('dependencies not found for KinectV2 to work. Check installation and try again')
-
 
 
 class KinectV2:
@@ -41,8 +19,6 @@ class KinectV2:
     Also we do gaussian blurring to get smoother surfaces.
 
     """
-
-
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
         self.name = 'kinect_v2'
@@ -53,62 +29,49 @@ class KinectV2:
 
         self._init_device()
 
-
-        self.depth = None
-        self.color = None
-        #self.depth = self.get_frame()
-        #self.color = self.get_color()
+        #self.depth = None
+        #self.color = None
+        self.depth = self.get_frame()
+        self.color = self.get_color()
         print("KinectV2 initialized.")
 
     def _init_device(self):
+        """
+        creates the self.device parameter to start the stream of frames
+        Returns:
+
+        """
         if _platform == 'Windows':
             self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
-                                                     PyKinectV2.FrameSourceTypes_Depth |
-                                                     PyKinectV2.FrameSourceTypes_Infrared)
-
-        #elif _platform == 'Linux':
-            # Threading
-        #    self._lock = threading.Lock()
-        #    self._thread = None
-        #    self._thread_status = 'stopped'  # status: 'stopped', 'running'
-
-        #    self.device = Device()
-        #    self._color = numpy.zeros((self.color_height, self.color_width, 4))
-        #    self._depth = numpy.zeros((self.depth_height, self.depth_width))
-        #    self._ir = numpy.zeros((self.depth_height, self.depth_width))
-        #    self._run()
+                                                          PyKinectV2.FrameSourceTypes_Depth |
+                                                          PyKinectV2.FrameSourceTypes_Infrared)
 
         elif _platform == 'Linux':
-            fn = Freenect2()
-            num_devices = fn.enumerateDevices()
-            if num_devices == 0:
-                print("No device connected!")
-                raise SystemExit
-            serial = fn.getDeviceSerialNumber(0)
-            device = fn.openDevice(serial, pipeline=pipeline)
-
-            listener = SyncMultiFrameListener(
-                FrameType.Color | FrameType.Ir | FrameType.Depth)
-            device.setColorFrameListener(listener)
-            device.setIrAndDepthFrameListener(listener)
-
-            device.start()
-            self.device = device
-            self._listener = listener
             # Threading
             self._lock = threading.Lock()
             self._thread = None
             self._thread_status = 'stopped'  # status: 'stopped', 'running'
+
+            self.device = Device()
             self._color = numpy.zeros((self.color_height, self.color_width, 4))
             self._depth = numpy.zeros((self.depth_height, self.depth_width))
             self._ir = numpy.zeros((self.depth_height, self.depth_width))
             self._run()
+            print("Searching first frame")
+            while True:
+                if not numpy.all(self._depth == 0):
+                    print("First frame found")
+                    break
 
         else:
             print(_platform)
             raise NotImplementedError
 
+
     def _run(self):
+        """
+        Run the thread when _platform is linux
+        """
         if self._thread_status != 'running':
             self._thread_status = 'running'
             self._thread = threading.Thread(target=self._open_kinect_frame_stream, daemon=True, )
@@ -118,6 +81,9 @@ class KinectV2:
             print('Already running.')
 
     def _stop(self):
+        """
+        Stop the thread when _platform is linux
+        """
         if self._thread_status is not 'stopped':
             self._thread_status = 'stopped'  # set flag to end thread loop
             self._thread.join()  # wait for the thread to finish
@@ -125,28 +91,23 @@ class KinectV2:
         else:
             print('thread was not running.')
 
-
     def _open_kinect_frame_stream(self):
-        #frames = {}
-        #with self.device.running():
-        #    for type_, frame in self.device:
-        #        frames[type_] = frame
-        #        if FrameType.Color in frames:
-        #            self._color = frames[FrameType.Color].to_array()
-        #        if FrameType.Depth in frames:
-        #            self._depth = frames[FrameType.Depth].to_array()
-        #        if FrameType.Ir in frames:
-        #            self._ir = frames[FrameType.Ir].to_array()
-        #        if self._thread_status != "running":
-        #            break
-        while True: #self._thread_status == 'running':
-            frames = self._listener.waitForNewFrame(milliseconds=50)
-            self._color = frames[FrameType.Color].asarray()
-            self._ir = frames[FrameType.Ir].asarray()
-            self._depth = frames[FrameType.Depth].asarray()
-            if self._thread_status != "running":
-                self.device.stop()
-                break
+        """
+        keep the stream open to adquire new frames when using linux
+        """
+        frames = {}
+        with self.device.running():
+            for type_, frame in self.device:
+                frames[type_] = frame
+                if FrameType.Color in frames:
+                    self._color = frames[FrameType.Color].to_array()
+                if FrameType.Depth in frames:
+                    self._depth = frames[FrameType.Depth].to_array()
+                if FrameType.Ir in frames:
+                    self._ir = frames[FrameType.Ir].to_array()
+                if self._thread_status != "running":
+                    break
+
 
     def get_frame(self):
         """

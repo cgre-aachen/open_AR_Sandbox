@@ -4,8 +4,6 @@ calib_dir = _test_data['test'] + 'temp/'
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tests import test_calib_sensor
-
 file = np.load(_test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
