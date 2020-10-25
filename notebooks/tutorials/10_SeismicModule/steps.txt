@@ -1,0 +1,22 @@
+Open Ubuntu app in Windows and run:
+
+1). open the repo
+
+>>> cd /home/sandbox/Git_projects/open_AR_Sandbox
+
+2). activate environment 
+
+>>> conda activate sandbox
+
+3). checkout for latest commit 
+
+git fetch origin
+git checkout seismic
+git pull 
+git lfs pull
+
+3). open notebook 
+
+>> jupyter notebook --no-browser
+
+The no browser flag will still run Jupyter on port 8888, but it won't pop it open automatically. it's necessary since you don't have a browser in your subsystem. In the terminal, it will give you a link to paste into your browse
