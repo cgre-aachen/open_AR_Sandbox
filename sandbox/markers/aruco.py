@@ -5,6 +5,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 from scipy.spatial.distance import cdist
 from sandbox.sensor.kinectV2 import KinectV2, _platform
+from sandbox.sensor.dummy import DummySensor
 from .dummy_aruco import dummy_markers_in_frame
 
 try:
@@ -29,7 +30,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             self.aruco_dict = aruco_dict
         #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
         if sensor is not None:
-            if sensor == "dummy":
+            if sensor == "dummy" or isinstance(sensor.Sensor, DummySensor):
                 self.kinect = "dummy"
                 print("Using dummy arucos. Create your own aruco positions using .dummy_markers_in_frame function")
             else:
@@ -92,6 +93,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         self.CoordinateMap = pd.DataFrame()
         if self.kinect == "dummy":
             self.CoordinateMap = None
+            print('using dummy aruco module')
         else:
             if _platform == "Linux":
                 from sandbox.markers.aruco_linux import start_mapping, set_correction
@@ -112,7 +114,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             else:
                 print(_platform, " not supported")
 
-        return print('Aruco detection ready')
+        return print('Aruco module loaded')
 
     def aruco_detect(self, image):
         """ Function to detect an aruco marker in a color image

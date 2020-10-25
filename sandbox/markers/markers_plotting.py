@@ -25,9 +25,11 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
 
 
     def update(self):
-        if self.sensor == "dummy":
+        if self.Aruco.kinect == "dummy":
             kwargs = {"dict_position": self._dict_position,
                       "depth_frame": self._depth_frame}
+        else:
+            kwargs = {}
         self.Aruco.search_aruco(**kwargs)
         self.Aruco.update_marker_dict()
         self.Aruco.transform_to_box_coordinates()
