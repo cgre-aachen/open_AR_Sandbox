@@ -5,6 +5,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 from scipy.spatial.distance import cdist
 from sandbox.sensor.kinectV2 import KinectV2, _platform
+from .dummy_aruco import dummy_markers_in_frame
 
 try:
     import cv2
@@ -28,14 +29,18 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             self.aruco_dict = aruco_dict
         #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
         if sensor is not None:
-            if isinstance(sensor.Sensor, KinectV2):
-                self.kinect = sensor.Sensor
-                self.calib = sensor
-                print("KinectV2 loaded")
-            else: warn("Kinect version not supported")
+            if sensor == "dummy":
+                self.kinect = "dummy"
+                print("Using dummy arucos. Create your own aruco positions using .dummy_markers_in_frame function")
+            else:
+                if isinstance(sensor.Sensor, KinectV2):
+                    self.kinect = sensor.Sensor
+                    self.calib = sensor
+                    print("KinectV2 loaded")
+                else: warn("Kinect version not supported")
         else:
-            warn("No sensor loaded. Detection will only work in color image")
-            self.kinect = None
+            warn("No sensor loaded. Detection will only work in color image. Using dummy arucos")
+            self.kinect = "dummy"
 
         self.ir_markers = None
         #if self.calib is not None:
@@ -85,24 +90,27 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         #self.load_corners_ids()
 
         self.CoordinateMap = pd.DataFrame()
-        if _platform == "Linux":
-            from sandbox.markers.aruco_linux import start_mapping, set_correction
-            # TODO: correction in x and y direction for the mapping between color space and depth space
-            self._correction_x = 0
-            self._correction_y = 0
-            set_correction(self._correction_x, self._correction_y)
-            while len(self.CoordinateMap) < 5:
-                self.CoordinateMap = start_mapping(self.kinect)
-        elif _platform == "Windows":
-            from sandbox.markers.aruco_windows import start_mapping, set_correction
-            # TODO: correction in x and y direction for the mapping between color space and depth space
-            self._correction_x = 8
-            self._correction_y = 65
-            set_correction(self._correction_x, self._correction_y)
-            while len(self.CoordinateMap) < 5:
-                self.CoordinateMap = start_mapping(self.kinect)
+        if self.kinect == "dummy":
+            self.CoordinateMap = None
         else:
-            print(_platform, " not supported")
+            if _platform == "Linux":
+                from sandbox.markers.aruco_linux import start_mapping, set_correction
+                # TODO: correction in x and y direction for the mapping between color space and depth space
+                self._correction_x = 0
+                self._correction_y = 0
+                set_correction(self._correction_x, self._correction_y)
+                while len(self.CoordinateMap) < 5:
+                    self.CoordinateMap = start_mapping(self.kinect)
+            elif _platform == "Windows":
+                from sandbox.markers.aruco_windows import start_mapping, set_correction
+                # TODO: correction in x and y direction for the mapping between color space and depth space
+                self._correction_x = 8
+                self._correction_y = 65
+                set_correction(self._correction_x, self._correction_y)
+                while len(self.CoordinateMap) < 5:
+                    self.CoordinateMap = start_mapping(self.kinect)
+            else:
+                print(_platform, " not supported")
 
         return print('Aruco detection ready')
 
@@ -133,7 +141,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         pr2 = int(numpy.mean(corners[:, 1]))
         return pr1, pr2
 
-    def search_aruco(self, frame: numpy.ndarray = None) -> pd.DataFrame:
+    def search_aruco(self, frame: numpy.ndarray = None, **kwargs) -> pd.DataFrame:
         """
         searches for aruco markers in the current kinect image and writes detected markers to
         self.markers_in_frame. call this first in the update function.
@@ -142,6 +150,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         Returns
             markers_in_frame
         """
+        if self.kinect == "dummy":
+            dict_position = kwargs.get("dict_position")
+            depth_frame = kwargs.get("depth_frame")
+            self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
+            return self.markers_in_frame
 
         if frame is None:
             frame = self.kinect.get_color()
@@ -202,6 +215,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         and converts the location to box coordinates x,y. call after self.update_markers in the update loop
         Returns:
         """
+        if self.kinect == "dummy":
+            if len(self.aruco_markers)>0:
+                self.aruco_markers['is_inside_box'] = self.aruco_markers['is_inside_box'].astype('bool')
+            return
+
         if len(self.aruco_markers) > 0:
             self.aruco_markers['box_x'] = self.aruco_markers['Depth_x'] - self.calib.s_left
             self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
