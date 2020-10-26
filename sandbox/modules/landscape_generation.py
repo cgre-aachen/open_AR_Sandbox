@@ -6,6 +6,11 @@ import traceback
 from sandbox.modules.template import ModuleTemplate
 from sandbox.modules import LoadSaveTopoModule
 from sandbox import _test_data
+try:
+    import torch
+except ImportError as e:
+    traceback.print_exception(e)
+
 
 class LandscapeGeneration(ModuleTemplate):
     """Class to generate landscapes using DEMs from the sandbox and a pre-trained model with the

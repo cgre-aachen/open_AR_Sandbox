@@ -121,6 +121,27 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 To use implicit geological models inside the sandbox, go to [GemPy](https://github.com/cgre-aachen/gempy),
 clone or download the repository and follow the Gempy Installation instructions.
 
+### PyTorch
+
+To use the LandscapeGeneration module we need to install [PyTorch](https://pytorch.org/). This module use the power of [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
+to take a topography from the sandbox, translate this as a DEM and then display it again on the sandbox as a Landscape image. 
+To install the dependencies for this module do:
+```
+#For Windows
+pip install torch===1.6.0 torchvision===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
+```
+```
+#For Linux
+pip install torch torchvision
+```
+```
+git clone https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+cd pytorch-CycleGAN-and-pix2pix
+pip install -r requirements.txt
+```
+Once this is installed, copy the trained model in `/notebooks/tutorials/09_LandscapeGeneration/checkpoints` folder, and then follow the notebook.
+Get in contact with us to provide you with the train model for this module. 
+
 ## Getting started
 So now the necessary software is installed and (hopefully) running and you have set up your Sandbox with a projector and a kinect, it is time to calibrate your sandbox.
 The calibration step is necessary to align your sandbox with the kinect as well as with the projected image. 
