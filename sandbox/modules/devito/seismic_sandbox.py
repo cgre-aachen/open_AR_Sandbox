@@ -119,7 +119,7 @@ class SeismicModule(ModuleTemplate):
     def run_simulation(self, vmin=2, vmax=4, nbl=40, **kwargs):
         if self.model is None:
             self.init_model(vmin=vmin, vmax=vmax, frame=self.frame, nbl=nbl, **kwargs)
-        if (self.src_term)==0:
+        if len(self.src_coordinates)==0:
             return print("Put an aruco marker as a source or manually specify a source term")
         self.insert_aruco_source()
         self.operator_and_solve()
@@ -192,7 +192,7 @@ class SeismicModule(ModuleTemplate):
     def create_velocity_model(self, topo: np.ndarray, norm: bool=True, vmax:float=5.0,
                               vmin:float=2.0, smooth:bool=False, sigma_x:int=2, sigma_y:int=2,
                               spacing:tuple = (10, 10), origin=(0,0),
-                              nbl:int=40, show_velocity: bool=False):
+                              nbl:int=40, show_velocity: bool=False, **kwargs):
         """
         takes the topography and creates a velocity model from the topography
         Args:
