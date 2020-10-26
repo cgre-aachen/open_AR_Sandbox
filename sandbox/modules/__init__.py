@@ -1,4 +1,4 @@
-import warnings as warn
+from warnings import warn
 from .gradients import GradientModule
 from .landslides import LandslideSimulation
 from .load_save_topography import LoadSaveTopoModule

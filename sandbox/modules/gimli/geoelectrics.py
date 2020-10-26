@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy
 import pygimli as pg
 import pygimli.meshtools as mt
@@ -18,6 +19,7 @@ class GeoelectricsModule(ModuleTemplate):
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]
+            self.extent = extent
 
         self.mesh_fine = None
         self.mesh = None
@@ -31,55 +33,67 @@ class GeoelectricsModule(ModuleTemplate):
 
         self.step = 7.5
         self.sensitivity = False
-        self.view = "mesh"
+        self.view = "potential"
+        self.id = None
+        self.real_time = False
+        self.p_stream = False
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame') * 1000 + 50
-        extent = sb_params.get('extent')
+        self.extent = sb_params.get('extent')
         ax = sb_params.get('ax')
         markers = sb_params.get('marker')
         cmap = sb_params.get('cmap')
-        if len(markers.loc[markers.is_inside_box])==4 and self.id is not None:
-            self.set_aruco_electrodes(markers)
-            self.update_resistivity(frame, extent, self.step)
-            if self.sensitivity:
-                self.calculate_sensitivity()
 
-        ax = self.plot(ax, frame, cmap)
+        if len(markers.loc[markers.is_inside_box]) == 4 and self.id is not None:
+            self.set_aruco_electrodes(markers)
+            if self.real_time:
+                self.update_resistivity(frame, self.extent, self.step)
+                if self.sensitivity:
+                    self.calculate_sensitivity()
+
+        ax = self.plot(ax, self.extent)
 
         return sb_params
 
-    def plot(self, ax, frame, cmap):
-        ax.cla()
-        if self.view == "mesh":
-            self.plot_mesh(ax, frame, cmap)
-        elif self.view == "potential" and self.pot is not None:
-            self.plot_potential(ax)
+    def plot(self, ax, extent):
+        #ax.cla()
+        #if self.view == "mesh":
+        #    self.plot_mesh(ax, frame, cmap)
+        self.delete_image(ax)
+
+        if self.view == "potential" and self.pot is not None:
+            self.plot_potential(ax, extent)
         elif self.view == "sensitivity" and self.normsens is not None:
-            self.plot_sensitivity(ax)
-        if self.stream and self.pot is not None:
+            self.plot_sensitivity(ax, extent)
+
+        if self.p_stream and self.pot is not None:
             self.plot_stream_lines(ax)
         return ax
 
-    def plot_stream_lines(self, ax): drawStreams(ax, self.mesh, -self.pot, color='Black')
+    def delete_image(self, ax):
+        #[coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.PathCollection )]
+        ax.cla() #TODO: find a better way to do this 
+    def plot_stream_lines(self, ax):
+        drawStreams(ax, self.mesh, -self.pot, color='Black')
     def plot_mesh(self, ax, frame, cmap):
         ax.imshow(frame, origin="lower", cmap=cmap)
-    def plot_potential(self, ax):
-        pg.show(self.mesh, self.pot, ax=ax, cmap="RdBu_r", nLevs=11, colorBar=False, )
-    def plot_sensitivity(self, ax):
-        pg.show(self.mesh, self.normsens, cmap="RdGy_r", ax=ax, colorBar=False, nLevs=3, cMin=-1, cMax=1)
+    def plot_potential(self, ax, extent):
+        pg.show(self.mesh, self.pot, ax=ax, cMap="RdBu_r", nLevs=11, colorBar=False, extent=self.extent[:4])
+    def plot_sensitivity(self, ax, extent):
+        pg.show(self.mesh, self.normsens, cMap="RdGy_r", ax=ax, colorBar=False, nLevs=3, cMin=-1, cMax=1,  extent=self.extent[:4])
 
-    def set_id_aruco(self, id:dict):
+    def set_id_aruco(self, ids:dict):
         """
         key of the dictionary must be the aruco id and the value is the postion from 0 to 3.
         i.e. id = {12: 0, 20: 1, 13: 2, 4: 3}
         Args:
-            id:
+            ids:
 
         Returns:
         """
-        if isinstance(id, dict):
-            self.id = id
+        if isinstance(ids, dict):
+            self.id = ids
         else:
             print("Data type not accepted. Only accept dictionary as parameter")
 
@@ -92,11 +106,14 @@ class GeoelectricsModule(ModuleTemplate):
         Returns:
 
         """
-        #df[id]
+        df = df[['box_x', 'box_y']].copy()
         markers = numpy.zeros((4,2))
-        for index in self.id.keys():
-            markers[self.id[index], :] = df.iloc[index].loc[df.is_inside_box, ('box_x', 'box_y')].values
-        self.set_electrode_positions(markers)
+        try:
+            for index in self.id.keys():
+                markers[self.id[index], :] = df.loc[index]
+            self.set_electrode_positions(markers)
+        except:
+            print("index "+str(index)+"  not found in aruco markers inside box, check your markers again")
 
 
     def update_resistivity(self, frame, extent, step):
@@ -137,14 +154,15 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-        pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=False)
-        pg.show(self.mesh, self.data, ax=ax2, colorBar=False)
+        #plt.close()
+        pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=True, extent=self.extent[:4], animated=True)
+        pg.show(self.mesh, self.data, ax=ax2, colorBar=True, extent=self.extent[:4], animated=True)
         ax1.set_title("Original resolution")
         ax2.set_title("Coarser resolution")
         print("Original", self.mesh_fine)
         print("Coarse", self.mesh)
         print("Size reduction by %.2f%%" % float(100 - self.mesh.cellCount() / self.mesh_fine.cellCount() * 100))
-        fig.show()
+        return fig
 
     def set_electrode_positions(self, markers=numpy.array(([20, 130],
                                                            [160, 20],
@@ -161,8 +179,8 @@ class GeoelectricsModule(ModuleTemplate):
         """
         self.electrode = markers
 
-    def create_data_containerERT(self, measurements = numpy.array(([0, 1, 2, 3],)), #Dipole-Dipole
-                                 scheme_type = "abmn"):
+    def create_data_containerERT(self, measurements = numpy.array([[0, 1, 2, 3],]), #Dipole-Dipole
+                                 scheme_type = "abmn", verbose= False):
         """
         creates the scheme from the previous 4 aruco markers detected
         Args:
@@ -176,20 +194,23 @@ class GeoelectricsModule(ModuleTemplate):
         scheme.setSensorPositions(self.electrode)
         for i, elec in enumerate(scheme_type):
             scheme[elec] = measurements[:, i]
-        scheme["k"] = ert.createGeometricFactors(scheme)
+        scheme["k"] = ert.createGeometricFactors(scheme, verbose=verbose)
         self.scheme = scheme
         return self.scheme
 
-    def calculate_current_flow(self):
+    def calculate_current_flow(self, time=False, verbose=False):
         """
         Perform the simulation based on the mesh, data and scheme
         Returns:
+            RMatrix and RVector
 
         """
-        pg.tic()
+        if time:
+            pg.tic()
         self.sim = ert.simulate(self.mesh, res=self.data, scheme=self.scheme, sr=False,
-                           calcOnly=True, verbose=True, returnFields=True)
-        pg.toc("Current flow", box=True)
+                           calcOnly=True, verbose=verbose, returnFields=True)
+        if time:
+            pg.toc("Current flow", box=True)
         self.pot = pg.utils.logDropTol(self.sim[0] - self.sim[1], 10)
         return self.sim, self.pot
 
@@ -200,27 +221,30 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
-        pg.show(self.mesh, self.data, ax=ax1)
-        pg.show(self.mesh, self.pot, ax=ax2, nLevs=11, cmap="RdBu_r")
+        #plt.close()
+        pg.show(self.mesh, self.data, ax=ax1, extent=self.extent[:4], animated=True)
+        pg.show(self.mesh, self.pot, ax=ax2, nLevs=11, cMap="RdBu_r", extent=self.extent[:4], animated=True)
 
         for ax in ax1, ax2:
             ax.plot(self.electrode[0, 0], self.electrode[0, 1], "ro")  # Source
             ax.plot(self.electrode[1, 0], self.electrode[1, 1], "bo")  # Sink
             drawStreams(ax, self.mesh, -self.pot, color='Black')
-        fig.show()
+        return fig
 
-    def calculate_sensitivity(self):
+    def calculate_sensitivity(self, time=False):
         """
         Make a sensitivity analysis
         Returns:
 
         """
-        pg.tic()
+        if time:
+            pg.tic()
         self.fop = ert.ERTModelling()
         self.fop.setData(self.scheme)
         self.fop.setMesh(self.mesh)
         self.fop.createJacobian(self.data)
-        pg.toc("Sensitivity calculation", box=True)
+        if time:
+            pg.toc("Sensitivity calculation", box=True)
         sens = self.fop.jacobian()[0]  # first row = first measurement
         self.normsens = pg.utils.logDropTol(sens / self.mesh.cellSizes(), 5e-5)
         self.normsens /= numpy.max(self.normsens)
@@ -233,11 +257,12 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, ax = plt.subplots()
+        #plt.close()
         pg.show(self.mesh, self.normsens, cMap="RdGy_r", orientation="vertical", ax=ax,
-                label="Normalized\nsensitivity", nLevs=3, cMin=-1, cMax=1)
+                label="Normalized\nsensitivity", nLevs=3, cMin=-1, cMax=1, extent=self.extent[:4], animated=True)
         for m in self.electrode:
             ax.plot(m[0], m[1], "ko")
-        fig.show()
+        return fig
 
     def show_widgets(self):
         pass

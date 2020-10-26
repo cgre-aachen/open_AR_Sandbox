@@ -25,7 +25,7 @@ class Sensor:
     Wrapping API-class
     """
     def __init__(self, calibsensor: str = None, name: str ='kinect_v2', crop_values: bool = True,
-                 clip_values: bool = False, gauss_filter: bool = True,
+                 clip_values: bool = True, gauss_filter: bool = True,
                  n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
         """
         Sensor Api class to manage the different sensor for the frame adquisition
@@ -107,6 +107,8 @@ class Sensor:
         if gauss_filter:
             # apply gaussian filter
             depth = scipy.ndimage.filters.gaussian_filter(depth, self.sigma_gauss)
+        else:
+            depth = depth.data
 
         return depth
 
@@ -216,7 +218,7 @@ class Sensor:
         If you want to create a mask make sure to call depth_mask before performing the clip.
         ???"""
 
-        clip = numpy.clip(frame, self.s_min, self.s_max)
+        clip = numpy.clip(frame, self.s_min-1, self.s_max+1)
         return clip
 
     def get_frame(self) -> numpy.ndarray:

@@ -1,5 +1,4 @@
 import panel as pn
-pn.extension()
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy
@@ -14,6 +13,7 @@ class TopoModule(ModuleTemplate):
     """
 
     def __init__(self, *args, extent: list = None, **kwargs):
+        pn.extension()
         self.max_height = 1500
         self.center = 300
         self.min_height = 0

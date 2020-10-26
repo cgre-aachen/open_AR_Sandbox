@@ -262,7 +262,7 @@ explains how to set up Git LFS for LSST development.
 #### Windows
 1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
 2. Run the windows installer    
-3. Start a command prompt/or git for windows prompt and run git lfs install`
+3. Start a command prompt/or git for windows prompt and run `git lfs install`
 
 
 ##### Linux

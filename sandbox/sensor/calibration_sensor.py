@@ -19,7 +19,7 @@ class CalibSensor: #TODO: include automatic
         self.c_margin = '#084C61'
         self.margin_alpha = 0.5
         self.calibprojector = calibprojector
-        self.sensor = Sensor(name=name, invert=False, **kwargs)
+        self.sensor = Sensor(name=name, invert=False, clip_values=False, gauss_filter=False, **kwargs)
         self.projector = Projector(calibprojector=self.calibprojector, **kwargs)
         self.cmap = plt.cm.get_cmap('Greys_r')
         self.cmap.set_over(self.c_over)
@@ -36,7 +36,8 @@ class CalibSensor: #TODO: include automatic
         self.calib_notebook_frame = pn.pane.Matplotlib(self.figure, tight=False, height=300)
         plt.close()  # close figure to prevent inline display
 
-        self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
+        pn.state.add_periodic_callback(self.update_panel_frame, 5)
+        #self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
 
         self.frame_raw = self.sensor.get_raw_frame()
         self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
@@ -44,10 +45,6 @@ class CalibSensor: #TODO: include automatic
         self.calib_notebook_frame.param.trigger('object')
         self._create_widgets()
 
-        #self._lock = threading.Lock()
-        #self._thread = None
-        #self._thread_status = 'stopped'
-        #self.run()
 
     def _refresh_panel_frame(self):
         self.projector.ax.cla()
@@ -64,9 +61,12 @@ class CalibSensor: #TODO: include automatic
 
     def update_panel_frame(self):
         frame = self.sensor.get_frame()
-        self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
-        self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
         self.fig_frame.set_data(frame)
+        #self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
+        #self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
+        self.fig_frame.set_clim(vmin=self.sensor.s_min, vmax=self.sensor.s_max)
+        self.projector.trigger()
+
 
     def update_notebook_frame(self):
         """ Adds margin patches to the current plot object.

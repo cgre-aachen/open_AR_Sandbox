@@ -24,7 +24,7 @@ def test_init():
 def test_create_mesh():
     geo = GeoelectricsModule()
     _ = geo.create_mesh(pytest.sb_params["frame"], step = 7.5)
-    geo.show_mesh()
+    geo.show_mesh().show()
 
 def test_create_data_containerERT():
     geo = GeoelectricsModule()
@@ -51,9 +51,9 @@ def test_calculate_current_flow():
     scheme_type = "abmn"
     _=geo.create_data_containerERT(measurements, scheme_type)
     _=geo.calculate_current_flow()
-    geo.show_streams()
+    geo.show_streams().show()
 
-def test_calculate_resistivity():
+def test_calculate_resistivity_sensitivity():
     geo = GeoelectricsModule()
     _=geo.create_mesh(pytest.sb_params["frame"], step=7.5)
     markers = np.array(([20, 130],
@@ -66,7 +66,7 @@ def test_calculate_resistivity():
     _=geo.create_data_containerERT(measurements, scheme_type)
     _=geo.calculate_current_flow()
     _=geo.calculate_sensitivity()
-    geo.show_sensitivity()
+    geo.show_sensitivity().show()
 
 def test_update_resistivity():
     geo = GeoelectricsModule()
@@ -75,8 +75,8 @@ def test_update_resistivity():
                            pytest.sb_params["extent"],
                            7.5)
     geo.calculate_sensitivity()
-    geo.show_streams()
-    geo.show_sensitivity()
+    geo.show_streams().show()
+    geo.show_sensitivity().show()
 
 def test_plot_sandbox():
     geo = GeoelectricsModule()
@@ -89,16 +89,15 @@ def test_plot_sandbox():
     geo.calculate_sensitivity()
 
     fig, ax = plt.subplots()
-    geo.stream = True
-    geo.view = "mesh"
-    ax = geo.plot(ax, frame_r, pytest.sb_params["cmap"])
+
+    geo.plot_mesh(ax, frame_r, pytest.sb_params["cmap"])
     fig.show()
 
-    geo.view = "potential"
-    ax = geo.plot(ax, frame_r, pytest.sb_params["cmap"])
+    fig, ax = plt.subplots()
+    geo.plot_potential(ax, pytest.sb_params["extent"])
+    geo.plot_stream_lines(ax)
     fig.show()
 
-    geo.stream = False
-    geo.view = "sensitivity"
-    ax = geo.plot(ax, frame_r, pytest.sb_params["cmap"])
+    fig, ax = plt.subplots()
+    geo.plot_sensitivity(ax, pytest.sb_params["extent"])
     fig.show()

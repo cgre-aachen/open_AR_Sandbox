@@ -1,6 +1,5 @@
 import os
 import panel as pn
-pn.extension()
 import time
 import numpy
 import matplotlib.pyplot as plt
@@ -17,6 +16,7 @@ class LandslideSimulation(ModuleTemplate):
     """
     #TODO: set the vmix and vmax of the landslides frames constant
     def __init__(self, *args, extent: list = None, **kwargs):
+        pn.extension()
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]

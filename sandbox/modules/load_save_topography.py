@@ -1,6 +1,5 @@
 import os
 import panel as pn
-pn.extension()
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib
@@ -25,9 +24,9 @@ class LoadSaveTopoModule(ModuleTemplate):
     height of each pixel relative to the vmin and vmax of the currently used calibration.
     use relative height with the gempy module to get the same geologic map with different calibration settings.
     """
-
     def __init__(self, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        pn.extension()
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]
