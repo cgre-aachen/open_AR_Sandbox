@@ -1,4 +1,4 @@
-Open Ubuntu app in Windows and run:
+Open Ubuntu app in Windows and run: EXPERIMENTAL AND NOT WORKING AT THE MOMENT
 
 1). open the repo
 
@@ -10,10 +10,13 @@ Open Ubuntu app in Windows and run:
 
 3). checkout for latest commit 
 
+git stash save
 git fetch origin
-git checkout seismic
-git pull 
-git lfs pull
+git checkout origin/seismic
+
+4) set the direction for the kinect sensor o work - See installation guide
+
+>>> export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 
 3). open notebook 
 
