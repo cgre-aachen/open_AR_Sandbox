@@ -284,15 +284,19 @@ you can follow the tutorial [GempyModule](notebooks/tutorials/04_GempyModule/).
 ```
 pip install gempy
 ```
+If using windows you will need to install `Theano` separately as instructed in [here](https://www.gempy.org/installation)
+```
+conda install mingw libpython m2w64-toolchain
+conda install theano
+pip install theano --force-reinstall
+```
 ### Devito
 
 This package uses the power of [Devito](https://github.com/devitocodes/devito) to run wave proppagation simmulations.
 More about this can be found in `notebooks/tutorials/10_SeismicModule/`. Follow the Devito installation instructions. 
 * This module so far have only support in linux 
 ```
-git clone https://github.com/devitocodes/devito.git
-cd devito
-pip install -e .
+pip install --user git+https://github.com/devitocodes/devito.git
 ```
 
 Getting started

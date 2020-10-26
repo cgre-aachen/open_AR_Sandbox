@@ -235,7 +235,7 @@ class SeismicModule(ModuleTemplate):
         self.ready_velocity = True
         return self.model
 
-    def create_time_axis(self, t0:int=0, tn:int=1000):
+    def create_time_axis(self, t0:int=0, tn:int=1000, **kwargs):
         """
         Time duration of our model. This takes the start, and end with the timestepsize provided by the model
         Args:
