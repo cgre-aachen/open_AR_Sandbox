@@ -7,8 +7,11 @@ from .gempy.gempy_module import GemPyModule
 from .search_methods import SearchMethodsModule
 from .block_module.block_module import BlockModule
 from .block_module.rms_grid import RMS_Grid
-from .seismic_sandbox import SeismicModule
-#from .sandbox_api import *
+try:
+    from .devito.seismic_sandbox import SeismicModule
+except:
+    print("Devito dependencies not installed")
+
 
 
 

@@ -32,7 +32,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if sensor is not None:
             if sensor == "dummy" or isinstance(sensor.Sensor, DummySensor):
                 self.kinect = "dummy"
-                print("Using dummy arucos. Create your own aruco positions using .dummy_markers_in_frame function")
+                print("Using dummy arucos. Create your own aruco positions using .set_aruco_position() function")
             else:
                 if isinstance(sensor.Sensor, KinectV2):
                     self.kinect = sensor.Sensor
