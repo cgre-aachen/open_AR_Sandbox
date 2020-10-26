@@ -3,7 +3,7 @@ import matplotlib
 from matplotlib.colors import LightSource
 import numpy
 import panel as pn
-pn.extension()
+
 
 from .template import ModuleTemplate
 
@@ -12,9 +12,9 @@ class GradientModule(ModuleTemplate):
     """
     Module to display the gradient of the topography and the topography as a vector field.
     """
-
     def __init__(self, *args, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
+        pn.extension()
         if extent is not None:
             self.vmin = extent[4]
             self.vmax = extent[5]

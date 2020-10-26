@@ -4,7 +4,7 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 import panel as pn
-pn.extension('vtk')
+
 import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
@@ -35,6 +35,7 @@ class GemPyModule(ModuleTemplate):
             None
 
         """
+        pn.extension('vtk')  # TODO: check if all the usages of extensions are actually changing something
         self.lock = None #For locking the multithreading while using bokeh server
         if load_examples and len(name_example) > 0:
             self.model_dict = create_model_dict(name_example, **kwargs)

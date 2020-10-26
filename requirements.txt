@@ -7,3 +7,4 @@ scikit-image
 opencv-contrib-python
 pytest
 jupyter
+seaborn

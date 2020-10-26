@@ -26,6 +26,7 @@ Table of Contents
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
+    * [PyGimli](README.md#pygimli)
 * [Getting Started](README.md#getting-started)
 * [Maintainers](README.md#maintainers)
 * [Visit us](README.md#visit-us)
@@ -261,7 +262,7 @@ explains how to set up Git LFS for LSST development.
 #### Windows
 1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
 2. Run the windows installer    
-3. Start a command prompt/or git for windows prompt and run git lfs install`
+3. Start a command prompt/or git for windows prompt and run `git lfs install`
 
 
 ##### Linux
@@ -294,6 +295,12 @@ git clone https://github.com/devitocodes/devito.git
 cd devito
 pip install -e .
 ```
+
+### PyGimli
+This library is a powerful tool for Geophysical inversion and Modelling. Some examples can be found in `notebooks/tutorials/11_Geophysics/`. 
+[PyGimli](https://www.pygimli.org/) can be installed following the installation intructions [here](https://www.pygimli.org/installation.html)
+
+We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox dependencies.
 
 Getting started
 -------
