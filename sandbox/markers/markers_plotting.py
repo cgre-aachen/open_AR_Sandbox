@@ -8,13 +8,13 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
     def __init__(self, sensor, **kwargs):
         self.sensor = sensor
         self.Aruco = ArucoMarkers(sensor=sensor, **kwargs)
-        self.df = None
+        self.df_aruco_position = None
         self.lines = None
         self.scat = None
         self._scat = None # weak reference to a scat plot
         self._lin = None  # weak reference to a lines plot
         # aruco setup
-        self.aruco_connect = True
+        self.aruco_connect = False
         self.aruco_scatter = True
         self.aruco_annotate = True
         self.aruco_color = 'red'
@@ -25,8 +25,8 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.Aruco.search_aruco(**kwargs)
         self.Aruco.update_marker_dict()
         self.Aruco.transform_to_box_coordinates()
-        self.df = self.Aruco.aruco_markers
-        return self.df
+        self.df_aruco_position = self.Aruco.aruco_markers
+        return self.df_aruco_position
 
     def plot_aruco(self, ax, df_position=None):
         ax.texts = []

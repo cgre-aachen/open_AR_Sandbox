@@ -1,10 +1,22 @@
+#from sandbox import _
 import numpy
+import sys
+import platform
+import traceback
+import threading
+
+_platform = platform.system()
 
 try:
-    from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
-    from pykinect2 import PyKinectRuntime
+    if _platform =='Windows':
+        from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
+        from pykinect2 import PyKinectRuntime
+    elif _platform =='Linux':
+        from freenect2 import Device, FrameType
+
 except ImportError:
-    print('pykinect2 module not found, KinectV2 will not work.')
+    print('dependencies not found for KinectV2 to work. Check installation and try again')
+
 
 
 class KinectV2:
@@ -15,6 +27,7 @@ class KinectV2:
 
     """
 
+
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
         self.name = 'kinect_v2'
@@ -22,16 +35,69 @@ class KinectV2:
         self.depth_height = 424
         self.color_width = 1920
         self.color_height = 1080
+
+        self._init_device()
+
+
         self.depth = None
         self.color = None
-        self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
-                                                      PyKinectV2.FrameSourceTypes_Depth |
-                                                      PyKinectV2.FrameSourceTypes_Infrared)
-        self.depth = self.get_frame()
-        self.color = self.get_color()
-        # self.ir_frame_raw = self.get_ir_frame_raw()
-        # self.ir_frame = self.get_ir_frame()
+        #self.depth = self.get_frame()
+        #self.color = self.get_color()
         print("KinectV2 initialized.")
+
+    def _init_device(self):
+        if _platform == 'Windows':
+            self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
+                                                     PyKinectV2.FrameSourceTypes_Depth |
+                                                     PyKinectV2.FrameSourceTypes_Infrared)
+
+        elif _platform == 'Linux':
+            # Threading
+            self._lock = threading.Lock()
+            self._thread = None
+            self._thread_status = 'stopped'  # status: 'stopped', 'running'
+
+            self.device = Device()
+            self._color = numpy.zeros((self.color_height, self.color_width, 4))
+            self._depth = numpy.zeros((self.depth_height, self.depth_width))
+            self._ir = numpy.zeros((self.depth_height, self.depth_width))
+            self._run()
+
+        else:
+            print(_platform)
+            raise NotImplementedError
+
+    def _run(self):
+        if self._thread_status != 'running':
+            self._thread_status = 'running'
+            self._thread = threading.Thread(target=self._open_kinect_frame_stream, daemon=True, )
+            self._thread.start()
+            print('Aquiring frames...')
+        else:
+            print('Already running.')
+
+    def _stop(self):
+        if self._thread_status is not 'stopped':
+            self._thread_status = 'stopped'  # set flag to end thread loop
+            self._thread.join()  # wait for the thread to finish
+            print('Stopping frame acquisition.')
+        else:
+            print('thread was not running.')
+
+
+    def _open_kinect_frame_stream(self):
+        frames = {}
+        with self.device.running():
+            for type_, frame in self.device:
+                frames[type_] = frame
+                if FrameType.Color in frames:
+                    self._color = frames[FrameType.Color].to_array()
+                if FrameType.Depth in frames:
+                    self._depth = frames[FrameType.Depth].to_array()
+                if FrameType.Ir in frames:
+                    self._ir = frames[FrameType.Ir].to_array()
+                if self._thread_status != "running":
+                    break
 
     def get_frame(self):
         """
@@ -39,10 +105,13 @@ class KinectV2:
         Returns:
                2D Array of the shape(424, 512) containing the depth information of the latest frame in mm
         """
-        depth_flattened = self.device.get_last_depth_frame()
-        self.depth = depth_flattened.reshape(
-            (self.depth_height, self.depth_width))  # reshape the array to 2D with native resolution of the kinectV2
-
+        if _platform =='Windows':
+            depth_flattened = self.device.get_last_depth_frame()
+            self.depth = depth_flattened.reshape(
+                (self.depth_height, self.depth_width))  # reshape the array to 2D with native resolution of the kinectV2
+        elif _platform =='Linux':
+            assert self._thread_status == "running"
+            self.depth = self._depth
         return self.depth
 
     def get_ir_frame_raw(self):
@@ -51,10 +120,14 @@ class KinectV2:
         Returns:
                2D Array of the shape(424, 512) containing the raw infrared intensity in (uint16) of the last frame
         """
-        ir_flattened = self.device.get_last_infrared_frame()
-        self.ir_frame_raw = numpy.flipud(
-            ir_flattened.reshape((self.depth_height,
-                                  self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
+        if _platform=='Windows':
+            ir_flattened = self.device.get_last_infrared_frame()
+            self.ir_frame_raw = numpy.flipud(
+                ir_flattened.reshape((self.depth_height,
+                                      self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
+        elif _platform=='Linux':
+            assert self._thread_status == "running"
+            self.ir_frame_raw = self._ir
         return self.ir_frame_raw
 
     def get_ir_frame(self, min=0, max=6000):
@@ -72,11 +145,21 @@ class KinectV2:
         return self.ir_frame
 
     def get_color(self):
-        color_flattened = self.device.get_last_color_frame()
+        """
+
+        Returns:
+
+        """
+        if _platform == 'Windows':
+            color= numpy.array([self.device.get_last_color_frame()])
+
+        elif _platform =='Linux':
+            assert self._thread_status == "running"
+            color = self._color
+
         resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2
         # Palette of colors in RGB / Cut of 4th column marked as intensity
-        palette = numpy.reshape(numpy.array([color_flattened]), (resolution_camera, 4))[:, [2, 1, 0]]
+        palette = numpy.reshape(color, (resolution_camera, 4))[:, [2, 1, 0]]
         position_palette = numpy.reshape(numpy.arange(0, len(palette), 1), (self.color_height, self.color_width))
         self.color = numpy.flipud(palette[position_palette])
-
         return self.color

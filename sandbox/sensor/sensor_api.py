@@ -6,7 +6,7 @@ from warnings import warn
 import json
 
 from .kinectV1 import KinectV1
-from .kinectV2 import KinectV2
+from .kinectV2 import KinectV2, _platform
 from .dummy import DummySensor
 
 
@@ -25,7 +25,7 @@ class Sensor:
     Wrapping API-class
     """
     def __init__(self, calibsensor: str = None, name: str ='kinect_v2', crop_values: bool = True,
-                 clip_values: bool = False, gauss_filter: bool = True,
+                 clip_values: bool = True, gauss_filter: bool = True,
                  n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
         """
         Sensor Api class to manage the different sensor for the frame adquisition
@@ -58,13 +58,16 @@ class Sensor:
 
         if name == 'kinect_v1':
             try:
-                import freenct
+                import freenect
                 self.Sensor = KinectV1()
             except ImportError:
                 raise ImportError('Kinect v1 dependencies are not installed')
         elif name == 'kinect_v2':
             try:
-                import pykinect2
+                if _platform == 'Windows':
+                    import pykinect2
+                elif _platform == 'Linux':
+                    import freenect2
                 self.Sensor = KinectV2()
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')
@@ -104,6 +107,8 @@ class Sensor:
         if gauss_filter:
             # apply gaussian filter
             depth = scipy.ndimage.filters.gaussian_filter(depth, self.sigma_gauss)
+        else:
+            depth = depth.data
 
         return depth
 
@@ -213,7 +218,7 @@ class Sensor:
         If you want to create a mask make sure to call depth_mask before performing the clip.
         ???"""
 
-        clip = numpy.clip(frame, self.s_min, self.s_max)
+        clip = numpy.clip(frame, self.s_min-1, self.s_max+1)
         return clip
 
     def get_frame(self) -> numpy.ndarray:
@@ -221,8 +226,8 @@ class Sensor:
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            frame = self.depth_mask(frame) #TODO: When is this needed?
-            #frame = self.clip_frame(frame)
+            #frame = self.depth_mask(frame) #TODO: When is this needed?
+            frame = self.clip_frame(frame)
         if self.invert:
             frame = self.get_inverted_frame(frame)
         self.depth = frame

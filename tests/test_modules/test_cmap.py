@@ -75,5 +75,5 @@ def test_update():
 
 def test_widgets():
     module = CmapModule(extent=extent)
-    widget = module.widgets_plot()
+    widget = module.show_widgets()
     widget.show()

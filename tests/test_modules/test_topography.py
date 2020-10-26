@@ -30,7 +30,7 @@ def test_update():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower left')
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
 
 def test_update_no_see():
@@ -41,7 +41,7 @@ def test_update_no_see():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower left')
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
 
 def test_update_no_normalized():
@@ -52,12 +52,12 @@ def test_update_no_normalized():
     ax = sb_params['ax']
     fig = sb_params['fig']
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
-              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower left')
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
 
 def test_widgets():
     module = TopoModule(extent=extent)
-    widgets = module.widgets()
+    widgets = module.show_widgets()
     widgets.show()
 
 
