@@ -122,11 +122,13 @@ class MainThread:
         self.sb_params['frame'] = frame
 
         #filter
+        self.lock.acquire()
         if self.ARUCO_ACTIVE:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
             plt.pause(0.1)
+        self.lock.release()
 
         self.sb_params['marker'] = df
 
