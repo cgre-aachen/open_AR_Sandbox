@@ -30,9 +30,10 @@ class SeismicModule(ModuleTemplate):
         self.n_frames_speed = 10
         #self.aruco_sources_coord = []
         # For the cropping, because when normalizing the velocities dont work
-        self.box_origin = [40, 40]  # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
-        self.box_width = 200
-        self.box_height = 150
+        self.crop = True
+        self.box_origin = [10, 10]  # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        self.box_width = 250
+        self.box_height = 180
 
         self.xy_aruco=[]
         # for the plotting
@@ -46,6 +47,9 @@ class SeismicModule(ModuleTemplate):
         self._vp = None
         self._w = None
         self.real_time = True
+        self.model_extent = None
+        self.frame = None
+        self.extent = None
 
     @property
     def to_box_extent(self):
@@ -58,8 +62,12 @@ class SeismicModule(ModuleTemplate):
         frame = sb_params.get('frame')
         ax = sb_params.get('ax')
         marker = sb_params.get('marker')
-        self.frame = frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
-                        self.box_origin[0]:self.box_origin[0] + self.box_width]
+        self.extent = sb_params.get('extent')[:4]
+        if self.crop:
+            self.frame = np.transpose(self.crop_frame(frame))
+        else:
+            self.frame = np.transpose(frame)
+
         if len(marker) > 0:
             self.xy_aruco = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
         else:
@@ -77,6 +85,9 @@ class SeismicModule(ModuleTemplate):
             self.plot_wavefield(ax)
         else:
             self.delete_wavefield()
+        ax.set_axis_off()
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
         return ax
 
     def plot_seismic_velocity(self, ax):
@@ -85,7 +96,7 @@ class SeismicModule(ModuleTemplate):
 
                 self._vp = ax.imshow(self.field, cmap=plt.get_cmap("jet"),
                           vmin=np.min(self.field), vmax=np.max(self.field),
-                          extent=self.to_box_extent, origin="lower", zorder=2)
+                          extent=self.to_box_extent if self.crop else self.extent, origin="lower", zorder=2)
             else:
                 self._vp.set_data(self.field)
 
@@ -100,7 +111,7 @@ class SeismicModule(ModuleTemplate):
                 self._w = ax.imshow(self.wavefield(self.timeslice),
                           vmin=-1e0, vmax=1e0,
                           cmap=plt.get_cmap('seismic'),
-                          aspect=1, extent=self.to_box_extent,
+                          aspect=1, extent=self.to_box_extent if self.crop else self.extent,
                           interpolation='none', origin="lower", zorder=3)
             else:
                 self._w.set_data(self.wavefield(self.timeslice))
@@ -152,14 +163,12 @@ class SeismicModule(ModuleTemplate):
         else:
             return print("No arucos founded")
 
-    def crop_frame(self, origin:tuple, height:int, width:int, frame=None):
-        self.box_origin = origin # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
-        self.box_width = width
-        self.box_height = height
-        if frame is not None:
-            frame = frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
-                        self.box_origin[0]:self.box_origin[0] + self.box_width]
-            return frame
+    def crop_frame(self, frame):
+        #self.box_origin = origin # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        #self.box_width = width
+        #self.box_height = height
+        return frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
+                    self.box_origin[0]:self.box_origin[0] + self.box_width]
 
     def scale_linear(self, topo: np.ndarray, high: float, low:float):
         """
@@ -222,17 +231,23 @@ class SeismicModule(ModuleTemplate):
             topo = self.scale_linear(topo, vmax, vmin)
         if smooth:
             topo = self.smooth_topo(topo, sigma_x, sigma_y)
-        self.vp = topo
+        self.vp = np.transpose(topo)
         self.model = Model(vp=topo, origin=origin, shape=topo.shape, spacing=spacing,
-              space_order=2, nbl=nbl, bcs="damp")
-        if show_velocity:
-            self.show_velocity(self.model)
+                           space_order=2, nbl=nbl, bcs="damp")
         slices = tuple(slice(self.model.nbl, -self.model.nbl) for _ in range(2))
         if getattr(self.model, 'vp', None) is not None:
             self.field = self.model.vp.data[slices]
         else:
             self.field = self.model.lam.data[slices]
+        self.field = np.transpose(self.field)
         self.ready_velocity = True
+
+        domain_size = 1.e-3 * np.array(self.model.domain_size) # To express in kilometers
+        self.model_extent = [self.model.origin[0], self.model.origin[0] + domain_size[0],
+                             self.model.origin[1], self.model.origin[1] + domain_size[1]]
+
+        if show_velocity:
+            self.show_velocity(self.model)
         return self.model
 
     def create_time_axis(self, t0:int=0, tn:int=1000, **kwargs):
@@ -316,6 +331,7 @@ class SeismicModule(ModuleTemplate):
             self.src_term = src_term
         else:
             self.src_term += src_term
+
         self.src_coordinates.append(source.coordinates.data)
         return self.src_term
 
@@ -362,7 +378,7 @@ class SeismicModule(ModuleTemplate):
         wf_data = self.u.data[timeslice, self.model.nbl:-self.model.nbl, self.model.nbl:-self.model.nbl]
         wf_data_normalize = wf_data / np.amax(wf_data)
         waves = np.ma.masked_where(np.abs(wf_data_normalize) <= thrshld, wf_data_normalize)
-        return waves
+        return np.transpose(waves)
 
     def show_wavefield(self, timeslice:int):
         """
@@ -374,15 +390,11 @@ class SeismicModule(ModuleTemplate):
         """
 
         fig, ax = plt.subplots()
-        domain_size = 1.e-3 * np.array(self.model.domain_size)
-        extent = [self.model.origin[0], self.model.origin[0] + domain_size[0],
-                  self.model.origin[1] + domain_size[1], self.model.origin[1]]
+        model_param = dict(vmin=self.vp.max(), vmax=self.vp.min(), cmap=plt.get_cmap('jet'), aspect=1, extent=self.model_extent, origin="lower")
+        data_param = dict(vmin=-1e0, vmax=1e0, cmap=plt.get_cmap('seismic'), aspect=1, extent=self.model_extent, interpolation='none', origin="lower")#, alpha=.4)
 
-        model_param = dict(vmin=self.vp.max(), vmax=self.vp.min(), cmap=plt.get_cmap('jet'), aspect=1, extent=extent, origin="lower")
-        data_param = dict(vmin=-1e0, vmax=1e0, cmap=plt.get_cmap('seismic'), aspect=1, extent=extent, interpolation='none')#, alpha=.4)
-
-        _vp = plt.imshow(np.transpose(self.vp), **model_param)
-        _wave = plt.imshow(np.transpose(self.wavefield(timeslice)), **data_param)
+        _vp = plt.imshow(self.vp, **model_param)
+        _wave = plt.imshow(self.wavefield(timeslice), **data_param)
         ax.set_ylabel('Depth (km)', fontsize=20)
         ax.set_xlabel('x position (km)', fontsize=20)
 
@@ -392,6 +404,7 @@ class SeismicModule(ModuleTemplate):
         fig.colorbar(_vp, cax=cax, ax=ax, label="Velocity (km/s)")
         #fig.colorbar(_vp, ax=ax, label="Wave amplitude")
         fig.show()
+
 
     def show_velocity(self, model, source=None, receiver=None, cmap="jet"):
         """
@@ -410,19 +423,16 @@ class SeismicModule(ModuleTemplate):
         colorbar : bool
             Option to plot the colorbar.
         """
-        domain_size = 1.e-3 * np.array(model.domain_size)
-        extent = [model.origin[0], model.origin[0] + domain_size[0],
-                  model.origin[1] + domain_size[1], model.origin[1]]
-
         slices = tuple(slice(model.nbl, -model.nbl) for _ in range(2))
         if getattr(model, 'vp', None) is not None:
             field = model.vp.data[slices]
         else:
             field = model.lam.data[slices]
+        field = np.transpose(field)
         fig, ax = plt.subplots()
         plot = ax.imshow(field, animated=True, cmap=cmap,
                           vmin=np.min(field), vmax=np.max(field),
-                          extent=extent, origin="lower")
+                          extent=self.model_extent, origin="lower")
         ax.set_xlabel('X position (km)')
         ax.set_ylabel('Depth (km)')
 
@@ -440,11 +450,12 @@ class SeismicModule(ModuleTemplate):
                             s=25, c='red', marker='o')
 
         # Ensure axis limits
-        ax.set_xlim(model.origin[0], model.origin[0] + domain_size[0])
-        ax.set_ylim(model.origin[1] + domain_size[1], model.origin[1])
+        ax.set_xlim(self.model_extent[0], self.model_extent[1])
+        ax.set_ylim(self.model_extent[2], self.model_extent[3])
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(plot, cax=cax, ax=ax, label="Velocity (km/s)")
+
         fig.show()
 
     def show_shotrecord(self, rec, model, t0, tn):
@@ -464,7 +475,7 @@ class SeismicModule(ModuleTemplate):
             End of time dimension to plot.
         """
         scale = np.max(rec) / 10.
-        extent = [model.origin[0], model.origin[0] + 1e-3 * model.domain_size[0],
+        extent = [model.origin[0], model.origin[0] + 1e-3 * model.domain_size[1],
                   1e-3 * tn, t0]
         fig, ax = plt.subplots()
         plot = ax.imshow(rec, vmin=-scale, vmax=scale, cmap=cm.gray, extent=extent)
