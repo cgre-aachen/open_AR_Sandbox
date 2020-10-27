@@ -20,6 +20,8 @@ setup(
         'pytest',
         'jupyter',
         'cython'
+        'seaborn'
+
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',

@@ -26,6 +26,8 @@ Table of Contents
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
+    * [PyGimli](README.md#pygimli)
+    * [PyTorch](README.md#pytorch)
 * [Getting Started](README.md#getting-started)
 * [Maintainers](README.md#maintainers)
 * [Visit us](README.md#visit-us)
@@ -261,7 +263,7 @@ explains how to set up Git LFS for LSST development.
 #### Windows
 1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
 2. Run the windows installer    
-3. Start a command prompt/or git for windows prompt and run git lfs install`
+3. Start a command prompt/or git for windows prompt and run `git lfs install`
 
 
 ##### Linux
@@ -299,16 +301,32 @@ More about this can be found in `notebooks/tutorials/10_SeismicModule/`. Follow 
 pip install --user git+https://github.com/devitocodes/devito.git
 ```
 
-Getting started
--------
+### PyGimli
+This library is a powerful tool for Geophysical inversion and Modelling. Some examples can be found in `notebooks/tutorials/11_Geophysics/`. 
+[PyGimli](https://www.pygimli.org/) can be installed following the installation intructions [here](https://www.pygimli.org/installation.html)
 
-So now the necessary software is installed and (hopefully) running and you have set up your Sandbox with a projector and a kinect, it is time to calibrate your sandbox.
-The calibration step is necessary to align your sandbox with the kinect as well as with the projected image. 
+We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox dependencies.
 
-Navigate to the Folder `/notebooks/tutorials/01_CalibModule` and follow the instruction in the `calib_sensor.ipynb` and `calib_projector.ipynb` notebook. 
-If everything goes right you will end up wit a calibration file that you can use for your Sandbox setup.
+### PyTorch
 
-The next (and most exciting) step is to make the sandbox run and actually showing some geology: the Folder `/notebooks/tutorials/` will guide you through all the available modules and the necessary steps. 
+To use the LandscapeGeneration module we need to install [PyTorch](https://pytorch.org/). This module use the power of [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
+to take a topography from the sandbox, translate this as a DEM and then display it again on the sandbox as a Landscape image. 
+To install the dependencies for this module do:
+```
+#For Windows
+pip install torch===1.6.0 torchvision===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
+```
+```
+#For Linux
+pip install torch torchvision
+```
+```
+git clone https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+cd pytorch-CycleGAN-and-pix2pix
+pip install -r requirements.txt
+```
+Once this is installed, copy the trained model in `/notebooks/tutorials/09_LandscapeGeneration/checkpoints` folder, and then follow the notebook.
+Get in contact with us to provide you with the train model for this module. 
 
 
 Maintainers

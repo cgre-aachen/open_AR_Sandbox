@@ -1,5 +1,4 @@
 import panel as pn
-pn.extension()
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import json
@@ -43,6 +42,7 @@ class Projector(object):
             calibprojector:
             use_panel:
         """
+        pn.extension()
         self.version = '2.0.p'
         self.ax = None
         self.figure = None
