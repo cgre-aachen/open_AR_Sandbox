@@ -4,15 +4,9 @@ import numpy
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 from scipy.spatial.distance import cdist
-from sandbox.sensor.kinectV2 import KinectV2
-try:
-    from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
-    from pykinect2 import PyKinectRuntime
-    PYKINECT_INSTALLED = True
-except ImportError:
-    warn('pykinect2 module not found, Coordinate Mapping will not work.')
-    PYKINECT_INSTALLED = False
-
+from sandbox.sensor.kinectV2 import KinectV2, _platform
+from sandbox.sensor.dummy import DummySensor
+from .dummy_aruco import dummy_markers_in_frame
 
 try:
     import cv2
@@ -36,14 +30,18 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             self.aruco_dict = aruco_dict
         #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
         if sensor is not None:
-            if isinstance(sensor.Sensor, KinectV2):
-                self.kinect = sensor.Sensor
-                self.calib = sensor
-                print("KinectV2 loaded")
-            else: warn("Kinect version not supported")
+            if sensor == "dummy" or isinstance(sensor.Sensor, DummySensor):
+                self.kinect = "dummy"
+                print("Using dummy arucos. Create your own aruco positions using .set_aruco_position() function")
+            else:
+                if isinstance(sensor.Sensor, KinectV2):
+                    self.kinect = sensor.Sensor
+                    self.calib = sensor
+                    print("KinectV2 loaded")
+                else: warn("Kinect version not supported")
         else:
-            warn("No sensor loaded. Detection will only work in color image")
-            self.kinect = None
+            warn("No sensor loaded. Detection will only work in color image. Using dummy arucos")
+            self.kinect = "dummy"
 
         self.ir_markers = None
         #if self.calib is not None:
@@ -58,9 +56,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         self.middle = None
         self.corner_middle = None
-        # TODO: correction in x and y direction for the mapping between color space and depth space
-        self._correction_x = 8
-        self._correction_y = 65
+
 
         self.point_markers = None
 
@@ -95,10 +91,30 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         #self.load_corners_ids()
 
         self.CoordinateMap = pd.DataFrame()
-        if PYKINECT_INSTALLED and sensor is not None:
-            while len(self.CoordinateMap) < 5:
-                self.CoordinateMap = self.create_CoordinateMap()
-        return print('Aruco detection ready')
+        if self.kinect == "dummy":
+            self.CoordinateMap = None
+            print('using dummy aruco module')
+        else:
+            if _platform == "Linux":
+                from sandbox.markers.aruco_linux import start_mapping, set_correction
+                # TODO: correction in x and y direction for the mapping between color space and depth space
+                self._correction_x = 0
+                self._correction_y = 0
+                set_correction(self._correction_x, self._correction_y)
+                while len(self.CoordinateMap) < 5:
+                    self.CoordinateMap = start_mapping(self.kinect)
+            elif _platform == "Windows":
+                from sandbox.markers.aruco_windows import start_mapping, set_correction
+                # TODO: correction in x and y direction for the mapping between color space and depth space
+                self._correction_x = 8
+                self._correction_y = 65
+                set_correction(self._correction_x, self._correction_y)
+                while len(self.CoordinateMap) < 5:
+                    self.CoordinateMap = start_mapping(self.kinect)
+            else:
+                print(_platform, " not supported")
+
+        return print('Aruco module loaded')
 
     def aruco_detect(self, image):
         """ Function to detect an aruco marker in a color image
@@ -127,7 +143,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         pr2 = int(numpy.mean(corners[:, 1]))
         return pr1, pr2
 
-    def search_aruco(self, frame: numpy.ndarray = None) -> pd.DataFrame:
+    def search_aruco(self, frame: numpy.ndarray = None, **kwargs) -> pd.DataFrame:
         """
         searches for aruco markers in the current kinect image and writes detected markers to
         self.markers_in_frame. call this first in the update function.
@@ -136,6 +152,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         Returns
             markers_in_frame
         """
+        if self.kinect == "dummy":
+            dict_position = kwargs.get("dict_position")
+            depth_frame = kwargs.get("depth_frame")
+            self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
+            return self.markers_in_frame
 
         if frame is None:
             frame = self.kinect.get_color()
@@ -196,6 +217,11 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         and converts the location to box coordinates x,y. call after self.update_markers in the update loop
         Returns:
         """
+        if self.kinect == "dummy":
+            if len(self.aruco_markers)>0:
+                self.aruco_markers['is_inside_box'] = self.aruco_markers['is_inside_box'].astype('bool')
+            return
+
         if len(self.aruco_markers) > 0:
             self.aruco_markers['box_x'] = self.aruco_markers['Depth_x'] - self.calib.s_left
             self.aruco_markers['box_y'] = self.calib.s_height - self.aruco_markers['Depth_y'] - self.calib.s_bottom
@@ -322,57 +348,6 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         self.projector_markers = df.reset_index(drop=True)
 
         return self.projector_markers, self.corner_middle
-
-    def create_CoordinateMap(self):
-        """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
-        camera space. This method requires the depth frame to assign a depth value to the color point.
-        Returns:
-            CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
-            real world values of x,y and z in meters
-        """
-        height, width = self.calib.s_height, self.calib.s_width
-        x = numpy.arange(0, width)
-        y = numpy.arange(0, height)
-        xx, yy = numpy.meshgrid(x, y)
-        xy_points = numpy.vstack([xx.ravel(), yy.ravel()]).T
-        depth = self.kinect.get_frame()
-        depth_x = []
-        depth_y = []
-        depth_z = []
-        camera_x = []
-        camera_y = []
-        camera_z = []
-        color_x = []
-        color_y = []
-        for i in range(len(xy_points)):
-            x_point = xy_points[i, 0]
-            y_point = xy_points[i, 1]
-            z_point = depth[y_point][x_point]
-            if z_point != 0:   # values that do not have depth information cannot be projected to the color space
-                point = PyKinectV2._DepthSpacePoint(x_point, y_point)
-                col = self.kinect.device._mapper.MapDepthPointToColorSpace(point, z_point)
-                cam = self.kinect.device._mapper.MapDepthPointToCameraSpace(point, z_point)
-                # since the position of the camera and sensor are different, they will not have the same coverage. Specially in the extremes
-                if col.y > 0:
-                    depth_x.append(x_point)
-                    depth_y.append(y_point)
-                    depth_z.append(z_point)
-                    camera_x.append(cam.x)
-                    camera_y.append(cam.y)
-                    camera_z.append(cam.z)
-                    color_x.append(int(col.x)+self._correction_x) ####TODO: constants addded since image is not exact when doing the transformation
-                    color_y.append(int(col.y)-self._correction_y)
-
-        self.CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
-                                           'Depth_y': depth_y,
-                                           'Depth_Z(mm)': depth_z,
-                                           'Color_x': color_x,
-                                           'Color_y': color_y,
-                                           'Camera_x(m)': camera_x,
-                                           'Camera_y(m)': camera_y,
-                                           'Camera_z(m)': camera_z})
-
-        return self.CoordinateMap
 
     def create_aruco_marker(self, id: int = 1, resolution: int = 50, show: bool = False,
                             save: bool = False, path: str = './'):

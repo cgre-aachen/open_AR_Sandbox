@@ -18,6 +18,8 @@ class Projector(object):
       overflow: hidden;
     }
     .bk.frame {
+      background-color: #FFFFFF;
+      color: #FFFFFF;
     }
     .bk.legend {
       background-color: #16425B;

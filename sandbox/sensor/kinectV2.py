@@ -1,22 +1,15 @@
-#from sandbox import _
 import numpy
-import sys
 import platform
-import traceback
 import threading
-
 _platform = platform.system()
-
 try:
     if _platform =='Windows':
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform =='Linux':
         from freenect2 import Device, FrameType
-
 except ImportError:
     print('dependencies not found for KinectV2 to work. Check installation and try again')
-
 
 
 class KinectV2:
@@ -26,8 +19,6 @@ class KinectV2:
     Also we do gaussian blurring to get smoother surfaces.
 
     """
-
-
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
         self.name = 'kinect_v2'
@@ -38,18 +29,22 @@ class KinectV2:
 
         self._init_device()
 
-
-        self.depth = None
-        self.color = None
-        #self.depth = self.get_frame()
-        #self.color = self.get_color()
+        #self.depth = None
+        #self.color = None
+        self.depth = self.get_frame()
+        self.color = self.get_color()
         print("KinectV2 initialized.")
 
     def _init_device(self):
+        """
+        creates the self.device parameter to start the stream of frames
+        Returns:
+
+        """
         if _platform == 'Windows':
             self.device = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Color |
-                                                     PyKinectV2.FrameSourceTypes_Depth |
-                                                     PyKinectV2.FrameSourceTypes_Infrared)
+                                                          PyKinectV2.FrameSourceTypes_Depth |
+                                                          PyKinectV2.FrameSourceTypes_Infrared)
 
         elif _platform == 'Linux':
             # Threading
@@ -62,21 +57,33 @@ class KinectV2:
             self._depth = numpy.zeros((self.depth_height, self.depth_width))
             self._ir = numpy.zeros((self.depth_height, self.depth_width))
             self._run()
+            print("Searching first frame")
+            while True:
+                if not numpy.all(self._depth == 0):
+                    print("First frame found")
+                    break
 
         else:
             print(_platform)
             raise NotImplementedError
 
+
     def _run(self):
+        """
+        Run the thread when _platform is linux
+        """
         if self._thread_status != 'running':
             self._thread_status = 'running'
             self._thread = threading.Thread(target=self._open_kinect_frame_stream, daemon=True, )
             self._thread.start()
-            print('Aquiring frames...')
+            print('Acquiring frames...')
         else:
             print('Already running.')
 
     def _stop(self):
+        """
+        Stop the thread when _platform is linux
+        """
         if self._thread_status is not 'stopped':
             self._thread_status = 'stopped'  # set flag to end thread loop
             self._thread.join()  # wait for the thread to finish
@@ -84,8 +91,10 @@ class KinectV2:
         else:
             print('thread was not running.')
 
-
     def _open_kinect_frame_stream(self):
+        """
+        keep the stream open to adquire new frames when using linux
+        """
         frames = {}
         with self.device.running():
             for type_, frame in self.device:
@@ -98,6 +107,7 @@ class KinectV2:
                     self._ir = frames[FrameType.Ir].to_array()
                 if self._thread_status != "running":
                     break
+
 
     def get_frame(self):
         """
