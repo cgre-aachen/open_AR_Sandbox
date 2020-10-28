@@ -21,7 +21,7 @@ Table of Contents
             * [kinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
         * [Linux](README.md#for-linux)
             * [KinectV1 - libkinect](README.md#kinect-v1---libfreenect)
-            * [kinectV2 - pylibfreenect](README.md#kinect-v2---pylibfreenect2)
+            * [kinectV2 - freenect2](README.md#kinect-v2---freenect2)
 * [Git LFS](README.md#git-lfs)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
@@ -53,18 +53,17 @@ Features
 * We recently added computer vision algorithms to the sandbox that open up a whole new field of possibilities! By placing printed markers into the sandbox, thew user can trigger actions or define points, lines and areas in the sandbox without using the computer
 
 Some of the modules already implemented include:
+* [MarkerDetection](notebooks/tutorials/01_MainThread_MarkerDetection): Place virtual boreholes in the model, Define a cross section with multiple markers, Set the start position for simulations (landslides, earthquakes, etc.) check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
 * [TopoModule](notebooks/tutorials/02_TopoModule/): Normalize the depth image to display a topography map with fully customizable contour lines and variable heights.
+* [SearchMethodsModule](notebooks/tutorials/03_SearchMethodsModule): Takes the depth image and performs Monte-Carlo simulation algorithms to construct the probability distribution based on the structure of the current DEM in an interactive way. (https://chi-feng.github.io/mcmc-demo/app.html)
+* [GemPyModule](notebooks/tutorials/04_GempyModule): Use the full advantage of the powerful [GemPy](https://github.com/cgre-aachen/gempy) package to construct geological models and visualize them on the sandbox in real-time
 * [GradientModule](notebooks/tutorials/05_GradientModule): Takes the gradient information from the depth image and highlight slopes in x and y direction, calculation of laplacian, interactive hill shading, visualization of a vector field, and streamline plot.   
 * [LoadSaveTopoModule](notebooks/tutorials/06_LoadSaveTopoModule): Takes the depth image and allows it to be saved as a DEM to reconstruct topographies previously constructed.
 * [LandslideSimulation](notebooks/tutorials/07_LandslideSimulation): With precomputed landslides simulations, recreate a topography and trigger a landslide to visualize its flow, direction, and velocity in real-time, or frame by frame.
-* [SearchMethodsModule](notebooks/tutorials/03_SearchMethodsModule): Takes the depth image and performs Monte-Carlo simulation algorithms to construct the probability distribution based on the structure of the current DEM in an interactive way. (https://chi-feng.github.io/mcmc-demo/app.html)
 * [PrototypingModule](notebooks/tutorials/08_PrototypingModule): Create your own module with the help of this module to link the live threading of the sandbox with your ideas
-* [GemPyModule](notebooks/tutorials/04_GempyModule): Use the full advantage of the powerful [GemPy](https://github.com/cgre-aachen/gempy) package to construct geological models and visualize them on the sandbox in real-time
-* SeismicModule: module for seismic wave modelling in the sandbox
-* LandscapeModule: Landscape generations using machine learning codes extracted from the sandbox
-* MarkerDetection: Place virtual boreholes in the model, Define a cross section with multiple markers, Set the start position for simulations (landslides, earthquakes, etc.) check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
-
-
+* [LandscapeModule](notebooks/tutorials/09_LandscapeGeneration): Landscape generations using machine learning codes powered by [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
+* [SeismicModule](notebooks/tutorials/10_SeismicModule): module for seismic wave modelling in the sandbox. This uses the power of [Devito](https://github.com/devitocodes/devito)
+* [GeoelectricsModule](notebooks/tutorials/11_GeoelectricsModule): module for visualization of geoelectrical fields using aruco markers as electrodes. This use power of [PyGimli](https://www.pygimli.org/)
 
 Check the video below for some of the features in action:
 [![Open AR Sandbox Features](https://img.youtube.com/vi/t0fyPVMIH4g/0.jpg)](https://www.youtube.com/watch?v=t0fyPVMIH4g)
@@ -212,8 +211,12 @@ cmake .. -DENABLE_CXX11=ON -DENABLE_OPENCL=ON -DENABLE_OPENGL=ON -DBUILD_OPENNI2
 make
 make install
 ```
-* Set up udev rules for device access: `sudo cp ../platform/linux/udev/90-kinect2.rules /etc/udev/rules.d/`, then replug the Kinect.
-* Now test if the kinect is correctly installed, run:
+* Set up udev rules for device access: 
+```
+sudo cp ../platform/linux/udev/90-kinect2.rules /etc/udev/rules.d/
+```
+Now unplug and replug the Kinect sensor.
+* Test if the kinect is correctly installed, by running:
 ```
 ./bin/Protonect
 ```
@@ -306,6 +309,10 @@ This library is a powerful tool for Geophysical inversion and Modelling. Some ex
 [PyGimli](https://www.pygimli.org/) can be installed following the installation intructions [here](https://www.pygimli.org/installation.html)
 
 We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox dependencies.
+```
+conda create -n sandbox-env -c gimli -c conda-forge pygimli=1.1.0
+```
+* And now go back to [installation](README.md#installation) and follow all over again the instruction but skipping step 2. 
 
 ### PyTorch
 

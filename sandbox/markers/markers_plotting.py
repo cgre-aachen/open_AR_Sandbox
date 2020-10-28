@@ -47,6 +47,9 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self._dict_position = dict_position
         self._depth_frame = frame
 
+    def calibrate_aruco(self, move_x, move_y):
+        self.Aruco.set_xy_correction(move_x, move_y)
+
     def plot_aruco(self, ax, df_position=None):
         ax.texts = []
         if self._scat is not None and self._scat() not in ax.collections:

@@ -89,7 +89,12 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
         #Automatic calibration
         #self.load_corners_ids()
+        init_correction_x = 20
+        init_correction_y = -80
+        self.set_xy_correction(init_correction_x, init_correction_y)
+        return print('Aruco module loaded')
 
+    def set_xy_correction(self, x:int, y:int):
         self.CoordinateMap = pd.DataFrame()
         if self.kinect == "dummy":
             self.CoordinateMap = None
@@ -98,23 +103,21 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
             if _platform == "Linux":
                 from sandbox.markers.aruco_linux import start_mapping, set_correction
                 # TODO: correction in x and y direction for the mapping between color space and depth space
-                self._correction_x = 0
-                self._correction_y = 0
+                self._correction_x = x
+                self._correction_y = y
                 set_correction(self._correction_x, self._correction_y)
                 while len(self.CoordinateMap) < 5:
                     self.CoordinateMap = start_mapping(self.kinect)
             elif _platform == "Windows":
                 from sandbox.markers.aruco_windows import start_mapping, set_correction
                 # TODO: correction in x and y direction for the mapping between color space and depth space
-                self._correction_x = 8
-                self._correction_y = 65
+                self._correction_x = x
+                self._correction_y = y
                 set_correction(self._correction_x, self._correction_y)
                 while len(self.CoordinateMap) < 5:
                     self.CoordinateMap = start_mapping(self.kinect)
             else:
                 print(_platform, " not supported")
-
-        return print('Aruco module loaded')
 
     def aruco_detect(self, image):
         """ Function to detect an aruco marker in a color image
@@ -155,6 +158,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if self.kinect == "dummy":
             dict_position = kwargs.get("dict_position")
             depth_frame = kwargs.get("depth_frame")
+            plt.pause(0.1) # TODO: To avoid problems with the common issue od NoneType dpi
             self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
             return self.markers_in_frame
 

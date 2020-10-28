@@ -17,7 +17,7 @@ class TopoModule(ModuleTemplate):
         self.max_height = 1500
         self.center = 300
         self.min_height = 0
-        self.see = True
+        self.see = False
         self.terrain_cmap = None
         self.create_custom_cmap()
 

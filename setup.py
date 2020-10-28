@@ -19,8 +19,8 @@ setup(
         'opencv-contrib-python',
         'pytest',
         'jupyter',
-        'cython'
-        'seaborn'
+        'cython',
+        'seaborn',
 
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',

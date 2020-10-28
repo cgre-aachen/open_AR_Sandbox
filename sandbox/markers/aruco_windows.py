@@ -28,6 +28,7 @@ def start_mapping(kinect: KinectV2):
     """
     set_device(kinect)
     df = create_CoordinateMap(kinect.get_frame())
+    print("CoordinateMap created")
     return df
 
 def create_CoordinateMap(depth):

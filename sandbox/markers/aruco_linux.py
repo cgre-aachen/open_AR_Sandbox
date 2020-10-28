@@ -46,11 +46,16 @@ def start_mapping(kinect: KinectV2):
     # depth_to_color
     set_device(kinect)
     set_device_params(kinect)
-    kinect._stop()
-    undistorted_depth, _, _ = registration()
-    kinect._run()
+    status = kinect._thread_status
+    if status == "running":
+        kinect._stop()
+    depth, _, undistorted_depth, _, _ = registration()
+
     _ = depth_to_camera(undistorted_depth)
-    df = create_CoordinateMap(kinect.get_frame())
+    df = create_CoordinateMap(depth.to_array())
+    print("CoordinateMap created")
+    if status == "running":
+        kinect._run()
     return df
 
 def registration():
@@ -74,7 +79,7 @@ def registration():
     global undistorted_depth, registered_RGB, big_depth
     undistorted_depth, registered_RGB, big_depth = device.registration.apply(
         rgb, depth, with_big_depth=True)
-    return undistorted_depth, registered_RGB, big_depth
+    return depth, rgb, undistorted_depth, registered_RGB, big_depth
 
 def distort(mx, my):
     """
