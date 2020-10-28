@@ -333,6 +333,7 @@ class SeismicModule(ModuleTemplate):
             self.src_term += src_term
 
         self.src_coordinates.append(source.coordinates.data)
+        print("Source registered")
         return self.src_term
 
     def create_receivers(self, name:str = 'rec', n_receivers:int=50, depth_receivers:int=20, show_receivers:bool=False):

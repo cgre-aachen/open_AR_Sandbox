@@ -120,7 +120,7 @@ class KinectV2:
             self.depth = depth_flattened.reshape(
                 (self.depth_height, self.depth_width))  # reshape the array to 2D with native resolution of the kinectV2
         elif _platform =='Linux':
-            assert self._thread_status == "running"
+            #assert self._thread_status == "running"
             self.depth = self._depth
         return self.depth
 
@@ -136,7 +136,7 @@ class KinectV2:
                 ir_flattened.reshape((self.depth_height,
                                       self.depth_width)))  # reshape the array to 2D with native resolution of the kinectV2
         elif _platform=='Linux':
-            assert self._thread_status == "running"
+            #assert self._thread_status == "running"
             self.ir_frame_raw = self._ir
         return self.ir_frame_raw
 
@@ -164,7 +164,7 @@ class KinectV2:
             color= numpy.array([self.device.get_last_color_frame()])
 
         elif _platform =='Linux':
-            assert self._thread_status == "running"
+            #assert self._thread_status == "running"
             color = self._color
 
         resolution_camera = self.color_height * self.color_width  # resolution camera Kinect V2

@@ -117,7 +117,7 @@ class Sandbox:
                                                         fill_value=0)
         self.Modules['SearchMethodsModule'].activate_frame_capture = False
         if gempy_module:
-            from sandbox.modules import GemPyModule
+            from sandbox.modules.gempy import GemPyModule
             geo_model = kwargs.get('geo_model')
             #load_example = kwargs.get('load_examples')
             #name_example = kwargs.get('name_example')

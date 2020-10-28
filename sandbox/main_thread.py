@@ -10,6 +10,7 @@ import traceback
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
+from sandbox.sensor.kinectV2 import _platform
 from sandbox.markers import MarkerDetection
 
 
@@ -84,6 +85,8 @@ class MainThread:
 
         self._create_widgets()
 
+        self._cla = True
+
 
     #@property @TODO: test if this works
     #def sb_params(self):
@@ -106,7 +109,10 @@ class MainThread:
         Returns:
 
         """
+        if self._cla:
+            self.projector.ax.cla()
         self.sb_params['ax'] = self.projector.ax
+
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent
 
@@ -127,7 +133,7 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            plt.pause(0.1)
+            plt.pause(0.2)
         self.lock.release()
 
         self.sb_params['marker'] = df
@@ -190,15 +196,20 @@ class MainThread:
 
     def run(self):
         if self.thread_status != 'running':
+            if _platform == "Linux":
+                self.sensor.Sensor._run()
             self.thread_status = 'running'
             self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
             self.thread.start()
             print('Thread started or resumed...')
+
         else:
             print('Thread already running.')
 
     def stop(self):
         if self.thread_status is not 'stopped':
+            if _platform == "Linux":
+                self.sensor.Sensor._stop()
             self.thread_status = 'stopped'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
             print('Thread stopped.')
