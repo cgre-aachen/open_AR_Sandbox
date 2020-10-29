@@ -57,7 +57,7 @@ class CmapModule:
         """
         active = sb_params.get('active_cmap')
         ax = sb_params.get('ax')
-        ax.texts = [] #TODO: if this is not cleared then the labels breaks the thread
+        #ax.texts = [] #TODO: if this is not cleared then the labels breaks the thread
         data = sb_params.get('frame')
         cmap = sb_params.get('cmap')
         norm = sb_params.get('norm')

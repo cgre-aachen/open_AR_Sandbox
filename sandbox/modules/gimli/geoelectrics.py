@@ -61,14 +61,14 @@ class GeoelectricsModule(ModuleTemplate):
         #if self.view == "mesh":
         #    self.plot_mesh(ax, frame, cmap)
         self.delete_image(ax)
-
+        if self.p_stream and self.pot is not None:
+            self.plot_stream_lines(ax)
         if self.view == "potential" and self.pot is not None:
             self.plot_potential(ax, extent)
         elif self.view == "sensitivity" and self.normsens is not None:
             self.plot_sensitivity(ax, extent)
 
-        if self.p_stream and self.pot is not None:
-            self.plot_stream_lines(ax)
+
         return ax
 
     def delete_image(self, ax):

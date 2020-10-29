@@ -21,7 +21,7 @@ def create_model_dict(model_name: list = all_models, **kwargs):
 
 
 
-def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1000], do_sections=False,
+def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1800], do_sections=False,
                          change_color=False, data_path=path_to_data, resolution= [50, 50, 50],
                          theano_optimizer='fast_compile'):
                          #_test_data['gempy_data'], theano_optimizer='fast_compile'):

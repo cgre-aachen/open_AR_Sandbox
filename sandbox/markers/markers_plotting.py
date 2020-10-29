@@ -13,6 +13,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.scat = None
         self._scat = None # weak reference to a scat plot
         self._lin = None  # weak reference to a lines plot
+        self.anot = None
         # aruco setup
         self.aruco_connect = False
         self.aruco_scatter = True
@@ -51,36 +52,41 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.Aruco.set_xy_correction(move_x, move_y)
 
     def plot_aruco(self, ax, df_position=None):
-        ax.texts = []
+        #ax.texts = []
         if self._scat is not None and self._scat() not in ax.collections:
             self.scat = None
         if self._lin is not None and self._lin() not in ax.lines:
             self.lines = None
         if len(df_position) > 0:
+            df = df_position.loc[df_position.is_inside_box, ("box_x", "box_y")]
             if self.aruco_scatter:
                 if self.scat is None:
-                    self.scat = ax.scatter(df_position[df_position['is_inside_box']]['box_x'].values,
-                                           df_position[df_position['is_inside_box']]['box_y'].values,
+                    self.scat = ax.scatter(df.box_x.values,
+                                           df.box_y.values,
                                            s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2,
                                            zorder=20)
                     self._scat = weakref.ref(self.scat)
 
                 else:
-                    self.scat.set_offsets(numpy.c_[df_position[df_position['is_inside_box']]['box_x'].values,
-                                                   df_position[df_position['is_inside_box']]['box_y'].values])
+                    self.scat.set_offsets(numpy.c_[df.box_x.values, df.box_y.values])
                     self.scat.set_edgecolor(self.aruco_color)
 
                 if self.aruco_annotate:
-                    for i in range(len(df_position[df_position['is_inside_box']])):
-                        ax.annotate(str(df_position[df_position['is_inside_box']].index[i]),
-                                     (df_position[df_position['is_inside_box']]['box_x'].values[i],
-                                     df_position[df_position['is_inside_box']]['box_y'].values[i]),
+                    if self.anot is not None:
+                        [ax.texts.remove(anot) for anot in self.anot if anot in ax.texts]
+                        self.anot = None
+                    self.anot = [ax.annotate(str(df.index[i]),(df.box_x.values[i],
+                                     df.box_y.values.values[i]),
                                      c=self.aruco_color,
                                      fontsize=20,
                                      textcoords='offset pixels',
                                      xytext=(20, 20),
-                                    zorder=21)
-                else: ax.texts = []
+                                    zorder=21) for i in range(len(df))]
+
+                else:
+                    if self.anot is not None:
+                        [ax.texts.remove(anot) for anot in self.anot if anot in ax.texts]
+                        self.anot = None
             else:
                 if self.scat is not None:
                     self.scat.remove()
@@ -111,7 +117,9 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
             if self.scat is not None:
                 self.scat.remove()
                 self.scat = None
-            ax.texts = []
+            if self.anot is not None:
+                [ax.texts.remove(anot) for anot in self.anot if anot in ax.texts]
+                self.anot = None
 
         return ax
 

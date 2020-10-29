@@ -44,7 +44,7 @@ class ContourLinesModule:
                 atol (float): absolute tolerance for checking the change
             """
             self.lock = None  # For locking the multithreading while using bokeh server
-            self._active = True
+            self._active = False
             self.major = None
             self.minor = None
             self.label = None
@@ -75,9 +75,12 @@ class ContourLinesModule:
     def update(self, sb_params: dict):
         active = sb_params.get('active_contours')
         ax = sb_params.get('ax')
+        frame = sb_params.get('frame')
+        if len(frame.shape)>2: #3 Then is an image
+            active = False
         if active:
             self._active = active
-            frame = sb_params.get('frame')
+
             if self.previous_frame is None:
                 self.previous_frame = frame
 
