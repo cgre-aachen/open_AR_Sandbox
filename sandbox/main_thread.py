@@ -136,7 +136,9 @@ class MainThread:
         #TODO: Use the modules in a big try and except?
         try:
             self.lock.acquire()
-            for key in list(self.modules.keys()): #reversed so the contourlines and cmap that were added first, get painted at last
+            always = ['CmapModule', 'ContourLinesModule']
+            actual = [name for name in self.modules.keys() if name not in always]
+            for key in list(always + actual): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
         except Exception:
