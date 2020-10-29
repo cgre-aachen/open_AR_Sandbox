@@ -196,7 +196,7 @@ class MainThread:
 
     def run(self):
         if self.thread_status != 'running':
-            if _platform == "Linux":
+            if _platform == "Linux" and self.sensor.s_name == "kinect_v2":
                 self.sensor.Sensor._run()
             self.thread_status = 'running'
             self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
@@ -208,7 +208,7 @@ class MainThread:
 
     def stop(self):
         if self.thread_status is not 'stopped':
-            if _platform == "Linux":
+            if _platform == "Linux" and self.sensor.s_name == "kinect_v2":
                 self.sensor.Sensor._stop()
             self.thread_status = 'stopped'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
