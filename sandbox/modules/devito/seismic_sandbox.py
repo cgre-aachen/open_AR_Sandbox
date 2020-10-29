@@ -57,7 +57,7 @@ class SeismicModule(ModuleTemplate):
         image in the correct area of the sandbox box-area"""
         #return (self.box_origin[0], self.box_width + self.box_origin[0],
         #        self.box_origin[1], self.box_height + self.box_origin[1])
-        return (self.margin, self.extent[-2] - self.margin, self.margin, self.extent[-1]-self.margin)
+        return (self.margin, self.extent[1] - self.margin, self.margin, self.extent[3]-self.margin)
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
