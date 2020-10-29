@@ -40,9 +40,11 @@ class MainThread:
         self.cmap_frame = CmapModule(extent=self.sensor.extent)
 
         #start the modules
-        #self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
-        self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
-        self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
+        self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
+        self._modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
+
+        #self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
+        #self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
 
         # threading
         self.lock = threading.Lock()
@@ -136,9 +138,11 @@ class MainThread:
         #TODO: Use the modules in a big try and except?
         try:
             self.lock.acquire()
-            always = ['CmapModule', 'ContourLinesModule']
-            actual = [name for name in self.modules.keys() if name not in always]
-            for key in list(always + actual): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
+            _cmap = ['CmapModule'] if 'CmapModule' in self.modules.keys() else []
+            _contours = ['ContourLinesModule'] if 'ContourLinesModule' in self.modules.keys() else []
+            _always = _cmap + _contours
+            _actual = [name for name in self.modules.keys() if name not in _always]
+            for key in list(_actual + _always): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
         except Exception:

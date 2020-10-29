@@ -104,21 +104,21 @@ class GradientModule(ModuleTemplate):
         return frame, ax, cmap, extent
 
     def _dx(self, dx, extent):
-        extent[-2] = -6
-        extent[-1] = 6
+        extent[-2] = -2
+        extent[-1] = 2
         cmap = plt.get_cmap('viridis')
         return dx, extent, cmap
 
     def _dy(self, dy, extent):
-        extent[-2] = -6
-        extent[-1] = 6
+        extent[-2] = -2
+        extent[-1] = 2
         cmap = plt.get_cmap('viridis')
         return dy, extent, cmap
 
     def _dxdy(self, dx, dy, extent):
         dxdy = numpy.sqrt(dx**2 + dy**2)
         extent[-2] = 0
-        extent[-1] = 6
+        extent[-1] = 4
         cmap = plt.get_cmap('viridis')
         return dxdy, extent, cmap
 
@@ -137,23 +137,24 @@ class GradientModule(ModuleTemplate):
         rgb = ls.shade(frame, cmap=cmap, vert_exag=self.ve, blend_mode='hsv')
         return rgb, cmap
 
-    def _quiver(self, frame, dx, dy, ax):
+    def _quiver(self, frame, dx, dy, ax, spacing=10):
         xx, yy = frame.shape
         if self.vector is None:
-            self.vector = ax.quiver(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
-                                            dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10],
+            self.vector = ax.quiver(numpy.arange(spacing, yy - spacing, spacing), numpy.arange(spacing, xx - spacing, spacing),
+                                            dy[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1, dx[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1,
                                     zorder=3)
         else:
-            self.vector.set_UVC(dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10])
+            self.vector.set_UVC(dy[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1, dx[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1)
         cmap = None
         #frame = None
         return frame, cmap
 
-    def _stream(self, frame, dx, dy, ax):
+    def _stream(self, frame, dx, dy, ax, spacing=10):
         xx, yy = frame.shape
         #self.delete_stream_ax(ax)
-        self.stream = ax.streamplot(numpy.arange(10, yy - 10, 10), numpy.arange(10, xx - 10, 10),
-                                    dy[10:-10:10, 10:-10:10], dx[10:-10:10, 10:-10:10], zorder=3,
+        self.stream = ax.streamplot(numpy.arange(spacing, yy - spacing, spacing), numpy.arange(spacing, xx - spacing, spacing),
+                                            dy[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1, dx[spacing:-spacing:spacing, spacing:-spacing:spacing]*-1,
+                                    zorder=3,
                                     color='blue')
         cmap = None
         #frame = None
