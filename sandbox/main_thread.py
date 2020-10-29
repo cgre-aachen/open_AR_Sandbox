@@ -85,9 +85,6 @@ class MainThread:
 
         self._create_widgets()
 
-        self._cla = True
-
-
     #@property @TODO: test if this works
     #def sb_params(self):
     #    return {'frame': self.sensor.get_frame(),
@@ -109,8 +106,6 @@ class MainThread:
         Returns:
 
         """
-        if self._cla:
-            self.projector.ax.cla()
         self.sb_params['ax'] = self.projector.ax
 
         frame = self.sensor.get_frame()
