@@ -34,7 +34,7 @@ class SeismicModule(ModuleTemplate):
         self.box_origin = [10, 10]  # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         self.box_width = 250
         self.box_height = 180
-
+        self.margin = 15
         self.xy_aruco=[]
         # for the plotting
         self.timeslice = 0
@@ -55,8 +55,9 @@ class SeismicModule(ModuleTemplate):
     def to_box_extent(self):
         """When using imshow to plot data over the image. pass this as extent argumment to display the
         image in the correct area of the sandbox box-area"""
-        return (self.box_origin[0], self.box_width + self.box_origin[0],
-                self.box_origin[1], self.box_height + self.box_origin[1])
+        #return (self.box_origin[0], self.box_width + self.box_origin[0],
+        #        self.box_origin[1], self.box_height + self.box_origin[1])
+        return (self.margin, self.extent[-2] - self.margin, self.margin, self.extent[-1]-self.margin)
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -155,7 +156,8 @@ class SeismicModule(ModuleTemplate):
             self.src_term=[]
             for counter, aru in enumerate(self.xy_aruco):
                 #Modify to the simulation area
-                aru_mod = (aru[0]-self.box_origin[0], aru[1]-self.box_origin[1])
+                #aru_mod = (aru[0]-self.box_origin[0], aru[1]-self.box_origin[1])
+                aru_mod = (aru[0] - self.margin, aru[1] - self.margin)
                 src = self.create_source(name="src%i"%counter, f0=0.025,
                                          source_coordinates=(aru_mod[0]*self.model.spacing[0],aru_mod[1]*self.model.spacing[1]),
                                                              show_wavelet=False,show_model=False)
@@ -167,8 +169,9 @@ class SeismicModule(ModuleTemplate):
         #self.box_origin = origin # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         #self.box_width = width
         #self.box_height = height
-        return frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
-                    self.box_origin[0]:self.box_origin[0] + self.box_width]
+        #return frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
+        #            self.box_origin[0]:self.box_origin[0] + self.box_width]
+        return frame[self.margin:-self.margin, self.margin:-self.margin]
 
     def scale_linear(self, topo: np.ndarray, high: float, low:float):
         """

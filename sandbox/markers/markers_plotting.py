@@ -76,7 +76,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
                         [ax.texts.remove(anot) for anot in self.anot if anot in ax.texts]
                         self.anot = None
                     self.anot = [ax.annotate(str(df.index[i]),(df.box_x.values[i],
-                                     df.box_y.values.values[i]),
+                                     df.box_y.values[i]),
                                      c=self.aruco_color,
                                      fontsize=20,
                                      textcoords='offset pixels',
