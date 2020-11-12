@@ -6,11 +6,11 @@ from gempy.plot.visualization_2d import Plot2D
 lith = None
 hill = None
 
-def plot_gempy_topography(ax, geo_model,
+def plot_gempy_topography(ax, geo_model, extent,
                           show_lith: bool=True,
                           show_boundary: bool=True,
                           show_hillshade: bool=True,
-                          show_contour:bool =False):
+                          show_contour:bool =False, **kwargs):
     """
     Use the native plotting function class of gempy to plot the lithology, boundaries and hillshading.
     Args:
@@ -24,10 +24,10 @@ def plot_gempy_topography(ax, geo_model,
 
     """
     cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
-    ax = delete_ax(ax)
+    delete_ax(ax)
     p = Plot2D(geo_model)
     p.fig = ax.figure
-    #p.add_section(ax=ax, section_name="topography")
+    p.add_section(ax=ax, section_name="topography")
     if show_lith:
         p.plot_lith(ax, section_name="topography")
     if show_boundary:
@@ -67,11 +67,13 @@ def plot_gempy(ax, geo_model, extent,
 
     """
     cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
+    #cmap_lith = mcolors.ListedColormap(list(geo_model._surfaces.df.loc[geo_model._surfaces.df['isFault']==False, 'color']))
+    norm = mcolors.Normalize(vmin=0.5, vmax=len(cmap.colors) + 0.5)
     #color_dir = dict(zip(self.model._surfaces.df['surface'], self.model._surfaces.df['color']))
     extent_val = extent[:4]#[*ax.get_xlim(), *ax.get_ylim()]
     delete_ax(ax)
     if show_lith:
-        plot_lith(ax, geo_model, extent_val, cmap)
+        plot_lith(ax, geo_model, extent_val, cmap, norm)
     if show_boundary:
         plot_contacts(ax, geo_model, extent_val, cmap, only_faults=show_only_faults)
     if show_hillshade or show_contour:
@@ -88,7 +90,7 @@ def plot_gempy(ax, geo_model, extent,
     ax.set_ylim(extent_val[2], extent_val[3])
     return ax, cmap
 
-def plot_lith(ax, geo_model, extent_val, cmap):
+def plot_lith(ax, geo_model, extent_val, cmap, norm):
     """
 
     Args:
@@ -102,7 +104,7 @@ def plot_lith(ax, geo_model, extent_val, cmap):
     image = geo_model.solutions.geological_map[0].reshape(
         geo_model._grid.topography.values_2d[:, :, 2].shape)
     global lith
-    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap, aspect='auto')
+    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap, norm = norm, aspect='auto')
 
 def plot_contacts(ax, geo_model, extent_val, cmap, only_faults=False):
     """

@@ -9,7 +9,7 @@ import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
 from sandbox.modules.gempy.utils import get_scale, Grid
-from sandbox.modules.gempy.plot import plot_gempy
+from sandbox.modules.gempy.plot import plot_gempy, plot_gempy_topography
 from sandbox.modules.gempy.example_models import create_model_dict, all_models
 
 try:
@@ -194,6 +194,7 @@ class GemPyModule(ModuleTemplate):
         return sb_params
 
     def plot(self, ax, geo_model, extent):
+        #ax, cmap = plot_gempy_topography(ax, geo_model, extent,
         ax, cmap = plot_gempy(ax, geo_model, extent,
                               show_lith=self.show_lith,
                               show_boundary=self.show_boundary,

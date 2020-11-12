@@ -349,7 +349,7 @@ def test_gempy_imshow_plotting():
 
 def test_complex_model():
     geo_model = gp.create_model('Geological_Model1')
-    geo_model = gp.init_data(geo_model, extent=[0, 4000, 0, 2775, 200, 1200], resolution=[100, 10, 100])
+    geo_model = gp.init_data(geo_model, extent=[0, 4000, 0, 2775, 200, 1500], resolution=[100, 10, 100])
     gp.set_interpolator(geo_model, theano_optimizer='fast_run', verbose=[])
     geo_model.add_features(['Fault2', 'Cycle2', 'Fault1', 'Cycle1'])
     geo_model.delete_features('Default series')
@@ -439,5 +439,6 @@ def test_complex_model():
     module.show_hillshades = True
     module.show_contour = True
     module.show_fill_contour = False
+
     sb_params = module.update(pytest.sb_params)
     sb_params['fig'].show()
