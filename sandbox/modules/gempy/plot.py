@@ -46,7 +46,7 @@ def plot_gempy_topography(ax, geo_model,
     #ax.set_title("")
     return ax, cmap
 
-def plot_gempy(ax, geo_model,
+def plot_gempy(ax, geo_model, extent,
                show_lith: bool = True,
                show_boundary: bool = True,
                show_hillshade: bool = True,
@@ -68,7 +68,7 @@ def plot_gempy(ax, geo_model,
     """
     cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
     #color_dir = dict(zip(self.model._surfaces.df['surface'], self.model._surfaces.df['color']))
-    extent_val = [*ax.get_xlim(), *ax.get_ylim()]
+    extent_val = extent[:4]#[*ax.get_xlim(), *ax.get_ylim()]
     delete_ax(ax)
     if show_lith:
         plot_lith(ax, geo_model, extent_val, cmap)
@@ -84,7 +84,8 @@ def plot_gempy(ax, geo_model,
     ax.set_axis_off()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-    #ax.set_title("")
+    ax.set_xlim(extent_val[0], extent_val[1])
+    ax.set_ylim(extent_val[2], extent_val[3])
     return ax, cmap
 
 def plot_lith(ax, geo_model, extent_val, cmap):
@@ -101,7 +102,7 @@ def plot_lith(ax, geo_model, extent_val, cmap):
     image = geo_model.solutions.geological_map[0].reshape(
         geo_model._grid.topography.values_2d[:, :, 2].shape)
     global lith
-    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap)
+    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap, aspect='auto')
 
 def plot_contacts(ax, geo_model, extent_val, cmap, only_faults=False):
     """
@@ -190,7 +191,7 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
         hillshade_topography = ls.hillshade(values)
         global hill
         hill = ax.imshow(hillshade_topography, origin='lower', extent=extent_val, alpha=0.5, zorder=11,
-                  cmap='gray')
+                  cmap='gray', aspect='auto')
 
 
 def delete_ax(ax):

@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 
 file = np.load(file=test_data['topo'] + "DEM4.npz", allow_pickle=True)#, encoding='bytes', allow_pickle=False)
-frame = file['arr_0'] - np.min(file["arr_0"])
+frame = (file['arr_0'] - np.max(file["arr_0"]))*-1
 extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
 
 fig, ax = plt.subplots()
@@ -431,25 +431,13 @@ def test_complex_model():
     # Add orientation to Fault 2
     geo_model.add_orientations(X=3132, Y=951, Z=700, surface='F2', orientation=[85, 90, 1])
 
-    #geo_model.set_topography()
     gp.compute_model(geo_model, sort_surfaces=False)
-
-    from sandbox.modules.gempy.plot import plot_gempy_topography
-
-    #fig, ax = plt.subplots()
-    #ax = plot_gempy_topography(ax, geo_model)
-    #plt.show()
-
-
-    #gp.plot_2d(geo_model, section_names=['topography'])
-
-    #view_3D = gp.plot_3d(geo_model, plotter_type="background", notebook= False )
 
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
     module.show_boundary = True
-    module.show_lith = False
+    module.show_lith = True
     module.show_hillshades = True
     module.show_contour = True
-    module.show_fill_contour = True
+    module.show_fill_contour = False
     sb_params = module.update(pytest.sb_params)
     sb_params['fig'].show()

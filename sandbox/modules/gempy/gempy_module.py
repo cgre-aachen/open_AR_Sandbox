@@ -120,7 +120,7 @@ class GemPyModule(ModuleTemplate):
         # For the new plotting way
         self.show_lith = True
         self.show_boundary = True
-        self.show_hillshades = True
+        self.show_hillshades = False
         self.show_contour = False
         self.show_only_faults = False
         self.show_fill_contour = False
@@ -182,7 +182,7 @@ class GemPyModule(ModuleTemplate):
             self.modelspace_arucos = self._compute_modelspace_arucos(marker)
             self.set_aruco_dict(self.modelspace_arucos)
 
-        ax, cmap = self.plot(ax, self.geo_model)
+        ax, cmap = self.plot(ax, self.geo_model, self._model_extent)
 
         sb_params['ax'] = ax
         sb_params['frame'] = scale_frame
@@ -193,8 +193,8 @@ class GemPyModule(ModuleTemplate):
 
         return sb_params
 
-    def plot(self, ax, geo_model):
-        ax, cmap = plot_gempy(ax, geo_model,
+    def plot(self, ax, geo_model, extent):
+        ax, cmap = plot_gempy(ax, geo_model, extent,
                               show_lith=self.show_lith,
                               show_boundary=self.show_boundary,
                               show_hillshade=self.show_hillshades,
