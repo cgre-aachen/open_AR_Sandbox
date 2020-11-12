@@ -9,7 +9,7 @@ import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
 from sandbox.modules.gempy.utils import get_scale, Grid
-from sandbox.modules.gempy.plot import plot_gempy
+from sandbox.modules.gempy.plot import plot_gempy, plot_gempy_topography
 from sandbox.modules.gempy.example_models import create_model_dict, all_models
 
 try:
@@ -118,6 +118,14 @@ class GemPyModule(ModuleTemplate):
         self.faults_color_bh = []
         self._radius_borehole = 20
 
+        # For the new plotting way
+        self.show_lith = True
+        self.show_boundary = True
+        self.show_hillshades = False
+        self.show_contour = False
+        self.show_only_faults = False
+        self.show_fill_contour = False
+
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos = pd.DataFrame()
 
@@ -175,7 +183,7 @@ class GemPyModule(ModuleTemplate):
             self.modelspace_arucos = self._compute_modelspace_arucos(marker)
             self.set_aruco_dict(self.modelspace_arucos)
 
-        ax, cmap = self.plot(ax, self.geo_model)
+        ax, cmap = self.plot(ax, self.geo_model, self._model_extent)
 
         sb_params['ax'] = ax
         sb_params['frame'] = scale_frame
@@ -186,8 +194,15 @@ class GemPyModule(ModuleTemplate):
 
         return sb_params
 
-    def plot(self, ax, geo_model):
-        ax, cmap = plot_gempy(ax, geo_model)
+    def plot(self, ax, geo_model, extent):
+        #ax, cmap = plot_gempy_topography(ax, geo_model, extent,
+        ax, cmap = plot_gempy(ax, geo_model, extent,
+                              show_lith=self.show_lith,
+                              show_boundary=self.show_boundary,
+                              show_hillshade=self.show_hillshades,
+                              show_contour=self.show_contour,
+                              show_only_faults=self.show_only_faults,
+                              show_fill_contour=self.show_fill_contour)
         return ax, cmap
 
     def change_model(self, geo_model):

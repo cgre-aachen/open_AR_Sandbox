@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 
 file = np.load(file=test_data['topo'] + "DEM4.npz", allow_pickle=True)#, encoding='bytes', allow_pickle=False)
-frame = file['arr_0'] + 500 #assuming the mean of the previous one was 1000
+frame = (file['arr_0'] - np.max(file["arr_0"]))*-1
 extent = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
 
 fig, ax = plt.subplots()
@@ -68,6 +68,12 @@ def test_init():
 def test_update():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    module.show_boundary = True
+    module.show_lith = False
+    module.show_hillshades = True
+    module.show_contour = True
+    module.show_fill_contour = True
+
     sb_params = module.update(pytest.sb_params)
     sb_params['fig'].show()
 
@@ -340,3 +346,99 @@ def test_gempy_imshow_plotting():
     geo_model = create_example_model(name='Anticline')
     gp.compute_model(geo_model)
     gp.plot_2d(geo_model)
+
+def test_complex_model():
+    geo_model = gp.create_model('Geological_Model1')
+    geo_model = gp.init_data(geo_model, extent=[0, 4000, 0, 2775, 200, 1500], resolution=[100, 10, 100])
+    gp.set_interpolator(geo_model, theano_optimizer='fast_run', verbose=[])
+    geo_model.add_features(['Fault2', 'Cycle2', 'Fault1', 'Cycle1'])
+    geo_model.delete_features('Default series')
+    geo_model.add_surfaces(['F2', 'H', 'G', 'F1', 'D', 'C', 'B', 'A'])
+    gp.map_stack_to_surfaces(geo_model, {'Fault1': 'F1', 'Fault2': 'F2', 'Cycle2': ['G', 'H']})
+    geo_model.set_is_fault(['Fault1', 'Fault2'])
+
+    ###Cycle 1
+    # surface B - before F1
+    geo_model.add_surface_points(X=584, Y=285, Z=500, surface='B')
+    geo_model.add_surface_points(X=494, Y=696, Z=500, surface='B')
+    geo_model.add_surface_points(X=197, Y=1898, Z=500, surface='B')
+    geo_model.add_surface_points(X=473, Y=2180, Z=400, surface='B')
+    geo_model.add_surface_points(X=435, Y=2453, Z=400, surface='B')
+    # surface C - before F1
+    geo_model.add_surface_points(X=946, Y=188, Z=600, surface='C')
+    geo_model.add_surface_points(X=853, Y=661, Z=600, surface='C')
+    geo_model.add_surface_points(X=570, Y=1845, Z=600, surface='C')
+    geo_model.add_surface_points(X=832, Y=2132, Z=500, surface='C')
+    geo_model.add_surface_points(X=767, Y=2495, Z=500, surface='C')
+    # Surface D - Before F1
+    geo_model.add_surface_points(X=967, Y=1638, Z=800, surface='D')
+    geo_model.add_surface_points(X=1095, Y=996, Z=800, surface='D')
+    # Adding orientation to Cycle 1
+    geo_model.add_orientations(X=832, Y=2132, Z=500, surface='C', orientation=[76, 17.88, 1])
+    # surface B - After F1
+    geo_model.add_surface_points(X=1447, Y=2554, Z=500, surface='B')
+    geo_model.add_surface_points(X=1511, Y=2200, Z=500, surface='B')
+    geo_model.add_surface_points(X=1549, Y=629, Z=600, surface='B')
+    geo_model.add_surface_points(X=1630, Y=287, Z=600, surface='B')
+    # surface C - After F1
+    geo_model.add_surface_points(X=1891, Y=2063, Z=600, surface='C')
+    geo_model.add_surface_points(X=1605, Y=1846, Z=700, surface='C')
+    geo_model.add_surface_points(X=1306, Y=1641, Z=800, surface='C')
+    geo_model.add_surface_points(X=1476, Y=979, Z=800, surface='C')
+    geo_model.add_surface_points(X=1839, Y=962, Z=700, surface='C')
+    geo_model.add_surface_points(X=2185, Y=893, Z=600, surface='C')
+    geo_model.add_surface_points(X=2245, Y=547, Z=600, surface='C')
+    # Surface D - After F1
+    geo_model.add_surface_points(X=2809, Y=2567, Z=600, surface='D')
+    geo_model.add_surface_points(X=2843, Y=2448, Z=600, surface='D')
+    geo_model.add_surface_points(X=2873, Y=876, Z=700, surface='D')
+    # Surface D - After F2
+    geo_model.add_surface_points(X=3056, Y=2439, Z=650, surface='D')
+    geo_model.add_surface_points(X=3151, Y=1292, Z=700, surface='D')
+
+    ### Fault 1
+    # Surface F1
+    geo_model.add_surface_points(X=1203, Y=138, Z=600, surface='F1')
+    geo_model.add_surface_points(X=1250, Y=1653, Z=800, surface='F1')
+    # orientation to Fault 1
+    geo_model.add_orientations(X=1280, Y=2525, Z=500, surface='F1', orientation=[272, 90, 1])
+
+    ### Cycle 2
+    # Surface G - Before F2
+    geo_model.add_surface_points(X=1012, Y=1493, Z=900, surface='G')
+    geo_model.add_surface_points(X=1002, Y=1224, Z=900, surface='G')
+    geo_model.add_surface_points(X=1579, Y=1376, Z=850, surface='G')
+    geo_model.add_surface_points(X=2489, Y=336, Z=750, surface='G')
+    geo_model.add_surface_points(X=2814, Y=1848, Z=750, surface='G')
+    # Surface H - Before F2
+    geo_model.add_surface_points(X=2567, Y=129, Z=850, surface='H')
+    geo_model.add_surface_points(X=3012, Y=726, Z=800, surface='H')
+    # Orientation to cycle 2
+    geo_model.add_orientations(X=1996, Y=47, Z=800, surface='G', orientation=[92, 5.54, 1])
+    # Surface G - After F2
+    geo_model.add_surface_points(X=3031, Y=2725, Z=800, surface='G')
+    geo_model.add_surface_points(X=3281, Y=2314, Z=750, surface='G')
+    geo_model.add_surface_points(X=3311, Y=1357, Z=750, surface='G')
+    geo_model.add_surface_points(X=3336, Y=898, Z=750, surface='G')
+    # Surface H - After F2
+    geo_model.add_surface_points(X=3218, Y=1818, Z=890, surface='H')
+    geo_model.add_surface_points(X=3934, Y=1207, Z=810, surface='H')
+    geo_model.add_surface_points(X=3336, Y=704, Z=850, surface='H')
+
+    ### Fault 2
+    geo_model.add_surface_points(X=3232, Y=178, Z=1000, surface='F2')
+    geo_model.add_surface_points(X=2912, Y=2653, Z=700, surface='F2')
+    # Add orientation to Fault 2
+    geo_model.add_orientations(X=3132, Y=951, Z=700, surface='F2', orientation=[85, 90, 1])
+
+    gp.compute_model(geo_model, sort_surfaces=False)
+
+    module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    module.show_boundary = True
+    module.show_lith = True
+    module.show_hillshades = True
+    module.show_contour = True
+    module.show_fill_contour = False
+
+    sb_params = module.update(pytest.sb_params)
+    sb_params['fig'].show()

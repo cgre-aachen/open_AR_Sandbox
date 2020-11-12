@@ -135,7 +135,6 @@ class MainThread:
 
         self.sb_params['marker'] = df
 
-        #TODO: Use the modules in a big try and except?
         try:
             self.lock.acquire()
             _cmap = ['CmapModule'] if 'CmapModule' in self.modules.keys() else []

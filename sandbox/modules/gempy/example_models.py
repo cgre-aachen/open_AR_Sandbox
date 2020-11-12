@@ -1,7 +1,6 @@
 import os
 import gempy as gp
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
-from sandbox import _test_data
 all_models = ['Horizontal_layers', 'Recumbent_fold', 'Anticline',
                   'Pinchout', 'Fault', 'Unconformity']
 data_path = 'https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/'
