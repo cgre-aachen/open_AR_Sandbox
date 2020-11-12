@@ -78,6 +78,8 @@ def plot_gempy(ax, geo_model,
         plot_topography(ax,
                         geo_model,
                         extent_val,
+                        show_hillshade=show_hillshade,
+                        show_contour=show_contour,
                         **kwargs)
     ax.set_axis_off()
     ax.get_xaxis().set_visible(False)
@@ -149,13 +151,14 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
     Returns:
 
     """
-    hillshade = kwargs.get('show_hillshade', True)
-    contour = kwargs.get('show_contour', False)
-    fill_contour = kwargs.get('show_fill_contour', False)
-    azdeg = kwargs.get('azdeg', 0)
-    altdeg = kwargs.get('altdeg', 0)
-    cmap = kwargs.get('cmap', 'terrain')
-    super = kwargs.get('super_res', False)
+    hillshade = kwargs.pop('show_hillshade', True)
+    contour = kwargs.pop('show_contour', False)
+    fill_contour = kwargs.pop('show_fill_contour', False)
+    azdeg = kwargs.pop('azdeg', 0)
+    altdeg = kwargs.pop('altdeg', 0)
+    cmap = kwargs.pop('cmap', 'terrain')
+    super = kwargs.pop('super_res', False)
+    colorbar = kwargs.pop("show_colorbar", False)
 
     topo = geo_model._grid.topography
     if super:
@@ -176,8 +179,9 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
         ax.clabel(CS, inline=1, fontsize=10, fmt='%d')
     if fill_contour is True:
         CS2 = ax.contourf(values, extent=extent_val, cmap=cmap)
-        from gempy.plot.helpers import add_colorbar
-        add_colorbar(axes=ax, label='elevation [m]', cs=CS2)
+        if colorbar:
+            from gempy.plot.helpers import add_colorbar
+            add_colorbar(axes=ax, label='elevation [m]', cs=CS2)
 
     if hillshade is True:
         from matplotlib.colors import LightSource
