@@ -1,7 +1,10 @@
-import numpy
+import numpy as np
 import matplotlib.colors as mcolors
 import matplotlib
 from gempy.plot.visualization_2d import Plot2D
+
+lith = None
+hill = None
 
 def plot_gempy_topography(ax, geo_model,
                           show_lith: bool=True,
@@ -24,11 +27,12 @@ def plot_gempy_topography(ax, geo_model,
     ax = delete_ax(ax)
     p = Plot2D(geo_model)
     p.fig = ax.figure
-    p.add_section(ax=ax, section_name="topography")
+    #p.add_section(ax=ax, section_name="topography")
     if show_lith:
         p.plot_lith(ax, section_name="topography")
     if show_boundary:
-        p.plot_contacts(ax, section_name="topography")
+        p.plot_contacts(ax, only_faults=True, section_name="topography")
+
     if show_hillshade or show_contour:
         p.plot_topography(ax,
                           contour=show_contour,
@@ -36,15 +40,176 @@ def plot_gempy_topography(ax, geo_model,
                           hillshade=show_hillshade,
         #                  cmap= cmap,
                           section_name="topography")
-    x_axis = ax.axes.get_xaxis()
-    x_axis.set_visible(False)
-    y_axis = ax.axes.get_yaxis()
-    y_axis.set_visible(False)
-    ax.set_title("")
+    ax.set_axis_off()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    #ax.set_title("")
     return ax, cmap
 
+def plot_gempy(ax, geo_model,
+               show_lith: bool = True,
+               show_boundary: bool = True,
+               show_hillshade: bool = True,
+               show_contour: bool = False,
+               show_only_faults: bool = False,
+               **kwargs):
+    """
+    Use the native plotting function class of gempy to plot the lithology, boundaries and hillshading.
+    Args:
+        ax: axes of sandbox to paint in
+        geo_model: geo_model from gempy
+        show_lith: default True
+        show_boundary: default True
+        show_hillshade: default True
+        show_contour: default False (using native sandbox contours)
+        show_only_faults: plot only the fault lines
+    Returns:
 
-def plot_gempy(ax, geo_model):
+    """
+    cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
+    #color_dir = dict(zip(self.model._surfaces.df['surface'], self.model._surfaces.df['color']))
+    extent_val = [*ax.get_xlim(), *ax.get_ylim()]
+    delete_ax(ax)
+    if show_lith:
+        plot_lith(ax, geo_model, extent_val, cmap)
+    if show_boundary:
+        plot_contacts(ax, geo_model, extent_val, cmap, only_faults=show_only_faults)
+    if show_hillshade or show_contour:
+        plot_topography(ax,
+                        geo_model,
+                        extent_val,
+                        **kwargs)
+    ax.set_axis_off()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    #ax.set_title("")
+    return ax, cmap
+
+def plot_lith(ax, geo_model, extent_val, cmap):
+    """
+
+    Args:
+        ax: sandbox axes
+        geo_model: gempy geo_model
+        extent_val: extent x and y of the model
+
+    Returns:
+
+    """
+    image = geo_model.solutions.geological_map[0].reshape(
+        geo_model._grid.topography.values_2d[:, :, 2].shape)
+    global lith
+    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap)
+
+def plot_contacts(ax, geo_model, extent_val, cmap, only_faults=False):
+    """
+
+    Args:
+        ax:
+        geo_model:
+        extent_val:
+        cmap:
+        only_faults:
+
+    Returns:
+
+    """
+    zorder = 100
+    if only_faults:
+        contour_idx = list(geo_model._faults.df[geo_model._faults.df['isFault'] == True].index)
+    else:
+        contour_idx = list(geo_model._surfaces.df.index)
+
+    shape = geo_model._grid.topography.resolution
+
+    scalar_fields = geo_model.solutions.geological_map[1]
+    c_id = 0  # color id startpoint
+
+    for e, block in enumerate(scalar_fields):
+        level = geo_model.solutions.scalar_field_at_surface_points[e][np.where(
+            geo_model.solutions.scalar_field_at_surface_points[e] != 0)]
+
+        c_id2 = c_id + len(level)  # color id endpoint
+        ax.contour(block.reshape(shape), 0, levels=np.sort(level),
+                   colors=cmap.colors[c_id:c_id2][::-1],
+                   linestyles='solid', origin='lower',
+                   extent=extent_val, zorder=zorder - (e + len(level))
+                   )
+        c_id = c_id2
+
+def plot_topography(ax, geo_model, extent_val, **kwargs):
+    """
+
+    Args:
+        ax:
+        geo_model:
+        extent_val:
+        **kwargs:
+
+    Returns:
+
+    """
+    hillshade = kwargs.get('show_hillshade', True)
+    contour = kwargs.get('show_contour', False)
+    fill_contour = kwargs.get('show_fill_contour', False)
+    azdeg = kwargs.get('azdeg', 0)
+    altdeg = kwargs.get('altdeg', 0)
+    cmap = kwargs.get('cmap', 'terrain')
+    super = kwargs.get('super_res', False)
+
+    topo = geo_model._grid.topography
+    if super:
+        import skimage
+        topo_super_res = skimage.transform.resize(
+            topo.values_2d,
+            (1600, 1600),
+            order=3,
+            mode='edge',
+            anti_aliasing=True, preserve_range=False)
+        values = topo_super_res[..., 2]
+    else:
+        values = topo.values_2d[..., 2]
+
+    if contour is True:
+        CS = ax.contour(values, extent=extent_val,
+                        colors='k', linestyles='solid', origin='lower')
+        ax.clabel(CS, inline=1, fontsize=10, fmt='%d')
+    if fill_contour is True:
+        CS2 = ax.contourf(values, extent=extent_val, cmap=cmap)
+        from gempy.plot.helpers import add_colorbar
+        add_colorbar(axes=ax, label='elevation [m]', cs=CS2)
+
+    if hillshade is True:
+        from matplotlib.colors import LightSource
+
+        ls = LightSource(azdeg=azdeg, altdeg=altdeg)
+        hillshade_topography = ls.hillshade(values)
+        global hill
+        hill = ax.imshow(hillshade_topography, origin='lower', extent=extent_val, alpha=0.5, zorder=11,
+                  cmap='gray')
+
+
+def delete_ax(ax):
+    """
+    replace the ax.cla(). delete contour fill and images of hillshade and lithology
+    Args:
+        ax:
+    Returns:
+        ax
+    """
+    global lith, hill
+    if lith is not None:
+        lith.remove()
+        lith = None
+    if hill is not None:
+        hill.remove()
+        hill = None
+    [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
+    [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
+    [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
+
+
+def _plot_gempy(ax, geo_model):
     """
     DEPRECATED!!!
     Plot the geological map of the sandbox in the axes
@@ -57,30 +222,19 @@ def plot_gempy(ax, geo_model):
     """
     cmap = mcolors.ListedColormap(list(geo_model.surfaces.df['color']))
     ax = delete_ax(ax)
-    ax = add_faults(ax, geo_model, cmap)
-    ax = add_lith(ax, geo_model, cmap)
+    ax = _add_faults(ax, geo_model, cmap)
+    ax = _add_lith(ax, geo_model, cmap)
     return ax, cmap
 
-def delete_ax(ax):
-    """
-    replace the ax.cla(). delete contour fill and images of hillshade and lithology
-    Args:
-        ax:
-    Returns:
-        ax
-    """
-    [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
+def _add_faults(ax, geo_model, cmap):
+    ax = _extract_boundaries(ax, geo_model, cmap, e_faults=True, e_lith=False)
     return ax
 
-def add_faults(ax, geo_model, cmap):
-    ax = extract_boundaries(ax, geo_model, cmap, e_faults=True, e_lith=False)
+def _add_lith(ax, geo_model, cmap):
+    ax = _extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=True)
     return ax
 
-def add_lith(ax, geo_model, cmap):
-    ax = extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=True)
-    return ax
-
-def extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=False):
+def _extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=False):
     faults = list(geo_model._faults.df[geo_model._faults.df['isFault'] == True].index)
     shape = geo_model._grid.topography.resolution
     a = geo_model.solutions.geological_map[1]

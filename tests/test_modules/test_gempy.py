@@ -69,8 +69,8 @@ def test_update():
     geo_model = create_example_model('Horizontal_layers')
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
     module.show_boundary = True
-    module.show_lith = False
-    module.show_hillshades = False
+    module.show_lith = True
+    module.show_hillshades = True
     sb_params = module.update(pytest.sb_params)
     sb_params['fig'].show()
 
@@ -443,5 +443,10 @@ def test_complex_model():
     #view_3D = gp.plot_3d(geo_model, plotter_type="background", notebook= False )
 
     module = GemPyModule(geo_model = geo_model, extent=extent, box=[1000, 800], load_examples=False)
+    module.show_boundary = True
+    module.show_lith = True
+    module.show_hillshades = True
+    module.show_contour = True
+    module.show_only_faults = True
     sb_params = module.update(pytest.sb_params)
     sb_params['fig'].show()

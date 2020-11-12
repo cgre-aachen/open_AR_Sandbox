@@ -9,7 +9,7 @@ import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
 from sandbox.modules.gempy.utils import get_scale, Grid
-from sandbox.modules.gempy.plot import plot_gempy_topography
+from sandbox.modules.gempy.plot import plot_gempy
 from sandbox.modules.gempy.example_models import create_model_dict, all_models
 
 try:
@@ -122,6 +122,7 @@ class GemPyModule(ModuleTemplate):
         self.show_boundary = True
         self.show_hillshades = True
         self.show_contour = False
+        self.show_only_faults = False
 
         #dataframe to safe Arucos in model Space:
         self.modelspace_arucos = pd.DataFrame()
@@ -192,11 +193,12 @@ class GemPyModule(ModuleTemplate):
         return sb_params
 
     def plot(self, ax, geo_model):
-        ax, cmap = plot_gempy_topography(ax, geo_model,
+        ax, cmap = plot_gempy(ax, geo_model,
                                          self.show_lith,
                                          self.show_boundary,
                                          self.show_hillshades,
-                                         self.show_contour)
+                                         self.show_contour,
+                                         self.show_only_faults)
         return ax, cmap
 
     def change_model(self, geo_model):
