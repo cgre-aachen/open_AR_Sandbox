@@ -1,9 +1,52 @@
 import numpy
 import matplotlib.colors as mcolors
 import matplotlib
+from gempy.plot.visualization_2d import Plot2D
+
+def plot_gempy_topography(ax, geo_model,
+                          show_lith: bool=True,
+                          show_boundary: bool=True,
+                          show_hillshade: bool=True,
+                          show_contour:bool =False):
+    """
+    Use the native plotting function class of gempy to plot the lithology, boundaries and hillshading.
+    Args:
+        ax: axes of sandbox to paint in
+        geo_model: geo_model from gempy
+        show_lith: default True
+        show_boundary: default True
+        show_hillshade: default True
+        show_contour: default False (using native sandbox contours)
+    Returns:
+
+    """
+    cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
+    ax = delete_ax(ax)
+    p = Plot2D(geo_model)
+    p.fig = ax.figure
+    p.add_section(ax=ax, section_name="topography")
+    if show_lith:
+        p.plot_lith(ax, section_name="topography")
+    if show_boundary:
+        p.plot_contacts(ax, section_name="topography")
+    if show_hillshade or show_contour:
+        p.plot_topography(ax,
+                          contour=show_contour,
+        #                  fill_contour=True,
+                          hillshade=show_hillshade,
+        #                  cmap= cmap,
+                          section_name="topography")
+    x_axis = ax.axes.get_xaxis()
+    x_axis.set_visible(False)
+    y_axis = ax.axes.get_yaxis()
+    y_axis.set_visible(False)
+    ax.set_title("")
+    return ax, cmap
+
 
 def plot_gempy(ax, geo_model):
     """
+    DEPRECATED!!!
     Plot the geological map of the sandbox in the axes
     Args:
         ax: axes to the figure to plot
@@ -20,7 +63,7 @@ def plot_gempy(ax, geo_model):
 
 def delete_ax(ax):
     """
-    replace the ax.cla()
+    replace the ax.cla(). delete contour fill and images of hillshade and lithology
     Args:
         ax:
     Returns:
