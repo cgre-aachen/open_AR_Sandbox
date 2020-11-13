@@ -28,7 +28,6 @@ Table of Contents
     * [Devito](README.md#devito)
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
-* [Getting Started](README.md#getting-started)
 * [Maintainers](README.md#maintainers)
 * [Visit us](README.md#visit-us)
     
