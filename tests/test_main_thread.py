@@ -107,7 +107,7 @@ def test_with_gempy():
     mainT = MainThread(sensor=sensor, projector=projector)
     # Start the thread
     #mainT.run()
-    from sandbox.modules import GemPyModule
+    from sandbox.modules.gempy import GemPyModule
     gpsb = GemPyModule(geo_model=None,
                        extent=sensor.extent,
                        box=sensor.physical_dimensions,
@@ -115,3 +115,16 @@ def test_with_gempy():
                        name_example=['Fault'])
     mainT.add_module(name='gempy', module=gpsb)
     mainT.update()
+
+def test_check_frame():
+    from sandbox import _calibration_dir
+    _calibprojector = _calibration_dir + "my_projector_calibration.json"
+    _calibsensor = _calibration_dir + "my_sensor_calibration.json"
+    from sandbox.sensor import Sensor
+    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    frame1 = sensor.get_frame()
+    frame2 = sensor.get_frame()
+    _rtol = 0.2
+    _atol = 5
+    cl = np.isclose(frame1, frame2,_rtol, _atol)
+    frame1[np.logical_not(cl)] = frame2[np.logical_not(cl)]

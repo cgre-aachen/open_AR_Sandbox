@@ -18,8 +18,7 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, modules: list = [],
-                 crop: bool = True, clip: bool = True, check_change: bool = False, **kwargs):
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = True, **kwargs):
         """
 
         Args:
@@ -77,8 +76,8 @@ class MainThread:
 
         #To reduce the noise of the data
         self.check_change = check_change
-        self._rtol = 0.2
-        self._atol = 5
+        self._rtol = 0.07 #Widgets for this
+        self._atol = 0.001
         # render the frame
         self.cmap_frame.render_frame(self.sb_params['frame'], self.sb_params['ax'])
         # plot the contour lines
@@ -119,13 +118,20 @@ class MainThread:
 
         # This is to avoid noise in the data
         if self.check_change:
-            if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
-                self.previous_frame = frame
-                self.sb_params['same_frame'] = False
-            else:
-                frame = self.previous_frame
-                self.sb_params['same_frame'] = True
-        else: self.sb_params['same_frame'] = False
+            cl = numpy.isclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True)
+            self.previous_frame[numpy.logical_not(cl)] = frame[numpy.logical_not(cl)]
+            frame = self.previous_frame
+            #self.sb_params['same_frame'] = True #TODO: Check for usage of this part
+        else:
+            self.previous_frame = frame
+            self.sb_params['same_frame'] = False
+            #if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
+            #    self.previous_frame = frame
+            #    self.sb_params['same_frame'] = False
+            #else:
+            #    frame = self.previous_frame
+            #    self.sb_params['same_frame'] = True
+        #else: self.sb_params['same_frame'] = False
         self.sb_params['frame'] = frame
 
         #filter
