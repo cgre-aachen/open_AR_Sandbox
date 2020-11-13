@@ -9,7 +9,7 @@ import pyvista as pv
 from sandbox.modules.template import ModuleTemplate
 
 from sandbox.modules.gempy.utils import get_scale, Grid
-from sandbox.modules.gempy.plot import plot_gempy, plot_gempy_topography
+from sandbox.modules.gempy.plot import plot_gempy
 from sandbox.modules.gempy.example_models import create_model_dict, all_models
 
 try:
@@ -118,7 +118,7 @@ class GemPyModule(ModuleTemplate):
         self.faults_color_bh = []
         self._radius_borehole = 20
 
-        # For the new plotting way
+        # For the new plotting way 'TODO: Create widgets
         self.show_lith = True
         self.show_boundary = True
         self.show_hillshades = False
@@ -191,6 +191,7 @@ class GemPyModule(ModuleTemplate):
         sb_params['marker'] = self.modelspace_arucos
         sb_params['active_cmap'] = False
         sb_params['extent'] = self._model_extent
+        sb_params['del_contour'] = not self.show_boundary
 
         return sb_params
 

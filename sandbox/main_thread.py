@@ -69,8 +69,8 @@ class MainThread:
                           'active_contours': True,
                           'same_frame': False,
                           'lock_thread': self.lock,
-                          'trigger': self.projector.trigger} #TODO: Carefull with this use because it can make to paint the figure incompletely
-
+                          'trigger': self.projector.trigger, #TODO: Carefull with this use because it can make to paint the figure incompletely
+                          'del_contour': True,}
                           #'freeze_frame': False}
 
         self.previous_frame = self.sb_params['frame']
@@ -109,6 +109,10 @@ class MainThread:
 
         """
         self.sb_params['ax'] = self.projector.ax
+
+        #if not self.sb_params.get('del_contour'):
+        #    if 'ContourLinesModule' in self.modules.keys():
+        #        self.modules['ContourLinesModule'].delete_contourns(self.sb_params['ax'])
 
         frame = self.sensor.get_frame()
         self.sb_params['extent'] = self.sensor.extent

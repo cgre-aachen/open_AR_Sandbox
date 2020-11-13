@@ -193,7 +193,7 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
         hillshade_topography = ls.hillshade(values)
         global hill
         hill = ax.imshow(hillshade_topography, origin='lower', extent=extent_val, alpha=0.5, zorder=11,
-                  cmap='gray', aspect='auto')
+                  cmap='copper', aspect='auto')
 
 
 def delete_ax(ax):

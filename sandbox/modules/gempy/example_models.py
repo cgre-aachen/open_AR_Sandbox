@@ -21,7 +21,7 @@ def create_model_dict(model_name: list = all_models, **kwargs):
 
 
 def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1800], do_sections=False,
-                         change_color=False, data_path=path_to_data, resolution= [50, 50, 50],
+                         change_color=False, data_path=path_to_data, resolution= [20, 20, 20],
                          theano_optimizer='fast_compile'):
                          #_test_data['gempy_data'], theano_optimizer='fast_compile'):
     """
@@ -93,6 +93,8 @@ def create_example_model(name, extent=[0, 1000, 0, 1000, 0, 1800], do_sections=F
         gp.map_stack_to_surfaces(geo_model, {"Strat_Series1": ('rock3'),
                                               "Strat_Series2": ('rock2', 'rock1'),
                                               "Basement_Series": ('basement')})
+    else:
+        raise NotImplementedError(name, "Not available in example models")
 
     if do_sections:
         geo_model.set_section_grid({'section' + ' ' + name: ([0, 500], [1000, 500], [30, 30])})
