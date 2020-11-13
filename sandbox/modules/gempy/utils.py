@@ -1,6 +1,6 @@
 import numpy
 
-def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy_isometric=True):
+def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy_isometric:bool=False):
     """
     Calculates the factors for the coordinates transformation kinect-extent
     Model is extended in one horizontal direction to fit  into box while the scale

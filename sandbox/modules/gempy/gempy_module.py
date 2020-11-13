@@ -247,7 +247,7 @@ class GemPyModule(ModuleTemplate):
                     #                  (self._model_extent[5] - self._model_extent[4])))
                 #the combination below works though it should not! Look into scale again!!
                 #pixel scale and pixel size should be consistent!
-                df.at[i, 'box_x'] = (self._pixel_size[0]*marker['box_x'][i])
+                df.at[i, 'box_x'] = (self._pixel_scale[0]*marker['box_x'][i])
                 df.at[i, 'box_y'] = (self._pixel_scale[1]*marker['box_y'][i])
 
         return df
