@@ -30,7 +30,7 @@ Table of Contents
     * [PyTorch](README.md#pytorch)
 * [Getting Started](README.md#getting-started)
 * [Project Development](README.md#project-development)
-* [Visit us](README.md#visit-us)
+* [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
 
 Introduction
@@ -371,7 +371,7 @@ Project Development
 Open-AR-Sandbox is developed at the research unit [Computational Geoscience
 and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aachen University, Germany.
 
-[![CGRE](https://www.cgre.rwth-aachen.de/cms/~qoyf/CGRE/lidx/1/)](https://www.cgre.rwth-aachen.de/)
+[![CGRE](https://www.cgre.rwth-aachen.de/global/show_picture.asp?id=aaaaaaaaabaxmhn)](https://www.cgre.rwth-aachen.de/)
 
 
 
@@ -385,8 +385,8 @@ and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aach
 * Simon Virgo
 * Miguel de la Varga
 
-Interested in buying a fully operational system?
-------------------------------------------------
+Obtaining a full system
+-----------------------
 
 If you are interested in buying a fully operating set-up including appropriate
 hardware, pre-installed software, and set-up and maintenance, please contact
