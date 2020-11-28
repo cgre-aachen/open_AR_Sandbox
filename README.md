@@ -29,7 +29,7 @@ Table of Contents
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
 * [Getting Started](README.md#getting-started)
-* [Maintainers](README.md#maintainers)
+* [Project Development](README.md#project-development)
 * [Visit us](README.md#visit-us)
     
 
@@ -76,6 +76,35 @@ The open_AR_Sandbox as well as GemPy are under continuous development and includ
 * Integration of more depth sensors (support to all kinect sensors)
 * Improve compatibility with Linux and MacOS
 * ...
+
+License, use and attribution
+----------------------------
+
+Feel free to download and use the Open_AR_Sandbox software! We do not provide any
+warranty and any guarantee for the use. We also do not provide professional
+support, but we aim to answer questions posted as Issues on the github page as
+quickly as possible.
+
+Open_AR_Sandbox is published under an **GNU Lesser General Public License v3.0**, which
+means that you are
+free to use it, if you do not do any modifications, in a wide variety of ways
+(even commercially). However, if you plan to _modify and redistribute_ the
+code, you also _have to make it available under the same license_!
+
+Also, if you do any modifications, especially for scientific and educational use,
+then please _provide them back to the main project_ in the form of a pull request,
+as common practice in the open-source community. If you have questions on
+the procedure, feel free to contact us about it.
+
+For more details on the licsense, please see provided license file.
+
+If you use Open-AR-Sandbox in a scientific abstract or publication, please
+include appropriate recognition of the original work. For the time being,
+please cite:
+
+Virgo, S., De La Varga Hormazabal, M., & Wellmann, F. (2019).
+Open-AR-Sandbox: An open-source Augmented Reality platform for geoscience.
+In Geophysical Research Abstracts (Vol. 21).
 
 
 Requirements
@@ -336,14 +365,33 @@ Once this is installed, copy the trained model in `/notebooks/tutorials/09_Lands
 Get in contact with us to provide you with the train model for this module. 
 
 
-Maintainers
-------
+Project Development
+-------------------
+
+Open-AR-Sandbox is developed at the research unit [Computational Geoscience
+and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aachen University, Germany.
+
+[![CGRE](https://www.cgre.rwth-aachen.de/cms/~qoyf/CGRE/lidx/1/)](https://www.cgre.rwth-aachen.de/)
+
+
+
+### Project Lead
+
+[Prof. Florian Wellmann, PhD](https://www.cgre.rwth-aachen.de/cms/CGRE/Das-Lehr-und-Forschungsgebiet/~dnyyj/Prof-Wellmann/lidx/1/)
+
+### Maintainers (also external to CGRE)
+
 * Daniel Escallón Botero
 * Simon Virgo
 * Miguel de la Varga
 
-Visit us
-------
-https://www.gempy.org/ar-sandbox
+Interested in buying a fully operational system?
+------------------------------------------------
+
+If you are interested in buying a fully operating set-up including appropriate
+hardware, pre-installed software, and set-up and maintenance, please contact
+[Terranigma Solutions GmbH](https://www.terranigma-solutions.com/services).
+
+
 
  
