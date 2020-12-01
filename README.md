@@ -1,11 +1,10 @@
 # open_AR_Sandbox
 Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
 
-| **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
+:warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
 own work is serious **scientific fraud**! And if you develop content further, then please push these developments
 back to this repostory - in the very interest of scientific development (and also a requirement of the license).
-For more details, please consult the information below and the license.|
-| --- |
+For more details, please consult the information below and the license.
 
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
 
