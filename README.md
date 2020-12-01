@@ -101,6 +101,12 @@ then please _provide them back to the main project_ in the form of a pull reques
 as common practice in the open-source community. If you have questions on
 the procedure, feel free to contact us about it.
 
+These are the main conditions for using this library:
+- License and copyright notice
+- Disclose source
+- State changes
+- Same license (library)
+
 For more details on the licsense, please see provided license file.
 
 If you use Open-AR-Sandbox in a scientific abstract or publication, please
