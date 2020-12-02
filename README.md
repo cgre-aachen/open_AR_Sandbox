@@ -154,9 +154,9 @@ The standard packages
 
 ```pip install numpy pandas jupyter notebook scipy panel scikit-image matplotlib```
 
-or simply use our `requirements.txt file`
+or simply use our `requirements.txt` file:
 
-```pip install -r requirements.txt file```
+```pip install -r requirements.txt```
 
 You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
