@@ -181,7 +181,7 @@ class MainThread:
         This will change the flag self._loaded_frame = False to True in the update function and stop the sensor frame adquisition.
         To stop this pass frame = None or change the flag self._loaded_frame to False.
         Args:
-            frame: numpy.ndarray: must be a matrix of desired resolution and all positive
+            frame: numpy.ndarray: must be a matrix of desired resolution
         Returns:
 
         """
@@ -195,8 +195,6 @@ class MainThread:
             self._loaded_frame = False
         else:
             #self.lock.acquire()
-            if frame.min() < 0:
-                frame = frame + numpy.abs(frame.min())
             self._loaded_frame = True
             self.previous_frame = frame
             print("loaded")
