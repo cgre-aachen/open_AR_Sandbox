@@ -117,7 +117,7 @@ class MainThread:
         if self._loaded_frame:
             frame = self.previous_frame #if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
-            self.sb_params['same_frame'] = True
+            self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
             plt.pause(0.2)
         else:
             frame = self.sensor.get_frame()
@@ -181,7 +181,7 @@ class MainThread:
         This will change the flag self._loaded_frame = False to True in the update function and stop the sensor frame adquisition.
         To stop this pass frame = None or change the flag self._loaded_frame to False.
         Args:
-            frame: numpy.ndarray: must be a matrix of desired resolution
+            frame: numpy.ndarray: must be a matrix of desired resolution and all positive
         Returns:
 
         """
@@ -194,11 +194,13 @@ class MainThread:
         elif frame is None:
             self._loaded_frame = False
         else:
-            self.lock.acquire()
+            #self.lock.acquire()
+            if frame.min() < 0:
+                frame = frame + numpy.abs(frame.min())
             self._loaded_frame = True
             self.previous_frame = frame
             print("loaded")
-            self.lock.release()
+            #self.lock.release()
 
 
     def add_module(self, name: str, module):
