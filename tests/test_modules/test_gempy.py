@@ -2,7 +2,7 @@ import os
 import gempy as gp
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
 from sandbox import _test_data as test_data
-from sandbox.modules import GemPyModule
+from sandbox.modules.gempy import GemPyModule
 from sandbox.modules.gempy.example_models import *
 import matplotlib.pyplot as plt
 import pytest
@@ -152,18 +152,21 @@ def test_polygon_data_boreholes():
 
 def test_plot_boreholes():
     #geo_model = create_example_model('Fault')
-    geo_model = create_example_model('Horizontal_layers')
+    geo_model = create_example_model('Anticline')
     module = GemPyModule(geo_model=geo_model, extent=extent, box=[1000, 800], load_examples=False)
     module.setup(frame)
-
+q
     module.set_borehole_dict((10, 20), "borehole1")
     module.set_borehole_dict((200, 500), "borehole2")
     module.set_borehole_dict((500, 500), "borehole3")
-    module.set_borehole_dict((900, 500), "borehole4")
+    module.set_borehole_dict((500, 900), "borehole4")
     module.set_borehole_dict((100, 100), "borehole5")
     module.set_borehole_dict((600, 700), "borehole6")
     module.set_borehole_dict((200, 150), "borehole7")
     module.set_borehole_dict((150, 200), "borehole8")
+    module.set_borehole_dict((50, 800), "borehole9")
+    module.set_borehole_dict((100, 500), "borehole10")
+    module.set_borehole_dict((700, 200), "borehole11")
 
     module._get_polygon_data()
 
