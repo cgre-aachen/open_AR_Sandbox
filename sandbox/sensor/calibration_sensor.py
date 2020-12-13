@@ -6,6 +6,7 @@ from sandbox.projector import Projector
 from sandbox import _calibration_dir
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from matplotlib.figure import Figure
 
 
@@ -21,7 +22,8 @@ class CalibSensor: #TODO: include automatic
         self.calibprojector = calibprojector
         self.sensor = Sensor(name=name, invert=False, clip_values=False, gauss_filter=False, **kwargs)
         self.projector = Projector(calibprojector=self.calibprojector, **kwargs)
-        self.cmap = plt.cm.get_cmap('Greys_r')
+        import copy
+        self.cmap = copy.copy(mpl.cm.get_cmap("Greys_r"))
         self.cmap.set_over(self.c_over)
         self.cmap.set_under(self.c_under)
         self.cmap.set_bad('k')

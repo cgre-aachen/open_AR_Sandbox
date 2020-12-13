@@ -13,7 +13,7 @@ setup(
         'matplotlib >= 3.2.1',
         'numpy',
         'pandas',
-        'panel',
+        'panel >= 0.10.2',
         'scipy',
         'scikit-image',
         'opencv-contrib-python',

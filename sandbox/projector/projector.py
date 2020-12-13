@@ -42,7 +42,7 @@ class Projector(object):
             calibprojector:
             use_panel:
         """
-        pn.extension()
+        #pn.extension()
         self.version = '2.0.p'
         self.ax = None
         self.figure = None

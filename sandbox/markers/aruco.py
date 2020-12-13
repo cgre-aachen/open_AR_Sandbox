@@ -385,7 +385,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
     def create_arucos_pdf(self, nx: int = 5, ny: int = 5, resolution: int = 50, path: str ='./'):
         """
-        FUnction to create a pdf file with nx X ny number of arucos and save them in specified path
+        Function to create a pdf file with nx X ny number of arucos and save them in specified path
         Args:
             nx: number of rows
             ny: number of columns
@@ -409,7 +409,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
     def plot_aruco_location(self, string_kind = 'RGB'):
         """ Function to visualize the location of the detected aruco markers in the image.
         Args:
-            string_kind: IR -> Infrarred detection of aruco and visualization in infrared image
+            string_kind: IR -> Infrared detection of aruco and visualization in infrared image
                          RGB -> Detection of aruco in color space and visualization as color image
                          Projector -> Detection of projected arucos inside sandbox and visualization in color image
         Returns:

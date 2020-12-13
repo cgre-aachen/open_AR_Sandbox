@@ -18,7 +18,7 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = True, **kwargs):
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False, **kwargs):
         """
 
         Args:
@@ -86,6 +86,8 @@ class MainThread:
 
         self._create_widgets()
 
+        self._loaded_frame = False
+
     #@property @TODO: test if this works
     #def sb_params(self):
     #    return {'frame': self.sensor.get_frame(),
@@ -112,19 +114,23 @@ class MainThread:
         #if not self.sb_params.get('del_contour'):
         #    if 'ContourLinesModule' in self.modules.keys():
         #        self.modules['ContourLinesModule'].delete_contourns(self.sb_params['ax'])
-
-        frame = self.sensor.get_frame()
-        self.sb_params['extent'] = self.sensor.extent
-
-        # This is to avoid noise in the data
-        if self.check_change:
-            cl = numpy.isclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True)
-            self.previous_frame[numpy.logical_not(cl)] = frame[numpy.logical_not(cl)]
-            frame = self.previous_frame
-            #self.sb_params['same_frame'] = True #TODO: Check for usage of this part
+        if self._loaded_frame:
+            frame = self.previous_frame #if loaded DEM the previous frame will have this information
+            self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
+            self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
+            plt.pause(0.2)
         else:
-            self.previous_frame = frame
-            self.sb_params['same_frame'] = False
+            frame = self.sensor.get_frame()
+            self.sb_params['extent'] = self.sensor.extent
+            # This is to avoid noise in the data
+            if self.check_change:
+                cl = numpy.isclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True)
+                self.previous_frame[numpy.logical_not(cl)] = frame[numpy.logical_not(cl)]
+                frame = self.previous_frame
+                #self.sb_params['same_frame'] = True #TODO: Check for usage of this part
+            else:
+                self.previous_frame = frame
+                self.sb_params['same_frame'] = False
             #if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
             #    self.previous_frame = frame
             #    self.sb_params['same_frame'] = False
@@ -168,6 +174,32 @@ class MainThread:
         self.lock.acquire()
         self.projector.trigger()
         self.lock.release()
+
+    def load_frame(self, frame: numpy.ndarray = None):
+        """
+        During the sandbox thread, if you want to fix a frame but not interrupt the thread, load the desired numpy array here.
+        This will change the flag self._loaded_frame = False to True in the update function and stop the sensor frame adquisition.
+        To stop this pass frame = None or change the flag self._loaded_frame to False.
+        Args:
+            frame: numpy.ndarray: must be a matrix of desired resolution
+        Returns:
+
+        """
+
+        if isinstance(frame, str):
+            try:
+                frame = numpy.load(frame)
+            except AttributeError:
+                print(frame, " not valid")
+        elif frame is None:
+            self._loaded_frame = False
+        else:
+            #self.lock.acquire()
+            self._loaded_frame = True
+            self.previous_frame = frame
+            print("loaded")
+            #self.lock.release()
+
 
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
