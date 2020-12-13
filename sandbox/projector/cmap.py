@@ -187,13 +187,20 @@ class CmapModule:
         return panel
 
     def _create_widgets(self):
-        self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap', options=plt.colormaps(),
+        self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap',
+                                                   # use the following line to enable all colormaps
+                                                   # options=plt.colormaps(),
+                                                   # limit to only specified color maps
+                                                   options=['gist_earth', 'terrain', 'ocean', 'seismic',
+                                                            'RdBu', "RdBu_r", "Greys", "Greys_r",
+                                                            'viridis', 'viridis_r', 'magma', 'magma_r',
+                                                            ],
                                                    value=self.cmap.name)
         self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)
 
         self._widget_plot_colormap = pn.widgets.Checkbox(name='Show colormap', value=self.active)
         self._widget_plot_colormap.param.watch(self._callback_plot_colormap, 'value',
-                                              onlychanged=False)
+                                               onlychanged=False)
 
         return True
 
