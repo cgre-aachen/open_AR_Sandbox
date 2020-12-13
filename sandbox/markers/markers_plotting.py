@@ -136,7 +136,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         return panel
 
     def _create_aruco_widgets(self):
-        self._widget_aruco_scatter = pn.widgets.Checkbox(name='Show location aruco', value=self.aruco_scatter)
+        self._widget_aruco_scatter = pn.widgets.Checkbox(name='Show aruco location', value=self.aruco_scatter)
         self._widget_aruco_scatter.param.watch(self._callback_aruco_scatter, 'value',
                                                onlychanged=False)
 
@@ -149,7 +149,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self._widget_aruco_connect.param.watch(self._callback_aruco_connect, 'value',
                                                onlychanged=False)
 
-        self._widget_aruco_color = pn.widgets.Select(name='Choose a color', options=[*mcolors.cnames.keys()],
+        self._widget_aruco_color = pn.widgets.Select(name='Choose a color', options=['red', 'blue', 'white', 'black'],  #options=[*mcolors.cnames.keys()],
                                                      value=self.aruco_color)
         self._widget_aruco_color.param.watch(self._callback_aruco_color, 'value', onlychanged=False)
 
