@@ -7,7 +7,6 @@ from .template import ModuleTemplate
 
 
 class TopoModule(ModuleTemplate):
-
     """
     Module for simple Topography visualization without computing a geological model
     """
@@ -44,7 +43,7 @@ class TopoModule(ModuleTemplate):
         else:
             self.cmap = plt.get_cmap("gist_earth")
             self.norm = None
-            #frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
+            # frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -59,8 +58,8 @@ class TopoModule(ModuleTemplate):
 
     def normalize_topography(self, frame, extent, max_height, min_height):
         frame = frame * (max_height / extent[-1])
-        extent[-2] = min_height #self.plot.vmin = min_height
-        extent[-1] = max_height #self.plot.vmax = max_height
+        extent[-2] = min_height  # self.plot.vmin = min_height
+        extent[-1] = max_height  # self.plot.vmax = max_height
         return frame, extent
 
     def create_custom_cmap(self):
@@ -72,45 +71,46 @@ class TopoModule(ModuleTemplate):
     @property
     def set_norm(self):
         div_norm = mcolors.TwoSlopeNorm(vmin=self.min_height,
-                                             vcenter=self.center,
-                                             vmax=self.max_height)
+                                        vcenter=self.center,
+                                        vmax=self.max_height)
         return div_norm
 
     def show_widgets(self):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
-                          #self._widget_normalize,
+                          # self._widget_normalize,
                           self._widget_max_height,
                           self._widget_see,
                           self._widget_see_level)
         return panel
 
     def _create_widgets(self):
-        self._widget_max_height = pn.widgets.Spinner(name="Maximum height of topography", value= self.max_height, step = 20)
+        self._widget_max_height = pn.widgets.Spinner(name="Maximum height of topography", value=self.max_height,
+                                                     step=20)
         self._widget_max_height.param.watch(self._callback_max_height, 'value', onlychanged=False)
 
-        #self._widget_normalize = pn.widgets.Checkbox(name='Normalize maximun and minimun height of topography',
+        # self._widget_normalize = pn.widgets.Checkbox(name='Normalize maximun and minimun height of topography',
         #                                             value=self.normalize)
-        #self._widget_normalize.param.watch(self._callback_normalize, 'value',
+        # self._widget_normalize.param.watch(self._callback_normalize, 'value',
         #                               onlychanged=False)
 
         self._widget_see_level = pn.widgets.IntSlider(name="Set see level height",
-                                                       start=self.min_height+1,
-                                                       end=self.max_height,
-                                                       value=self.center)
+                                                      start=self.min_height + 1,
+                                                      end=self.max_height,
+                                                      value=self.center)
         self._widget_see_level.param.watch(self._callback_see_level, 'value',
-                                            onlychanged=False)
+                                           onlychanged=False)
 
         self._widget_see = pn.widgets.Checkbox(name='Show see level',
-                                                     value=self.see)
+                                               value=self.see)
         self._widget_see.param.watch(self._callback_see, 'value',
-                                           onlychanged=False)
+                                     onlychanged=False)
 
     def _callback_max_height(self, event):
         self.max_height = event.new
         self._widget_see_level.end = event.new
 
-    #def _callback_normalize(self, event):
+    # def _callback_normalize(self, event):
     #    self.norm = event.new
 
     def _callback_see_level(self, event):
@@ -118,7 +118,3 @@ class TopoModule(ModuleTemplate):
 
     def _callback_see(self, event):
         self.see = event.new
-
-
-
-
