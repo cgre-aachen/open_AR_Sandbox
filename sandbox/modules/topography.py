@@ -16,7 +16,7 @@ class TopoModule(ModuleTemplate):
         self.max_height = 1500
         self.center = 300
         self.min_height = 0
-        self.see = False
+        self.sea = False
         self.terrain_cmap = None
         self.create_custom_cmap()
 
@@ -37,7 +37,7 @@ class TopoModule(ModuleTemplate):
 
         frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
-        if self.see:
+        if self.sea:
             self.cmap = self.terrain_cmap
             self.norm = self.set_norm
         else:
@@ -80,8 +80,8 @@ class TopoModule(ModuleTemplate):
         panel = pn.Column("### Widgets for Topography normalization",
                           # self._widget_normalize,
                           self._widget_max_height,
-                          self._widget_see,
-                          self._widget_see_level)
+                          self._widget_sea,
+                          self._widget_sea_level)
         return panel
 
     def _create_widgets(self):
@@ -94,27 +94,27 @@ class TopoModule(ModuleTemplate):
         # self._widget_normalize.param.watch(self._callback_normalize, 'value',
         #                               onlychanged=False)
 
-        self._widget_see_level = pn.widgets.IntSlider(name="Set see level height",
+        self._widget_sea_level = pn.widgets.IntSlider(name="Set sea level height",
                                                       start=self.min_height + 1,
                                                       end=self.max_height,
                                                       value=self.center)
-        self._widget_see_level.param.watch(self._callback_see_level, 'value',
+        self._widget_sea_level.param.watch(self._callback_sea_level, 'value',
                                            onlychanged=False)
 
-        self._widget_see = pn.widgets.Checkbox(name='Show see level',
-                                               value=self.see)
-        self._widget_see.param.watch(self._callback_see, 'value',
+        self._widget_sea = pn.widgets.Checkbox(name='Show sea level',
+                                               value=self.sea)
+        self._widget_sea.param.watch(self._callback_see, 'value',
                                      onlychanged=False)
 
     def _callback_max_height(self, event):
         self.max_height = event.new
-        self._widget_see_level.end = event.new
+        self._widget_sea_level.end = event.new
 
     # def _callback_normalize(self, event):
     #    self.norm = event.new
 
-    def _callback_see_level(self, event):
+    def _callback_sea_level(self, event):
         self.center = event.new
 
     def _callback_see(self, event):
-        self.see = event.new
+        self.sea = event.new
