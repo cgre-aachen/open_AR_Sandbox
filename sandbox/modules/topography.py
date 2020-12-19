@@ -57,7 +57,9 @@ class TopoModule(ModuleTemplate):
             # Add contour polygon of sea level
 
             path = self.create_paths(frame, self.center)
-            self.sea_level_patch = PathPatch(path, alpha=0.6)
+            self.sea_level_patch = PathPatch(path, alpha=0.7, linewidth=2, ec='blue')
+
+            plt.pause(0.1)
 
             ax.add_patch(self.sea_level_patch)
 
