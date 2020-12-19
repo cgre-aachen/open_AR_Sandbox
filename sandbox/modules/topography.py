@@ -1,7 +1,9 @@
 import panel as pn
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import numpy
+import numpy as np
+from skimage import measure
+from matplotlib.patches import Path, PathPatch
 
 from .template import ModuleTemplate
 
@@ -17,6 +19,7 @@ class TopoModule(ModuleTemplate):
         self.center = 300
         self.min_height = 0
         self.sea = False
+        self.sea_contour = False
         self.terrain_cmap = None
         self.create_custom_cmap()
 
@@ -45,6 +48,15 @@ class TopoModule(ModuleTemplate):
             self.norm = None
             # frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
+        if self.sea_contour:
+            # Add contour polygon of sea level
+            pass
+            # path = create_paths(frame, 40)
+            path = self.create_paths(frame, self.center)
+            patch = PathPatch(path, alpha=0.6)
+
+            ax.add_patch(patch)
+
         sb_params['frame'] = frame
         sb_params['ax'] = ax
         sb_params['cmap'] = self.cmap
@@ -63,10 +75,42 @@ class TopoModule(ModuleTemplate):
         return frame, extent
 
     def create_custom_cmap(self):
-        colors_undersea = plt.cm.gist_earth(numpy.linspace(0, 0.20, 256))
-        colors_land = plt.cm.gist_earth(numpy.linspace(0.35, 1, 256))
-        all_colors = numpy.vstack((colors_undersea, colors_land))
+        colors_undersea = plt.cm.gist_earth(np.linspace(0, 0.20, 256))
+        colors_land = plt.cm.gist_earth(np.linspace(0.35, 1, 256))
+        all_colors = np.vstack((colors_undersea, colors_land))
         self.terrain_cmap = mcolors.LinearSegmentedColormap.from_list('terrain_map', all_colors)
+
+    def create_paths(self, frame, contour_val):
+        """Create compound path for given contour value"""
+        # create padding
+        frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
+
+        # calculate relative elevation value
+        contour_val_rel = ((self.max_height - self.min_height) *
+                           (contour_val - np.min(frame)) /
+                           (np.max(frame) - np.min(frame)))
+
+        contours = measure.find_contours(frame_padded.T, contour_val_rel)
+
+        # combine values
+        contour_comb = np.concatenate(contours, axis=0)
+
+        #
+        # generate codes to close polygons
+        #
+
+        # First: link all
+        codes = [Path.LINETO for _ in range(contour_comb.shape[0])]
+        # Next: find ends of each contour and close
+        index = 0
+        for contour in contours:
+            codes[index] = Path.MOVETO
+            index += len(contour)
+            codes[index - 1] = Path.CLOSEPOLY
+
+        path = Path(contour_comb, codes)  # , codes)
+
+        return path
 
     @property
     def set_norm(self):
@@ -81,6 +125,7 @@ class TopoModule(ModuleTemplate):
                           # self._widget_normalize,
                           self._widget_max_height,
                           self._widget_sea,
+                          self._widget_sea_contour,
                           self._widget_sea_level)
         return panel
 
@@ -106,6 +151,11 @@ class TopoModule(ModuleTemplate):
         self._widget_sea.param.watch(self._callback_see, 'value',
                                      onlychanged=False)
 
+        self._widget_sea_contour = pn.widgets.Checkbox(name='Show sea level contour',
+                                                       value=self.sea_contour)
+        self._widget_sea_contour.param.watch(self._callback_see_contour, 'value',
+                                             onlychanged=False)
+
     def _callback_max_height(self, event):
         self.max_height = event.new
         self._widget_sea_level.end = event.new
@@ -118,3 +168,6 @@ class TopoModule(ModuleTemplate):
 
     def _callback_see(self, event):
         self.sea = event.new
+
+    def _callback_see_contour(self, event):
+        self.sea_contour = event.new
