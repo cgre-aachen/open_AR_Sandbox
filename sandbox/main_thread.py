@@ -87,6 +87,7 @@ class MainThread:
         self._create_widgets()
 
         self._loaded_frame = False
+        self._error_message = False
 
     #@property @TODO: test if this works
     #def sb_params(self):
@@ -118,7 +119,7 @@ class MainThread:
             frame = self.previous_frame #if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
             self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
-            plt.pause(0.2)
+            #plt.pause(0.2)
         else:
             frame = self.sensor.get_frame()
             self.sb_params['extent'] = self.sensor.extent
@@ -146,12 +147,15 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            plt.pause(0.2)
+            #plt.pause(0.2)
         self.lock.release()
 
         self.sb_params['marker'] = df
 
         try:
+            if self._error_message:
+                self.sb_params['ax'].texts = []
+                self._error_message = False
             self.lock.acquire()
             _cmap = ['CmapModule'] if 'CmapModule' in self.modules.keys() else []
             _contours = ['ContourLinesModule'] if 'ContourLinesModule' in self.modules.keys() else []
@@ -164,6 +168,8 @@ class MainThread:
             traceback.print_exc()
             self.lock.release()
             self.thread_status = 'stopped'
+            self.projector._write_text("Ups... Something went wrong. The Thread is paused...")
+            self._error_message = True
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])

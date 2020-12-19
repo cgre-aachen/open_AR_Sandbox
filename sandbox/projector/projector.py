@@ -148,10 +148,12 @@ class Projector(object):
 
         return True
 
-    def _paint_logo(self):
+    def _write_text(self, text:str = "cgre-aachen / open_AR_Sandbox"):
         self.ax.texts=[]
-        self.ax.annotate("cgre-aachen / open_AR_Sandbox ", (self.p_frame_width/2, self.p_frame_height/2),
-                         zorder=1)#c='k', fontsize=30)#, textcoords='offset pixels', xytext=(20, 20), zorder=21)
+        x = (self.ax.get_xlim()[1] - self.ax.get_xlim()[0])/2
+        y = (self.ax.get_ylim()[1] - self.ax.get_ylim()[0])/2
+        self.ax.annotate(text, (x, y), zorder=1000, xycoords="data", fontsize=18, ha='center',
+                         va='top', wrap=True)
         self.trigger()
 
     def _replace_figure_with_pyplot(self):

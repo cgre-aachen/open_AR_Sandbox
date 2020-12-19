@@ -106,7 +106,7 @@ class ContourLinesModule:
                 self.add_minor_contours(frame, ax, extent[:4])
             if self.contours_label:
                 self.add_label_contours(ax)
-                plt.pause(self._pause) #TODO: error from issue #3 seems to be originated from the text on the contour lines
+                #plt.pause(self._pause) #TODO: error from issue #3 seems to be originated from the text on the contour lines
         else:
             if self._active:
                 self.delete_contourns(ax)
