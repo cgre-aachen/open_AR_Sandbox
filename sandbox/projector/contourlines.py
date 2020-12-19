@@ -71,6 +71,8 @@ class ContourLinesModule:
 
             self.contours_step_minor = contours_step_minor
             self.contours_width_minor = contours_width_minor
+            #TODO: fix for issue #3 ?
+            self._pause = 0.5
 
     def update(self, sb_params: dict):
         active = sb_params.get('active_contours')
@@ -104,6 +106,7 @@ class ContourLinesModule:
                 self.add_minor_contours(frame, ax, extent[:4])
             if self.contours_label:
                 self.add_label_contours(ax)
+                plt.pause(self._pause) #TODO: error from issue #3 seems to be originated from the text on the contour lines
         else:
             if self._active:
                 self.delete_contourns(ax)
