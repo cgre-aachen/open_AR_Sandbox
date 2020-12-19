@@ -63,6 +63,9 @@ class TopoModule(ModuleTemplate):
 
             ax.add_patch(self.sea_level_patch)
 
+        # added to avoid "NoneType"-Error - but not sure if it really helps...
+        plt.pause(0.1)
+
         sb_params['frame'] = frame
         sb_params['ax'] = ax
         sb_params['cmap'] = self.cmap
@@ -129,6 +132,7 @@ class TopoModule(ModuleTemplate):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
                           # self._widget_normalize,
+                          self._widget_min_height,
                           self._widget_max_height,
                           self._widget_sea,
                           self._widget_sea_contour,
