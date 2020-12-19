@@ -41,30 +41,7 @@ class TopoModule(ModuleTemplate):
 
         frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
-        if self.sea:
-            self.cmap = self.terrain_cmap
-            self.norm = self.set_norm
-        else:
-            self.cmap = plt.get_cmap("gist_earth")
-            self.norm = None
-            # frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
-
-        # remove sea-level patch, if previously defined
-        if self.sea_level_patch:
-            self.sea_level_patch.remove()
-
-        if self.sea_contour:
-            # Add contour polygon of sea level
-
-            path = self.create_paths(frame, self.center)
-            self.sea_level_patch = PathPatch(path, alpha=0.7, linewidth=2, ec='blue')
-
-            plt.pause(0.1)
-
-            ax.add_patch(self.sea_level_patch)
-
-        # added to avoid "NoneType"-Error - but not sure if it really helps...
-        plt.pause(0.1)
+        self.plot(frame, ax)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -74,10 +51,43 @@ class TopoModule(ModuleTemplate):
 
         return sb_params
 
-    def plot(self):
-        pass
+    def plot(self, frame, ax):
+        if self.sea:
+            self.cmap = self.terrain_cmap
+            self.norm = self.set_norm
+        else:
+            self.cmap = plt.get_cmap("gist_earth")
+            self.norm = None
+
+        if self.sea_contour:
+            self._delete_path()
+            # Add contour polygon of sea level
+            path = self.create_paths(frame, self.center)
+            self.sea_level_patch = PathPatch(path, alpha=0.7, linewidth=2, ec='blue')
+            plt.pause(0.1) #TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from ContourLinesModule
+            ax.add_patch(self.sea_level_patch)
+        else:
+            self._delete_path()
+
+    def _delete_path(self):
+        """remove sea-level patch, if previously defined"""
+        if self.sea_level_patch:
+            self.sea_level_patch.remove()
+        self.sea_level_patch = None
 
     def normalize_topography(self, frame, extent, max_height, min_height):
+        """
+        Change the max an min value of the frame and normalize accordingly
+        Args:
+            frame: sensor frame
+            extent: sensor extent
+            max_height: Target max height
+            min_height: Target min height
+
+        Returns:
+            normalized frame and new extent
+
+        """
         frame = frame * (max_height / extent[-1])
         extent[-2] = min_height  # self.plot.vmin = min_height
         extent[-1] = max_height  # self.plot.vmax = max_height
@@ -132,7 +142,6 @@ class TopoModule(ModuleTemplate):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
                           # self._widget_normalize,
-                          self._widget_min_height,
                           self._widget_max_height,
                           self._widget_sea,
                           self._widget_sea_contour,
