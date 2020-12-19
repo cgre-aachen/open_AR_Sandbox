@@ -6,6 +6,7 @@ import numpy as np
 
 file = np.load(test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
+frame = frame + np.abs(frame.min())
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
 
 fig, ax = plt.subplots()
@@ -69,7 +70,22 @@ def test_widgets():
 def test_add_countour():
     pytest.sb_params['ax'].cla()
     module = TopoModule(extent=extent)
+    sb_params = module.update(pytest.sb_params)
+    ax = sb_params['ax']
+    fig = sb_params['fig']
+    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
+    fig.show()
+    module.sea = True
     module.sea_contour = True
+    sb_params = module.update(pytest.sb_params)
+    ax = sb_params['ax']
+    fig = sb_params['fig']
+    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+              cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
+    fig.show()
+    pytest.sb_params['ax'].cla()
+    module.sea_contour = False
     sb_params = module.update(pytest.sb_params)
     ax = sb_params['ax']
     fig = sb_params['fig']
