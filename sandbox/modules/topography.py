@@ -41,10 +41,6 @@ class TopoModule(ModuleTemplate):
 
         frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
-        # remove sea-level patch, if previously defined
-        if self.sea_level_patch:
-            self.sea_level_patch.remove()
-
         if self.sea:
             self.cmap = self.terrain_cmap
             self.norm = self.set_norm
@@ -53,11 +49,13 @@ class TopoModule(ModuleTemplate):
             self.norm = None
             # frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
 
+        # remove sea-level patch, if previously defined
+        if self.sea_level_patch:
+            self.sea_level_patch.remove()
+
         if self.sea_contour:
             # Add contour polygon of sea level
-            # remove path patch, if already created
 
-            # obj.attr_name exists.
             path = self.create_paths(frame, self.center)
             self.sea_level_patch = PathPatch(path, alpha=0.6)
 
