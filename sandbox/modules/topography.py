@@ -30,6 +30,7 @@ class TopoModule(ModuleTemplate):
         self.normalize = True
         self.norm = None
         self.cmap = None
+        self.sea_level_patch = None
 
         return print("TopoModule loaded succesfully")
 
@@ -51,11 +52,15 @@ class TopoModule(ModuleTemplate):
         if self.sea_contour:
             # Add contour polygon of sea level
             pass
-            # path = create_paths(frame, 40)
-            path = self.create_paths(frame, self.center)
-            patch = PathPatch(path, alpha=0.6)
+            # remove path patch, if already created
+            if self.sea_level_patch:
+                self.sea_level_patch.remove()
 
-            ax.add_patch(patch)
+            # obj.attr_name exists.
+            path = self.create_paths(frame, self.center)
+            self.sea_level_patch = PathPatch(path, alpha=0.6)
+
+            ax.add_patch(self.sea_level_patch)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
