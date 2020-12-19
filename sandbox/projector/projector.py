@@ -1,8 +1,11 @@
 import panel as pn
+import matplotlib
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+plt.ion()
 import json
 from sandbox import _calibration_dir
+from time import process_time
 
 
 class Projector(object):
@@ -70,6 +73,9 @@ class Projector(object):
         self.hot = None
         self.profile = None
         self.sidebar = None
+        self._prev_time = process_time()
+        self._diff_time = None
+        self._target_time = 0.5
         self.create_panel()
         if use_panel is True:
             self.start_server()
@@ -194,16 +200,40 @@ class Projector(object):
         self.trigger()
         return True
 
+    def _clock(self, log=True):
+        current = process_time()
+        self._diff_time = current- self._prev_time
+        if log:
+            print(self._diff_time)
+        text = [isinstance(text, matplotlib.text.Text) for text in self.ax.artists]
+        if True in text:
+            tim = self._target_time - self._diff_time
+            if tim>0:
+                plt.pause(tim)
+        self._prev_time = process_time()
+
     def trigger(self):
         """
         Update the panel figure if modified 
         Returns:
 
         """
+        #time_bef = process_time()
+        #background = self.figure.canvas.copy_from_bbox(self.ax.bbox)
+        #plt.pause(0.2)
+        self._clock()
         self.figure.canvas.draw_idle()
+        self._clock()
+        #self.frame.object = self.figure
+        self.frame.param.trigger('object')
+        #self.frame.param.trigger('object')
+
+        #    print("something is wrong")
+        #plt.pause(0.2)
+        #self.figure.canvas.restore_region(background)
         #self.figure.canvas.flush_events()
         #self.ax.draw_idle()
-        self.frame.param.trigger('object')
+        #self.figure.canvas.draw()
         return True
 
     def load_json(self, file: str):
