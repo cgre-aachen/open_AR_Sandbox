@@ -159,6 +159,7 @@ class TopoModule(ModuleTemplate):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
                           # self._widget_normalize,
+                          self._widget_min_height,
                           self._widget_max_height,
                           self._widget_sea,
                           self._widget_sea_contour,
@@ -166,6 +167,10 @@ class TopoModule(ModuleTemplate):
         return panel
 
     def _create_widgets(self):
+        self._widget_min_height = pn.widgets.Spinner(name="Minimum height of topography", value=self.min_height,
+                                                     step=20)
+        self._widget_min_height.param.watch(self._callback_min_height, 'value', onlychanged=False)
+
         self._widget_max_height = pn.widgets.Spinner(name="Maximum height of topography", value=self.max_height,
                                                      step=20)
         self._widget_max_height.param.watch(self._callback_max_height, 'value', onlychanged=False)
@@ -191,6 +196,10 @@ class TopoModule(ModuleTemplate):
                                                        value=self.sea_contour)
         self._widget_sea_contour.param.watch(self._callback_see_contour, 'value',
                                              onlychanged=False)
+
+    def _callback_min_height(self, event):
+        self.min_height = event.new
+        self._widget_sea_level.start = event.new + 1
 
     def _callback_max_height(self, event):
         self.max_height = event.new
