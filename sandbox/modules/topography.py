@@ -109,7 +109,15 @@ class TopoModule(ModuleTemplate):
         self.terrain_cmap = mcolors.LinearSegmentedColormap.from_list('terrain_map', all_colors)
 
     def create_paths(self, frame, contour_val):
-        """Create compound path for given contour value"""
+        """Create compound path for given contour value
+
+        Args:
+            frame: sensor frame
+            contour_val (float): value of contour
+
+        Returns:
+            path: matplotlib.Path object for contour polygon
+        """
         # create padding
         frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
 
