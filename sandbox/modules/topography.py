@@ -15,9 +15,9 @@ class TopoModule(ModuleTemplate):
 
     def __init__(self, *args, extent: list = None, **kwargs):
         pn.extension()
-        self.max_height = 1500
-        self.center = 300
-        self.min_height = 0
+        self.max_height = 800
+        self.center = 0
+        self.min_height = -200
         self.sea = False
         self.sea_contour = False
         self.terrain_cmap = None
@@ -31,6 +31,11 @@ class TopoModule(ModuleTemplate):
         self.norm = None
         self.cmap = None
         self.sea_level_patch = None
+
+        # Settings for sea level polygon
+        self.sea_level_polygon_alpha = 0.7
+        self.sea_level_polygon_line_thickness = 2.
+        self.sea_level_polygon_line_color = "blue"
 
         return print("TopoModule loaded succesfully")
 
@@ -63,7 +68,10 @@ class TopoModule(ModuleTemplate):
             self._delete_path()
             # Add contour polygon of sea level
             path = self.create_paths(frame, self.center)
-            self.sea_level_patch = PathPatch(path, alpha=0.7, linewidth=2, ec='blue')
+            self.sea_level_patch = PathPatch(path,
+                                             alpha=self.sea_level_polygon_alpha,
+                                             linewidth=self.sea_level_polygon_line_thickness,
+                                             ec=self.sea_level_polygon_line_color)
             plt.pause(0.1) #TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from ContourLinesModule
             ax.add_patch(self.sea_level_patch)
         else:
@@ -88,6 +96,7 @@ class TopoModule(ModuleTemplate):
             normalized frame and new extent
 
         """
+        # ToDo: change to object attributes: self.max_height, self.min_height, self.frame, self.extent?
         frame = frame * (max_height / extent[-1])
         extent[-2] = min_height  # self.plot.vmin = min_height
         extent[-1] = max_height  # self.plot.vmax = max_height
