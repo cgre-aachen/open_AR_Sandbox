@@ -145,9 +145,10 @@ class TopoModule(ModuleTemplate):
         frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
 
         # calculate relative elevation value
-        contour_val_rel = ((self.max_height - self.min_height) *
-                           (contour_val - np.min(frame)) /
-                           (np.max(frame) - np.min(frame)))
+        #contour_val_rel = ((self.max_height - self.min_height) *
+        #                   (contour_val - np.min(frame)) /
+        #                   (np.max(frame) - np.min(frame)))
+        contour_val_rel = contour_val
 
         contours = measure.find_contours(frame_padded.T, contour_val_rel)
 
@@ -222,11 +223,17 @@ class TopoModule(ModuleTemplate):
 
     def _callback_min_height(self, event):
         self.min_height = event.new
+        if self.center < self.min_height:
+            self.center = self.min_height+1
+            self._widget_sea_level.value = self.center+1
         self._widget_sea_level.start = event.new + 1
 
     def _callback_max_height(self, event):
         self.max_height = event.new
-        self._widget_sea_level.end = event.new
+        if self.center > self.max_height:
+            self.center = self.max_height-1
+            self._widget_sea_level.value = self.center-1
+        self._widget_sea_level.end = event.new -1
 
     # def _callback_normalize(self, event):
     #    self.norm = event.new

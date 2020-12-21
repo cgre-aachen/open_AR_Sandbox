@@ -73,23 +73,25 @@ def test_add_countour():
     sb_params = module.update(pytest.sb_params)
     ax = sb_params['ax']
     fig = sb_params['fig']
-    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+    ax.imshow(sb_params.get('frame'), #vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
               cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
+    pytest.sb_params['frame'] = frame
     module.sea = True
     module.sea_contour = True
     sb_params = module.update(pytest.sb_params)
     ax = sb_params['ax']
     fig = sb_params['fig']
-    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+    ax.imshow(sb_params.get('frame'), #vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
               cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
     pytest.sb_params['ax'].cla()
     module.sea_contour = False
+    pytest.sb_params['frame'] = frame
     sb_params = module.update(pytest.sb_params)
     ax = sb_params['ax']
     fig = sb_params['fig']
-    ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
+    ax.imshow(sb_params.get('frame'), #vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
               cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
 
