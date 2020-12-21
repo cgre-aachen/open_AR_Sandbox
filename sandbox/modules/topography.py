@@ -43,9 +43,9 @@ class TopoModule(ModuleTemplate):
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
-
-        frame, extent = self.normalize_topography(frame, extent, self.max_height, self.min_height)
-
+        frame, extent = self.normalize_topography(frame, extent,
+                                                  min_height=self.min_height,
+                                                  max_height=self.max_height)
         self.plot(frame, ax)
 
         sb_params['frame'] = frame
@@ -83,7 +83,7 @@ class TopoModule(ModuleTemplate):
             self.sea_level_patch.remove()
         self.sea_level_patch = None
 
-    def normalize_topography(self, frame, extent, max_height, min_height):
+    def normalize_topography(self, frame, extent, min_height, max_height):
         """
         Change the max an min value of the frame and normalize accordingly
         Args:
@@ -97,9 +97,32 @@ class TopoModule(ModuleTemplate):
 
         """
         # ToDo: change to object attributes: self.max_height, self.min_height, self.frame, self.extent?
-        frame = frame * (max_height / extent[-1])
-        extent[-2] = min_height  # self.plot.vmin = min_height
+        # first position the frame in 0 if the original extent is not in 0
+        if extent[-2]!=0:
+            displ = 0 - extent[-2]
+            frame = frame - displ
+        #calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
+
+        #min_height assuming is under 0.
+
+        if min_height<0:
+            displace = min_height*(-1) * (extent[-1] - extent[-2]) / (max_height - min_height)
+            frame = frame - displace
+            extent[-1] = extent[-1] - displace
+            extent[-2] = extent[-2] - displace
+            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two regions
+            #above 0
+            frame[frame>0] = frame[frame>0] * (max_height/ extent[-1])
+            # below 0
+            frame[frame<0] = frame[frame<0] * (min_height/extent[-2])
+        elif min_height>0:
+            frame = frame * (max_height-min_height)/(extent[-1]-extent[-2])
+            frame = frame + min_height #just displace all up to start in min_height
+        elif min_height==0:
+            frame = frame * (max_height) / (extent[-1])
+        else: raise AttributeError
         extent[-1] = max_height  # self.plot.vmax = max_height
+        extent[-2] = min_height  # self.plot.vmin = min_height
         return frame, extent
 
     def create_custom_cmap(self):

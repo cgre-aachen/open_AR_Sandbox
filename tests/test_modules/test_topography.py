@@ -92,3 +92,34 @@ def test_add_countour():
     ax.imshow(sb_params.get('frame'), vmin=sb_params.get('extent')[-2], vmax=sb_params.get('extent')[-1],
               cmap=sb_params.get('cmap'), norm=sb_params.get('norm'), origin='lower')
     fig.show()
+
+def test_normalize_negative_height():
+    module = TopoModule(extent=extent)
+    plt.imshow(pytest.sb_params['frame'], origin="lower", cmap = "viridis")
+    plt.colorbar()
+    plt.show()
+    n = -200
+    new_frame_negative, new_extent_negative = module.normalize_topography(pytest.sb_params['frame'].copy(),
+                                                                          pytest.sb_params['extent'].copy(),
+                                                                          max_height=1000, min_height= n)
+    assert new_frame_negative.min() == n
+    plt.imshow(new_frame_negative, origin="lower", cmap="viridis")
+    plt.colorbar()
+    plt.show()
+    p=200
+    new_frame_positive, new_extent_positive = module.normalize_topography(pytest.sb_params['frame'].copy(),
+                                                                          pytest.sb_params['extent'].copy(),
+                                                                          max_height=1000, min_height=p)
+    assert new_frame_positive.min() == p
+    plt.imshow(new_frame_positive, origin="lower", cmap="viridis")
+    plt.colorbar()
+    plt.show()
+
+    c = 0
+    new_frame_positive, new_extent_positive = module.normalize_topography(pytest.sb_params['frame'].copy(),
+                                                                          pytest.sb_params['extent'].copy(),
+                                                                          max_height=1000, min_height=c)
+    assert new_frame_positive.min() == c
+    plt.imshow(new_frame_positive, origin="lower", cmap="viridis")
+    plt.colorbar()
+    plt.show()
