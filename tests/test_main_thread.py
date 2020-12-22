@@ -4,8 +4,10 @@ from sandbox.projector import Projector
 from sandbox.sensor import Sensor
 import matplotlib.pyplot as plt
 import numpy as np
+
 file = np.load(test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
+frame = frame + np.abs(frame.min())
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
 
 projector = Projector(use_panel=False)
@@ -95,16 +97,21 @@ def test_bug_no_dpi_no_aruco():
     main.sb_params
 
 def test_with_gempy():
-    from sandbox import _calibration_dir
+    from sandbox import _calibration_dir, _test_data
+    file = np.load(_test_data['topo'] + "DEM1.npz")
+    frame = file['arr_0']
+    frame = frame + np.abs(frame.min())
+
     _calibprojector = _calibration_dir + "my_projector_calibration.json"
     _calibsensor = _calibration_dir + "my_sensor_calibration.json"
     from sandbox.sensor import Sensor
-    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    sensor = Sensor(calibsensor=_calibsensor, name="dummy")
     from sandbox.projector import Projector
     projector = Projector(calibprojector=_calibprojector)
     # Initialize the aruco detection
     from sandbox.main_thread import MainThread
     mainT = MainThread(sensor=sensor, projector=projector)
+    mainT.load_frame(frame)
     # Start the thread
     #mainT.run()
     from sandbox.modules.gempy import GemPyModule
@@ -121,10 +128,36 @@ def test_check_frame():
     _calibprojector = _calibration_dir + "my_projector_calibration.json"
     _calibsensor = _calibration_dir + "my_sensor_calibration.json"
     from sandbox.sensor import Sensor
-    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    sensor = Sensor(calibsensor=_calibsensor, name="dummy")
     frame1 = sensor.get_frame()
     frame2 = sensor.get_frame()
     _rtol = 0.2
     _atol = 5
     cl = np.isclose(frame1, frame2,_rtol, _atol)
     frame1[np.logical_not(cl)] = frame2[np.logical_not(cl)]
+
+def test_topo_module():
+    from sandbox import _calibration_dir, _test_data
+    file = np.load(_test_data['topo'] + "DEM1.npz")
+    frame = file['arr_0']
+    frame = frame + np.abs(frame.min())
+
+    _calibprojector = _calibration_dir + "my_projector_calibration.json"
+    _calibsensor = _calibration_dir + "my_sensor_calibration.json"
+    from sandbox.sensor import Sensor
+    sensor = Sensor(calibsensor=_calibsensor, name="dummy")
+    from sandbox.projector import Projector
+    projector = Projector(calibprojector=_calibprojector)
+    # Initialize the aruco detection
+    from sandbox.main_thread import MainThread
+    mainT = MainThread(sensor=sensor, projector=projector)
+    mainT.load_frame(frame)
+
+    # Start the thread
+    #mainT.run()
+    from sandbox.modules import TopoModule
+    module = TopoModule(extent = extent)
+    mainT.add_module(name='Topo', module=module)
+    module.sea = True
+    module.sea_contour = True
+    mainT.update()

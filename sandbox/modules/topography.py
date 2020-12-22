@@ -36,6 +36,7 @@ class TopoModule(ModuleTemplate):
         self.sea_level_polygon_alpha = 0.7
         self.sea_level_polygon_line_thickness = 2.
         self.sea_level_polygon_line_color = "blue"
+        self.sea_zorder=1000
 
         return print("TopoModule loaded succesfully")
 
@@ -71,7 +72,8 @@ class TopoModule(ModuleTemplate):
             self.sea_level_patch = PathPatch(path,
                                              alpha=self.sea_level_polygon_alpha,
                                              linewidth=self.sea_level_polygon_line_thickness,
-                                             ec=self.sea_level_polygon_line_color)
+                                             ec=self.sea_level_polygon_line_color,
+                                             zorder=self.sea_zorder)
             plt.pause(0.1) #TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from ContourLinesModule
             ax.add_patch(self.sea_level_patch)
         else:
