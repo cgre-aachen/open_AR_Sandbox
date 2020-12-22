@@ -37,6 +37,12 @@ class TopoModule(ModuleTemplate):
         self.sea_level_polygon_line_thickness = 2.
         self.sea_level_polygon_line_color = "blue"
 
+        # for relief shading
+        self.relief_shading = True
+        self.azdeg = 315
+        self.altdeg = 4
+        self.ve = 0.25
+
         return print("TopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
@@ -46,7 +52,7 @@ class TopoModule(ModuleTemplate):
         frame, extent = self.normalize_topography(frame, extent,
                                                   min_height=self.min_height,
                                                   max_height=self.max_height)
-        self.plot(frame, ax)
+        frame = self.plot(frame, ax)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -80,7 +86,11 @@ class TopoModule(ModuleTemplate):
             self._delete_path()
 
         if self.relief_shading:
-            pass
+            ls = mcolors.LightSource(azdeg=self.azdeg, altdeg=self.altdeg)
+            # cmap = plt.cm.copper
+            frame = ls.shade(frame, cmap=self.cmap, vert_exag=self.ve, blend_mode='hsv')
+
+        return frame
 
     def _delete_path(self):
         """remove sea-level patch, if previously defined"""
