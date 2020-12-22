@@ -40,8 +40,9 @@ class TopoModule(ModuleTemplate):
 
         # for relief shading
         self.relief_shading = True
+        self.relief_shading_is_active = False  # Flag to avoid multiple additions of relief shading
         self.azdeg = 315
-        self.altdeg = 4
+        self.altdeg = 45
         self.ve = 0.25
 
         return print("TopoModule loaded succesfully")
@@ -53,7 +54,15 @@ class TopoModule(ModuleTemplate):
         frame, extent = self.normalize_topography(frame, extent,
                                                   min_height=self.min_height,
                                                   max_height=self.max_height)
-        frame = self.plot(frame, ax)
+        frame_shade = self.plot(frame, ax)
+
+        if frame_shade is not None and not self.relief_shading_is_active:
+            plt.pause(0.1)
+            # TODO: the additional pause is a partial fix for this issue (#3)
+            ax.imshow(frame_shade, origin='lower', alpha=0.4)
+            plt.pause(0.1)
+
+            self.relief_shading_is_active = True  # only add once
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -88,11 +97,15 @@ class TopoModule(ModuleTemplate):
         else:
             self._delete_path()
 
-        ls = mcolors.LightSource(azdeg=self.azdeg, altdeg=self.altdeg)
-        # cmap = plt.cm.copper
-        frame = ls.shade(frame, cmap=self.cmap, vert_exag=self.ve, blend_mode='hsv')
+        if self.relief_shading:
+            # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
+            ls = mcolors.LightSource(azdeg=self.azdeg-180, altdeg=self.altdeg)
+            # cmap = plt.cm.copper
+            frame_shade = ls.shade(frame, cmap=plt.cm.gray, vert_exag=self.ve, blend_mode='hsv')
 
-        return frame
+            return frame_shade
+
+        return None
 
     def _delete_path(self):
         """remove sea-level patch, if previously defined"""
