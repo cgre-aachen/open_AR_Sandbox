@@ -72,10 +72,15 @@ class TopoModule(ModuleTemplate):
                                              alpha=self.sea_level_polygon_alpha,
                                              linewidth=self.sea_level_polygon_line_thickness,
                                              ec=self.sea_level_polygon_line_color)
-            plt.pause(0.1) #TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from ContourLinesModule
+            plt.pause(0.1)
+            # TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from
+            # ContourLinesModule
             ax.add_patch(self.sea_level_patch)
         else:
             self._delete_path()
+
+        if self.relief_shading:
+            pass
 
     def _delete_path(self):
         """remove sea-level patch, if previously defined"""
@@ -98,29 +103,29 @@ class TopoModule(ModuleTemplate):
         """
         # ToDo: change to object attributes: self.max_height, self.min_height, self.frame, self.extent?
         # first position the frame in 0 if the original extent is not in 0
-        if extent[-2]!=0:
+        if extent[-2] != 0:
             displ = 0 - extent[-2]
             frame = frame - displ
-        #calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
+        # calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
+        # min_height assuming is under 0.
 
-        #min_height assuming is under 0.
-
-        if min_height<0:
-            displace = min_height*(-1) * (extent[-1] - extent[-2]) / (max_height - min_height)
+        if min_height < 0:
+            displace = min_height * (-1) * (extent[-1] - extent[-2]) / (max_height - min_height)
             frame = frame - displace
             extent[-1] = extent[-1] - displace
             extent[-2] = extent[-2] - displace
-            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two regions
-            #above 0
-            frame[frame>0] = frame[frame>0] * (max_height/ extent[-1])
+            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two
+            # regions above 0
+            frame[frame > 0] = frame[frame > 0] * (max_height / extent[-1])
             # below 0
-            frame[frame<0] = frame[frame<0] * (min_height/extent[-2])
-        elif min_height>0:
-            frame = frame * (max_height-min_height)/(extent[-1]-extent[-2])
-            frame = frame + min_height #just displace all up to start in min_height
-        elif min_height==0:
+            frame[frame < 0] = frame[frame < 0] * (min_height / extent[-2])
+        elif min_height > 0:
+            frame = frame * (max_height - min_height) / (extent[-1] - extent[-2])
+            frame = frame + min_height  # just displace all up to start in min_height
+        elif min_height == 0:
             frame = frame * (max_height) / (extent[-1])
-        else: raise AttributeError
+        else:
+            raise AttributeError
         extent[-1] = max_height  # self.plot.vmax = max_height
         extent[-2] = min_height  # self.plot.vmin = min_height
         return frame, extent
@@ -219,16 +224,16 @@ class TopoModule(ModuleTemplate):
     def _callback_min_height(self, event):
         self.min_height = event.new
         if self.center < self.min_height:
-            self.center = self.min_height+1
-            self._widget_sea_level.value = self.center+1
+            self.center = self.min_height + 1
+            self._widget_sea_level.value = self.center + 1
         self._widget_sea_level.start = event.new + 1
 
     def _callback_max_height(self, event):
         self.max_height = event.new
         if self.center > self.max_height:
-            self.center = self.max_height-1
-            self._widget_sea_level.value = self.center-1
-        self._widget_sea_level.end = event.new -1
+            self.center = self.max_height - 1
+            self._widget_sea_level.value = self.center - 1
+        self._widget_sea_level.end = event.new - 1
 
     # def _callback_normalize(self, event):
     #    self.norm = event.new
