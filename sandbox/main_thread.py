@@ -7,6 +7,8 @@ pn.extension()
 import matplotlib.pyplot as plt
 import pandas as pd
 import traceback
+from datetime import datetime
+dateTimeObj = datetime.now()
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -31,6 +33,7 @@ class MainThread:
             check_change:
             **kwargs:
         """
+        self._error_message = ''
         #TODO: in all the modules be carefull with zorder
         self.sensor = sensor
         self.projector = projector
@@ -160,8 +163,9 @@ class MainThread:
             for key in list(_actual + _always): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
-        except Exception:
+        except Exception as e:
             traceback.print_exc()
+            self._error_message = str(dateTimeObj) + str(e)
             self.lock.release()
             self.thread_status = 'stopped'
 

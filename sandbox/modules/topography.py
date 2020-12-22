@@ -40,7 +40,8 @@ class TopoModule(ModuleTemplate):
 
         # for relief shading
         self.relief_shading = True
-        self.relief_shading_is_active = False  # Flag to avoid multiple additions of relief shading
+        self.shade = None
+        #self.relief_shading_is_active = False  # Flag to avoid multiple additions of relief shading
         self.azdeg = 315
         self.altdeg = 45
         self.ve = 0.25
@@ -48,21 +49,19 @@ class TopoModule(ModuleTemplate):
         return print("TopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
+        """
+        Acquire the information from th sb_params dict and call the functions to modify the frame and/or plot in the axes
+        Args:
+            sb_params:
+        Returns:
+        """
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
         ax = sb_params.get('ax')
         frame, extent = self.normalize_topography(frame, extent,
                                                   min_height=self.min_height,
                                                   max_height=self.max_height)
-        frame_shade = self.plot(frame, ax)
-
-        if frame_shade is not None and not self.relief_shading_is_active:
-            plt.pause(0.1)
-            # TODO: the additional pause is a partial fix for this issue (#3)
-            ax.imshow(frame_shade, origin='lower', alpha=0.4)
-            plt.pause(0.1)
-
-            self.relief_shading_is_active = True  # only add once
+        self.plot(ax, frame, extent)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -72,7 +71,15 @@ class TopoModule(ModuleTemplate):
 
         return sb_params
 
-    def plot(self, frame, ax):
+    def plot(self, ax, frame, extent):
+        """
+        Deals with everything related to plotting in the axes
+        Args:
+            frame: Sandbox frame
+            ax: axes of matplotlib figure to paint on
+        Returns:
+
+        """
         if self.sea:
             self.cmap = self.terrain_cmap
             self.norm = self.set_norm
@@ -89,7 +96,6 @@ class TopoModule(ModuleTemplate):
                                              linewidth=self.sea_level_polygon_line_thickness,
                                              ec=self.sea_level_polygon_line_color,
                                              zorder=self.sea_zorder)
-
             plt.pause(0.1)
             # TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from
             # ContourLinesModule
@@ -102,8 +108,15 @@ class TopoModule(ModuleTemplate):
             ls = mcolors.LightSource(azdeg=self.azdeg-180, altdeg=self.altdeg)
             # cmap = plt.cm.copper
             frame_shade = ls.shade(frame, cmap=plt.cm.gray, vert_exag=self.ve, blend_mode='hsv')
-
-            return frame_shade
+            plt.pause(0.1)
+            # TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from
+            if self.shade is None:
+                self.shade = ax.imshow(frame_shade, origin='lower', extent = extent[:4], alpha=0.4, aspect='auto')
+            else:
+                self.shade.set_data(frame_shade)
+                self.shade.set_extent(extent[:4])
+        else:
+            self._delete_shade()
 
         return None
 
@@ -112,6 +125,12 @@ class TopoModule(ModuleTemplate):
         if self.sea_level_patch:
             self.sea_level_patch.remove()
         self.sea_level_patch = None
+
+    def _delete_shade(self):
+        """remove relief shading from the axes if present"""
+        if self.shade:
+            self.shade.remove()
+        self.shade = None
 
     def normalize_topography(self, frame, extent, min_height, max_height):
         """
@@ -205,13 +224,15 @@ class TopoModule(ModuleTemplate):
 
     def show_widgets(self):
         self._create_widgets()
-        panel = pn.Column("### Widgets for Topography normalization",
+        col = pn.Column("### Widgets for Topography normalization",
                           # self._widget_normalize,
                           self._widget_min_height,
                           self._widget_max_height,
                           self._widget_sea,
                           self._widget_sea_contour,
                           self._widget_sea_level)
+        shade = self._widget_lightsource()
+        panel = pn.Row(col, shade)
         return panel
 
     def _create_widgets(self):
@@ -245,6 +266,53 @@ class TopoModule(ModuleTemplate):
                                                        value=self.sea_contour)
         self._widget_sea_contour.param.watch(self._callback_see_contour, 'value',
                                              onlychanged=False)
+
+
+
+    def _widget_lightsource(self):
+        self._widget_relief_shading = pn.widgets.Checkbox(name='Show relief shading',
+                                                          value=self.relief_shading)
+        self._widget_relief_shading.param.watch(self._callback_relief_shading, 'value',
+                                                onlychanged=False)
+        self._widget_azdeg = pn.widgets.FloatSlider(name='Azimuth',
+                                                    value=self.azdeg,
+                                                    start=0.0,
+                                                    end=360.0)
+        self._widget_azdeg.param.watch(self._callback_lightsource_azdeg, 'value')
+
+        self._widget_altdeg = pn.widgets.FloatSlider(name='Altitude',
+                                                     value=self.altdeg,
+                                                     start=0.0,
+                                                     end=90.0)
+        self._widget_altdeg.param.watch(self._callback_lightsource_altdeg, 'value')
+
+        self._widget_ve = pn.widgets.Spinner(name="ve", value=self.ve,
+                                                     step=0.01)
+        self._widget_ve.param.watch(self._callback_ve, 'value', onlychanged=False)
+
+        widgets = pn.WidgetBox(self._widget_relief_shading,
+                               '<b>Azimuth</b>',
+                               self._widget_azdeg,
+                               '<b>Altitude</b>',
+                               self._widget_altdeg,
+                               '<b>Vertical Exageration</b>',
+                               self._widget_ve
+                               )
+
+        panel = pn.Column("### Lightsource ", widgets)
+        return panel
+
+    def _callback_relief_shading(self, event):
+        self.relief_shading = event.new
+
+    def _callback_ve(self, event):
+        self.ve = event.new
+
+    def _callback_lightsource_altdeg(self, event):
+        self.altdeg = event.new
+
+    def _callback_lightsource_azdeg(self, event):
+        self.azdeg = event.new
 
     def _callback_min_height(self, event):
         self.min_height = event.new
