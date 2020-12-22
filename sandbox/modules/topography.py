@@ -144,13 +144,7 @@ class TopoModule(ModuleTemplate):
         # create padding
         frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
 
-        # calculate relative elevation value
-        #contour_val_rel = ((self.max_height - self.min_height) *
-        #                   (contour_val - np.min(frame)) /
-        #                   (np.max(frame) - np.min(frame)))
-        contour_val_rel = contour_val
-
-        contours = measure.find_contours(frame_padded.T, contour_val_rel)
+        contours = measure.find_contours(frame_padded.T, contour_val)
 
         # combine values
         contour_comb = np.concatenate(contours, axis=0)
@@ -205,8 +199,9 @@ class TopoModule(ModuleTemplate):
         #                               onlychanged=False)
 
         self._widget_sea_level = pn.widgets.IntSlider(name="Set sea level height",
-                                                      start=self.min_height + 1,
+                                                      start=self.min_height,
                                                       end=self.max_height,
+                                                      step=5,
                                                       value=self.center)
         self._widget_sea_level.param.watch(self._callback_sea_level, 'value',
                                            onlychanged=False)
