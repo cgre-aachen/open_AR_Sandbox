@@ -36,12 +36,7 @@ class TopoModule(ModuleTemplate):
         self.sea_level_polygon_alpha = 0.7
         self.sea_level_polygon_line_thickness = 2.
         self.sea_level_polygon_line_color = "blue"
-
-        # for relief shading
-        self.relief_shading = True
-        self.azdeg = 315
-        self.altdeg = 4
-        self.ve = 0.25
+        self.sea_zorder=1000
 
         return print("TopoModule loaded succesfully")
 
@@ -52,7 +47,7 @@ class TopoModule(ModuleTemplate):
         frame, extent = self.normalize_topography(frame, extent,
                                                   min_height=self.min_height,
                                                   max_height=self.max_height)
-        frame = self.plot(frame, ax)
+        self.plot(frame, ax)
 
         sb_params['frame'] = frame
         sb_params['ax'] = ax
@@ -77,20 +72,12 @@ class TopoModule(ModuleTemplate):
             self.sea_level_patch = PathPatch(path,
                                              alpha=self.sea_level_polygon_alpha,
                                              linewidth=self.sea_level_polygon_line_thickness,
-                                             ec=self.sea_level_polygon_line_color)
-            plt.pause(0.1)
-            # TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from
-            # ContourLinesModule
+                                             ec=self.sea_level_polygon_line_color,
+                                             zorder=self.sea_zorder)
+            plt.pause(0.1) #TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from ContourLinesModule
             ax.add_patch(self.sea_level_patch)
         else:
             self._delete_path()
-
-        if self.relief_shading:
-            ls = mcolors.LightSource(azdeg=self.azdeg, altdeg=self.altdeg)
-            # cmap = plt.cm.copper
-            frame = ls.shade(frame, cmap=self.cmap, vert_exag=self.ve, blend_mode='hsv')
-
-        return frame
 
     def _delete_path(self):
         """remove sea-level patch, if previously defined"""
@@ -113,29 +100,29 @@ class TopoModule(ModuleTemplate):
         """
         # ToDo: change to object attributes: self.max_height, self.min_height, self.frame, self.extent?
         # first position the frame in 0 if the original extent is not in 0
-        if extent[-2] != 0:
+        if extent[-2]!=0:
             displ = 0 - extent[-2]
             frame = frame - displ
-        # calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
-        # min_height assuming is under 0.
+        #calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
 
-        if min_height < 0:
-            displace = min_height * (-1) * (extent[-1] - extent[-2]) / (max_height - min_height)
+        #min_height assuming is under 0.
+
+        if min_height<0:
+            displace = min_height*(-1) * (extent[-1] - extent[-2]) / (max_height - min_height)
             frame = frame - displace
             extent[-1] = extent[-1] - displace
             extent[-2] = extent[-2] - displace
-            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two
-            # regions above 0
-            frame[frame > 0] = frame[frame > 0] * (max_height / extent[-1])
+            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two regions
+            #above 0
+            frame[frame>0] = frame[frame>0] * (max_height/ extent[-1])
             # below 0
-            frame[frame < 0] = frame[frame < 0] * (min_height / extent[-2])
-        elif min_height > 0:
-            frame = frame * (max_height - min_height) / (extent[-1] - extent[-2])
-            frame = frame + min_height  # just displace all up to start in min_height
-        elif min_height == 0:
+            frame[frame<0] = frame[frame<0] * (min_height/extent[-2])
+        elif min_height>0:
+            frame = frame * (max_height-min_height)/(extent[-1]-extent[-2])
+            frame = frame + min_height #just displace all up to start in min_height
+        elif min_height==0:
             frame = frame * (max_height) / (extent[-1])
-        else:
-            raise AttributeError
+        else: raise AttributeError
         extent[-1] = max_height  # self.plot.vmax = max_height
         extent[-2] = min_height  # self.plot.vmin = min_height
         return frame, extent
@@ -159,7 +146,13 @@ class TopoModule(ModuleTemplate):
         # create padding
         frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
 
-        contours = measure.find_contours(frame_padded.T, contour_val)
+        # calculate relative elevation value
+        #contour_val_rel = ((self.max_height - self.min_height) *
+        #                   (contour_val - np.min(frame)) /
+        #                   (np.max(frame) - np.min(frame)))
+        contour_val_rel = contour_val
+
+        contours = measure.find_contours(frame_padded.T, contour_val_rel)
 
         # combine values
         contour_comb = np.concatenate(contours, axis=0)
@@ -214,9 +207,8 @@ class TopoModule(ModuleTemplate):
         #                               onlychanged=False)
 
         self._widget_sea_level = pn.widgets.IntSlider(name="Set sea level height",
-                                                      start=self.min_height,
+                                                      start=self.min_height + 1,
                                                       end=self.max_height,
-                                                      step=5,
                                                       value=self.center)
         self._widget_sea_level.param.watch(self._callback_sea_level, 'value',
                                            onlychanged=False)
@@ -234,16 +226,16 @@ class TopoModule(ModuleTemplate):
     def _callback_min_height(self, event):
         self.min_height = event.new
         if self.center < self.min_height:
-            self.center = self.min_height + 1
-            self._widget_sea_level.value = self.center + 1
+            self.center = self.min_height+1
+            self._widget_sea_level.value = self.center+1
         self._widget_sea_level.start = event.new + 1
 
     def _callback_max_height(self, event):
         self.max_height = event.new
         if self.center > self.max_height:
-            self.center = self.max_height - 1
-            self._widget_sea_level.value = self.center - 1
-        self._widget_sea_level.end = event.new - 1
+            self.center = self.max_height-1
+            self._widget_sea_level.value = self.center-1
+        self._widget_sea_level.end = event.new -1
 
     # def _callback_normalize(self, event):
     #    self.norm = event.new
