@@ -41,7 +41,7 @@ class TopoModule(ModuleTemplate):
         # for relief shading
         self.relief_shading = True
         self.shade = None
-        #self.relief_shading_is_active = False  # Flag to avoid multiple additions of relief shading
+        # self.relief_shading_is_active = False  # Flag to avoid multiple additions of relief shading
         self.azdeg = 315
         self.altdeg = 45
         self.ve = 0.25
@@ -105,13 +105,13 @@ class TopoModule(ModuleTemplate):
 
         if self.relief_shading:
             # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
-            ls = mcolors.LightSource(azdeg=self.azdeg-180, altdeg=self.altdeg)
+            ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
             # cmap = plt.cm.copper
             frame_shade = ls.shade(frame, cmap=plt.cm.gray, vert_exag=self.ve, blend_mode='hsv')
             plt.pause(0.1)
             # TODO: partial fix for this issue (#3), another workaround is to deactivate the labels from
             if self.shade is None:
-                self.shade = ax.imshow(frame_shade, origin='lower', extent = extent[:4], alpha=0.4, aspect='auto')
+                self.shade = ax.imshow(frame_shade, origin='lower', extent=extent[:4], alpha=0.4, aspect='auto')
             else:
                 self.shade.set_data(frame_shade)
                 self.shade.set_extent(extent[:4])
@@ -225,12 +225,12 @@ class TopoModule(ModuleTemplate):
     def show_widgets(self):
         self._create_widgets()
         col = pn.Column("### Widgets for Topography normalization",
-                          # self._widget_normalize,
-                          self._widget_min_height,
-                          self._widget_max_height,
-                          self._widget_sea,
-                          self._widget_sea_contour,
-                          self._widget_sea_level)
+                        # self._widget_normalize,
+                        self._widget_min_height,
+                        self._widget_max_height,
+                        self._widget_sea,
+                        self._widget_sea_contour,
+                        self._widget_sea_level)
         shade = self._widget_lightsource()
         panel = pn.Row(col, shade)
         return panel
@@ -267,8 +267,6 @@ class TopoModule(ModuleTemplate):
         self._widget_sea_contour.param.watch(self._callback_see_contour, 'value',
                                              onlychanged=False)
 
-
-
     def _widget_lightsource(self):
         self._widget_relief_shading = pn.widgets.Checkbox(name='Show relief shading',
                                                           value=self.relief_shading)
@@ -287,7 +285,7 @@ class TopoModule(ModuleTemplate):
         self._widget_altdeg.param.watch(self._callback_lightsource_altdeg, 'value')
 
         self._widget_ve = pn.widgets.Spinner(name="ve", value=self.ve,
-                                                     step=0.01)
+                                             step=0.01)
         self._widget_ve.param.watch(self._callback_ve, 'value', onlychanged=False)
 
         widgets = pn.WidgetBox(self._widget_relief_shading,
