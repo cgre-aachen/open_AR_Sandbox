@@ -84,7 +84,7 @@ def test_bug_no_dpi_no_aruco():
     _calibprojector = _calibration_dir + "my_projector_calibration.json"
     _calibsensor = _calibration_dir + "my_sensor_calibration.json"
     from sandbox.sensor import Sensor
-    sensor = Sensor(calibsensor=_calibsensor, name="kinect_v2")
+    sensor = Sensor(calibsensor=_calibsensor, name="dummy")
     from sandbox.projector import Projector
     projector = Projector(calibprojector=_calibprojector)
     # Initialize the aruco detection

@@ -7,6 +7,8 @@ pn.extension()
 import matplotlib.pyplot as plt
 import pandas as pd
 import traceback
+from datetime import datetime
+dateTimeObj = datetime.now()
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -31,6 +33,7 @@ class MainThread:
             check_change:
             **kwargs:
         """
+        self._error_message = ''
         #TODO: in all the modules be carefull with zorder
         self.sensor = sensor
         self.projector = projector
@@ -87,7 +90,7 @@ class MainThread:
         self._create_widgets()
 
         self._loaded_frame = False
-        self._error_message = False
+        self._error_message = ''
 
     #@property @TODO: test if this works
     #def sb_params(self):
@@ -112,9 +115,6 @@ class MainThread:
         """
         self.sb_params['ax'] = self.projector.ax
 
-        #if not self.sb_params.get('del_contour'):
-        #    if 'ContourLinesModule' in self.modules.keys():
-        #        self.modules['ContourLinesModule'].delete_contourns(self.sb_params['ax'])
         if self._loaded_frame:
             frame = self.previous_frame #if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
@@ -132,13 +132,6 @@ class MainThread:
             else:
                 self.previous_frame = frame
                 self.sb_params['same_frame'] = False
-            #if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
-            #    self.previous_frame = frame
-            #    self.sb_params['same_frame'] = False
-            #else:
-            #    frame = self.previous_frame
-            #    self.sb_params['same_frame'] = True
-        #else: self.sb_params['same_frame'] = False
         self.sb_params['frame'] = frame
 
         #filter
@@ -155,7 +148,7 @@ class MainThread:
         try:
             if self._error_message:
                 self.sb_params['ax'].texts = []
-                self._error_message = False
+                self._error_message = ''
             self.lock.acquire()
             _cmap = ['CmapModule'] if 'CmapModule' in self.modules.keys() else []
             _contours = ['ContourLinesModule'] if 'ContourLinesModule' in self.modules.keys() else []
@@ -164,12 +157,12 @@ class MainThread:
             for key in list(_actual + _always): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
-        except Exception:
+        except Exception as e:
             traceback.print_exc()
+            self._error_message = str(dateTimeObj) + str(type(e)) + str(e)
             self.lock.release()
             self.thread_status = 'stopped'
             self.projector._write_text("Ups... Something went wrong. The Thread is paused...")
-            self._error_message = True
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
@@ -185,7 +178,7 @@ class MainThread:
         """
         During the sandbox thread, if you want to fix a frame but not interrupt the thread, load the desired numpy array here.
         This will change the flag self._loaded_frame = False to True in the update function and stop the sensor frame adquisition.
-        To stop this pass frame = None or change the flag self._loaded_frame to False.
+        To stop this, pass: frame = None or change the flag self._loaded_frame to False.
         Args:
             frame: numpy.ndarray: must be a matrix of desired resolution
         Returns:

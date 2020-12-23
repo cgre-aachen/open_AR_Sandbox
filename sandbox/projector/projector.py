@@ -1,6 +1,7 @@
 import panel as pn
 import matplotlib
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 plt.ion()
 import json
@@ -73,9 +74,11 @@ class Projector(object):
         self.hot = None
         self.profile = None
         self.sidebar = None
+        #TODO: fixing ussue #3
         self._prev_time = process_time()
         self._diff_time = None
-        self._target_time = 0.5
+        self._target_time = 0.7
+
         self.create_panel()
         if use_panel is True:
             self.start_server()
@@ -96,7 +99,7 @@ class Projector(object):
         #self.figure = plt.figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
         #                     dpi=self.dpi)
         #self.ax = plt.gca()
-        self.ax = plt.Axes(self.figure, [0., 0., 1., 1.])
+        self.ax = Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         self.ax.set_axis_off()
         self.ax.get_xaxis().set_visible(False)
@@ -183,7 +186,7 @@ class Projector(object):
 
         """
         # Check for instances and close them?
-        self.panel.show(threaded=True)#, title="Sandbox frame!")#, port = 4242, use_reloader = False)
+        self.panel.show(threaded=False)#, title="Sandbox frame!")#, port = 4242, use_reloader = False)
         #TODO: check how can check if the port exist/open and overwrite it
         print('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')
@@ -201,12 +204,19 @@ class Projector(object):
         return True
 
     def _clock(self, log=True):
+        """
+        To to be sure that panel have enough time to display the figure he want
+        Args:
+            log: print the time of the loop
+
+        Returns:
+        """
         current = process_time()
         self._diff_time = current- self._prev_time
         if log:
             print(self._diff_time)
-        text = [isinstance(text, matplotlib.text.Text) for text in self.ax.artists]
-        if True in text:
+        ctext = [isinstance(text, matplotlib.text.Text) for text in self.ax.artists]
+        if True in ctext:
             tim = self._target_time - self._diff_time
             if tim>0:
                 plt.pause(tim)
@@ -221,11 +231,17 @@ class Projector(object):
         #time_bef = process_time()
         #background = self.figure.canvas.copy_from_bbox(self.ax.bbox)
         #plt.pause(0.2)
-        self._clock()
-        self.figure.canvas.draw_idle()
-        self._clock()
+        #print("Process matplotlib plotting")
+        #self._clock()
+        #self.figure.canvas.draw_idle()
+        #print("Process panel plotting")
+        #self._clock()
         #self.frame.object = self.figure
         self.frame.param.trigger('object')
+        self._clock()
+
+        #print("Process after panel plotting")
+        #self._clock()
         #self.frame.param.trigger('object')
 
         #    print("something is wrong")

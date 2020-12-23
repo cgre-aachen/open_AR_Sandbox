@@ -104,7 +104,7 @@ class ContourLinesModule:
                 self.add_major_contours(frame, ax, extent[:4])
             if self.minor_contours:
                 self.add_minor_contours(frame, ax, extent[:4])
-            if self.contours_label:
+            if self.contours_label and self.contours:
                 self.add_label_contours(ax)
                 #plt.pause(self._pause) #TODO: error from issue #3 seems to be originated from the text on the contour lines
         else:
