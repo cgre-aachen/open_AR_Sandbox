@@ -3,10 +3,8 @@ import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
-plt.ion()
 import json
 from sandbox import _calibration_dir
-from time import process_time
 
 
 class Projector(object):
@@ -39,14 +37,14 @@ class Projector(object):
     }
     '''
 
-    def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800, **kwargs): #Native resolution of projector
+    def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800):
         """
-
         Args:
             calibprojector:
-            use_panel:
+            use_panel: Automatically display
+            p_width: x native resolution of the projector
+            p_height: y native resolution of the projector
         """
-        #pn.extension()
         self.version = '2.0.p'
         self.ax = None
         self.figure = None
@@ -74,10 +72,9 @@ class Projector(object):
         self.hot = None
         self.profile = None
         self.sidebar = None
-        #TODO: fixing ussue #3
-        self._prev_time = process_time()
-        self._diff_time = None
-        self._target_time = 0.7
+        # This is to solve issue #3. Give 0.005 ms to each Text from ax.arists to be plotted
+        self._target_time = 0.005
+        self._paused_time = None
 
         self.create_panel()
         if use_panel is True:
@@ -96,15 +93,11 @@ class Projector(object):
 
         self.figure = Figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
                              dpi=self.dpi)
-        #self.figure = plt.figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
-        #                     dpi=self.dpi)
-        #self.ax = plt.gca()
         self.ax = Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax)
         self.ax.set_axis_off()
         self.ax.get_xaxis().set_visible(False)
         self.ax.get_yaxis().set_visible(False)
-
 
         self.frame = pn.pane.Matplotlib(self.figure,
                                         width=self.p_frame_width,
@@ -151,14 +144,17 @@ class Projector(object):
                             sizing_mode='fixed',
                             css_classes=['panel']
                             )
-        #TODO: Super-dirty fix
-        #self._replace_figure_with_pyplot()
-        #self._paint_logo()
-
         return True
 
-    def _write_text(self, text:str = "cgre-aachen / open_AR_Sandbox"):
-        self.ax.texts=[]
+    def _write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
+        """
+        Display a custom text to be displayed in the middle of the sandbox
+        Args:
+            text: message to display
+        Returns:
+
+        """
+        self.ax.texts = []
         x = (self.ax.get_xlim()[1] - self.ax.get_xlim()[0])/2
         y = (self.ax.get_ylim()[1] - self.ax.get_ylim()[0])/2
         self.ax.annotate(text, (x, y), zorder=1000, xycoords="data", fontsize=18, ha='center',
@@ -166,9 +162,9 @@ class Projector(object):
         self.trigger()
 
     def _replace_figure_with_pyplot(self):
-        """workaround to fix bug of no dpi"""
+        """Deprecated!! workaround to fix bug of no dpi"""
         figure = plt.figure(figsize=(self.p_frame_width / self.dpi, self.p_frame_height / self.dpi),
-                             dpi=self.dpi)
+                            dpi=self.dpi)
         ax = plt.Axes(figure, [0., 0., 1., 1.])
         figure.add_axes(ax)
         plt.close(figure)  # close figure to prevent inline display
@@ -178,7 +174,6 @@ class Projector(object):
         self.frame.object = figure
         self.trigger()
 
-
     def start_server(self):
         """
         Display the panel object in a new browser window
@@ -186,11 +181,10 @@ class Projector(object):
 
         """
         # Check for instances and close them?
-        self.panel.show(threaded=False)#, title="Sandbox frame!")#, port = 4242, use_reloader = False)
-        #TODO: check how can check if the port exist/open and overwrite it
+        self.panel.show(threaded=False)  # , title="Sandbox frame!")#, port = 4242, use_reloader = False)
+        # TODO: check how can check if the port exist/open and overwrite it
         print('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')
-
         return True
 
     def clear_axes(self):
@@ -203,24 +197,17 @@ class Projector(object):
         self.trigger()
         return True
 
-    def _clock(self, log=True):
+    def _clock(self):
         """
-        To to be sure that panel have enough time to display the figure he want
-        Args:
-            log: print the time of the loop
-
-        Returns:
+        To to be sure that panel have enough time to display the figure he want. Solves issue #3
         """
-        current = process_time()
-        self._diff_time = current- self._prev_time
-        if log:
-            print(self._diff_time)
         ctext = [isinstance(text, matplotlib.text.Text) for text in self.ax.artists]
         if True in ctext:
-            tim = self._target_time - self._diff_time
-            if tim>0:
-                plt.pause(tim)
-        self._prev_time = process_time()
+            sec = len(ctext)*self._target_time  # Give 0.005 ms to each Text from contours to be plotted
+            self._paused_time = sec
+            plt.pause(sec)
+        else:
+            self._paused_time = None
 
     def trigger(self):
         """
@@ -228,51 +215,11 @@ class Projector(object):
         Returns:
 
         """
-        #time_bef = process_time()
-        #background = self.figure.canvas.copy_from_bbox(self.ax.bbox)
-        #plt.pause(0.2)
-        #print("Process matplotlib plotting")
-        #self._clock()
-        #self.figure.canvas.draw_idle()
-        #print("Process panel plotting")
-        #self._clock()
-        #self.frame.object = self.figure
+
+        # self.figure.canvas.draw_idle()  # TODO: do we need this or not?
         self.frame.param.trigger('object')
         self._clock()
-
-        #print("Process after panel plotting")
-        #self._clock()
-        #self.frame.param.trigger('object')
-
-        #    print("something is wrong")
-        #plt.pause(0.2)
-        #self.figure.canvas.restore_region(background)
-        #self.figure.canvas.flush_events()
-        #self.ax.draw_idle()
-        #self.figure.canvas.draw()
         return True
-
-    def load_json(self, file: str):
-       """
-        Load a calibration file (.JSON format) and actualizes the panel parameters 
-        Args:
-            file: address of the calibration to load
-
-        Returns:
-
-        """
-       with open(file) as calibration_json:
-            data = json.load(calibration_json)
-            if data['version'] == self.version:
-                self.p_width = data['p_width']
-                self.p_height = data['p_height']
-                self.p_frame_top = data['p_frame_top']
-                self.p_frame_left = data['p_frame_left']
-                self.p_frame_width = data['p_frame_width']
-                self.p_frame_height = data['p_frame_height']
-                print("JSON configuration loaded for projector.")
-            else:
-                print("JSON configuration incompatible.\nPlease select a valid calibration file or start a new calibration!")
 
     def save_json(self, file: str = 'projector_calibration.json'):
         """
@@ -285,34 +232,55 @@ class Projector(object):
         """
         with open(file, "w") as calibration_json:
             data = {'version': self.version,
-                   'p_width': self.p_width,
-                   'p_height': self.p_height,
-                   'p_frame_top': self.p_frame_top,
-                   'p_frame_left': self.p_frame_left,
-                   'p_frame_width': self.p_frame_width,
-                   'p_frame_height': self.p_frame_height}
+                    'p_width': self.p_width,
+                    'p_height': self.p_height,
+                    'p_frame_top': self.p_frame_top,
+                    'p_frame_left': self.p_frame_left,
+                    'p_frame_width': self.p_frame_width,
+                    'p_frame_height': self.p_frame_height}
             json.dump(data, calibration_json)
         print('JSON configuration file saved:', str(file))
+        return True
+
+    def load_json(self, file: str):
+        """
+        Load a calibration file (.JSON format) and actualizes the panel parameters
+        Args:
+            file: address of the calibration to load
+
+        Returns:
+
+        """
+        with open(file) as calibration_json:
+            data = json.load(calibration_json)
+            if data['version'] == self.version:
+                self.p_width = data['p_width']
+                self.p_height = data['p_height']
+                self.p_frame_top = data['p_frame_top']
+                self.p_frame_left = data['p_frame_left']
+                self.p_frame_width = data['p_frame_width']
+                self.p_frame_height = data['p_frame_height']
+                print("JSON configuration loaded for projector.")
+            else:
+                print("JSON configuration incompatible." +
+                      "\nPlease select a valid calibration file or start a new calibration!")
+        return True
 
     def calibrate_projector(self):
         self._create_widgets()
         panel = pn.Column("### Projector dashboard arrangement",
-                           self._widget_p_frame_top,
-                           self._widget_p_frame_left,
-                           self._widget_p_frame_width,
-                           self._widget_p_frame_height,
-                           #self._widget_p_enable_auto_calibration,
-                           #self._widget_p_automatic_calibration,)
-                           '<b>Save file<b>',
-                           self._widget_json_filename,
-                           self._widget_json_save
-                           )
+                          self._widget_p_frame_top,
+                          self._widget_p_frame_left,
+                          self._widget_p_frame_width,
+                          self._widget_p_frame_height,
+                          '<b>Save file<b>',
+                          self._widget_json_filename,
+                          self._widget_json_save
+                          )
         return panel
 
     def _create_widgets(self):
-
         # projector widgets and links
-
         self._widget_p_frame_top = pn.widgets.IntSlider(name='Main frame top margin',
                                                         value=self.p_frame_top,
                                                         start=0,
@@ -336,16 +304,6 @@ class Projector(object):
                                                            start=10,
                                                            end=self.p_height)
         self._widget_p_frame_height.link(self.frame, callbacks={'value': self._callback_p_frame_height})
-
-        # Auto- Calibration widgets
-
-        #self._widget_p_enable_auto_calibration = pn.widgets.Checkbox(name='Enable Automatic Calibration', value=False)
-        #self._widget_p_enable_auto_calibration.param.watch(self._callback_enable_auto_calibration, 'value',
-        #                                                   onlychanged=False)
-
-        #self._widget_p_automatic_calibration = pn.widgets.Button(name="Run", button_type="success")
-        #self._widget_p_automatic_calibration.param.watch(self._callback_automatic_calibration, 'clicks',
-        #                                                 onlychanged=False)
 
         self._widget_json_filename = pn.widgets.TextInput(name='Choose a calibration filename:')
         self._widget_json_filename.param.watch(self._callback_json_filename, 'value', onlychanged=False)
@@ -385,4 +343,3 @@ class Projector(object):
     def _callback_json_save(self, event):
         if self.json_filename is not None:
             self.save_json(file=self.json_filename)
-

@@ -88,13 +88,13 @@ def test_bug_no_dpi_no_aruco():
     from sandbox.sensor import Sensor
     sensor = Sensor(calibsensor=_calibsensor, name="dummy")
     from sandbox.projector import Projector
-    projector = Projector(calibprojector=_calibprojector)
+    projector = Projector(calibprojector=_calibprojector, use_panel = False)
     # Initialize the aruco detection
     from sandbox.main_thread import MainThread
     main = MainThread(sensor=sensor, projector=projector)
     # Start the thread
-    main.run()
-    main.sb_params
+    main.update()
+    projector.trigger()
 
 def test_with_gempy():
     from sandbox import _calibration_dir, _test_data
