@@ -20,7 +20,8 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False, **kwargs):
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False,
+                 **kwargs):
         """
 
         Args:
@@ -45,9 +46,6 @@ class MainThread:
         self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
         self._modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
 
-        #self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
-        #self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
-
         # threading
         self.lock = threading.Lock()
         self.thread = None
@@ -68,6 +66,7 @@ class MainThread:
                           'cmap': plt.cm.get_cmap('gist_earth'),
                           'norm': None,
                           'active_cmap': True,
+                          'active_shading': True,
                           'active_contours': True,
                           'same_frame': False,
                           'lock_thread': self.lock,
