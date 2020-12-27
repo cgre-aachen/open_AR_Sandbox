@@ -51,6 +51,8 @@ class Sensor:
             self.s_left = 10
             self.s_min = 700
             self.s_max = 1500
+            self.s_width = 512
+            self.s_height = 424
             self.box_width = 1000
             self.box_height = 800
         else:
@@ -72,10 +74,10 @@ class Sensor:
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')
         elif name == 'dummy':
-            self.Sensor = DummySensor(**kwargs)
+            self.Sensor = DummySensor(extent=self.extent, **kwargs)
         else:
             warn("Unrecognized sensor name. Activating dummy sensor")
-            self.Sensor = DummySensor(**kwargs)
+            self.Sensor = DummySensor(extent=self.extent, **kwargs)
 
         # filter parameters
         self.filter = gauss_filter
@@ -84,7 +86,6 @@ class Sensor:
         self.invert = invert
 
         self.s_name = self.Sensor.name
-        self.s_width = self.Sensor.depth_width
         self.s_width = self.Sensor.depth_width
         self.s_height = self.Sensor.depth_height
         self.depth = None
@@ -149,6 +150,8 @@ class Sensor:
                 self.s_left = data['s_left']
                 self.s_min = data['s_min']
                 self.s_max = data['s_max']
+                self.s_width = data["s_frame_width"] + data['s_right'] + data['s_left']
+                self.s_height = data["s_frame_height"] + data['s_top'] + data['s_bottom']
                 self.box_width = data['box_width']
                 self.box_height = data['box_height']
 
@@ -223,6 +226,9 @@ class Sensor:
 
     def get_frame(self) -> numpy.ndarray:
         frame = self.get_raw_frame(self.filter)
+        if self.Sensor.name == "dummy":
+            self.depth = frame
+            return self.depth
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
