@@ -159,7 +159,8 @@ class MainThread:
             self._error_message = str(dateTimeObj) + str(type(e)) + str(e)
             self.lock.release()
             self.thread_status = 'stopped'
-            self.projector._write_text("Ups... Something went wrong. The Thread is paused...")
+            self.projector._write_text("Ups... Something went wrong. The Thread is paused..."
+                                       "\n Check 'self._error_message' to see what happened")
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
