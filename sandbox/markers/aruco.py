@@ -17,7 +17,7 @@ except ImportError:
     warn('opencv is not installed. Object detection will not work')
 
 
-class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
+class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
@@ -158,7 +158,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if self.kinect == "dummy":
             dict_position = kwargs.get("dict_position")
             depth_frame = kwargs.get("depth_frame")
-            plt.pause(0.1) # TODO: To avoid problems with the common issue od NoneType dpi
+            plt.pause(0.15) # TODO: To avoid problems with the common issue #3 of NoneType dpi
             self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
             return self.markers_in_frame
 

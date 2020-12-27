@@ -4,30 +4,31 @@ import matplotlib.colors as mcolors
 import numpy
 import weakref
 
-class MarkerDetection: #TODO: include here the connection to the aruco markers
+
+class MarkerDetection:
     def __init__(self, sensor, **kwargs):
         self.sensor = sensor
         self.Aruco = ArucoMarkers(sensor=sensor, **kwargs)
         self.df_aruco_position = None
         self.lines = None
         self.scat = None
-        self._scat = None # weak reference to a scat plot
+        self._scat = None  # weak reference to a scat plot
         self._lin = None  # weak reference to a lines plot
         self.anot = None
         # aruco setup
         self.aruco_connect = False
         self.aruco_scatter = True
         self.aruco_annotate = True
-        self.aruco_color = 'red'
+        self.aruco_color = mcolors.to_hex('red')
         # Dummy sensor
         self._dict_position = {}
-        self._depth_frame = numpy.empty((2,2))
+        self._widget_position = {}
+        self._depth_frame = numpy.ones((sensor.extent[1], sensor.extent[3]))
         return print("Aruco detection ready")
-
 
     def update(self):
         if self.Aruco.kinect == "dummy":
-            kwargs = {"dict_position": self._dict_position,
+            kwargs = {"dict_position": self._all_dict_position,
                       "depth_frame": self._depth_frame}
         else:
             kwargs = {}
@@ -37,7 +38,7 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self.df_aruco_position = self.Aruco.aruco_markers
         return self.df_aruco_position
 
-    def set_aruco_position(self, dict_position:dict, frame):
+    def set_aruco_position(self, dict_position: dict = {}, frame=None):
         """
         This function will create the aruco data frame with this values
         Args:
@@ -46,13 +47,20 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         Returns:
         """
         self._dict_position = dict_position
-        self._depth_frame = frame
+        if frame is not None:
+            self._depth_frame = frame
+
+    def _set_widget_position(self, dict_position: dict = {}):
+        self._widget_position = {**self._widget_position, **dict_position}
+
+    @property
+    def _all_dict_position(self):
+        return {**self._dict_position, **self._widget_position}
 
     def calibrate_aruco(self, move_x, move_y):
         self.Aruco.set_xy_correction(move_x, move_y)
 
     def plot_aruco(self, ax, df_position=None):
-        #ax.texts = []
         if self._scat is not None and self._scat() not in ax.collections:
             self.scat = None
         if self._lin is not None and self._lin() not in ax.lines:
@@ -75,13 +83,13 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
                     if self.anot is not None:
                         [ax.texts.remove(anot) for anot in self.anot if anot in ax.texts]
                         self.anot = None
-                    self.anot = [ax.annotate(str(df.index[i]),(df.box_x.values[i],
-                                     df.box_y.values[i]),
-                                     c=self.aruco_color,
-                                     fontsize=20,
-                                     textcoords='offset pixels',
-                                     xytext=(20, 20),
-                                    zorder=21) for i in range(len(df))]
+                    self.anot = [ax.annotate(str(df.index[i]),
+                                             (df.box_x.values[i], df.box_y.values[i]),
+                                             c=self.aruco_color,
+                                             fontsize=20,
+                                             textcoords='offset pixels',
+                                             xytext=(20, 20),
+                                             zorder=21) for i in range(len(df))]
 
                 else:
                     if self.anot is not None:
@@ -95,21 +103,20 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
             if self.aruco_connect:
                 if self.lines is None:
                     self.lines, = ax.plot(df_position[df_position['is_inside_box']]['box_x'].values,
-                             df_position[df_position['is_inside_box']]['box_y'].values,
-                             linestyle='solid',
-                             color=self.aruco_color,
-                                          zorder = 22)
+                                          df_position[df_position['is_inside_box']]['box_y'].values,
+                                          linestyle='solid',
+                                          color=self.aruco_color,
+                                          zorder=22)
                     self._lin = weakref.ref(self.lines)
 
                 else:
                     self.lines.set_data(df_position[df_position['is_inside_box']]['box_x'].values,
-                             df_position[df_position['is_inside_box']]['box_y'].values)
+                                        df_position[df_position['is_inside_box']]['box_y'].values)
                     self.lines.set_color(self.aruco_color)
             else:
-                if self.lines is not None: self.lines.remove()
+                if self.lines is not None:
+                    self.lines.remove()
                 self.lines = None
-
-            #ax.set_axis_off()
         else:
             if self.lines is not None:
                 self.lines.remove()
@@ -123,16 +130,20 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
 
         return ax
 
-    ##### Widgets for aruco plotting
+    # Widgets for aruco plotting
 
     def widgets_aruco(self):
         self._create_aruco_widgets()
+        if self.Aruco.kinect == "dummy":
+            pane = self._create_dummy_aruco()
+        else:
+            pane = None
         widgets = pn.WidgetBox(self._widget_aruco_scatter,
                                self._widget_aruco_annotate,
                                self._widget_aruco_connect,
                                self._widget_aruco_color)
 
-        panel = pn.Column("<b> Dashboard for aruco Visualization </b>", widgets)
+        panel = pn.Column("<b> Dashboard for aruco Visualization </b>", pn.Row(widgets, pane))
         return panel
 
     def _create_aruco_widgets(self):
@@ -149,21 +160,38 @@ class MarkerDetection: #TODO: include here the connection to the aruco markers
         self._widget_aruco_connect.param.watch(self._callback_aruco_connect, 'value',
                                                onlychanged=False)
 
-        self._widget_aruco_color = pn.widgets.Select(name='Choose a color', options=['red', 'blue', 'white', 'black'],  #options=[*mcolors.cnames.keys()],
-                                                     value=self.aruco_color)
+        self._widget_aruco_color = pn.widgets.ColorPicker(name='Color', value=self.aruco_color)
         self._widget_aruco_color.param.watch(self._callback_aruco_color, 'value', onlychanged=False)
 
-    def _callback_aruco_scatter(self, event):
-        self.aruco_scatter = event.new
+    def _create_dummy_aruco(self):
+        self._widget_aruco_id = pn.widgets.Spinner(name='id', value=1, step=1, width=70)
+        self._widget_aruco_x = pn.widgets.Spinner(name="x coordinate", value=50, step=1, width=70)
+        self._widget_aruco_y = pn.widgets.Spinner(name="y coordinate", value=50, step=1, width=70)
 
-    def _callback_aruco_annotate(self, event):
-        self.aruco_annotate = event.new
+        self._widget_aruco_marker = pn.widgets.Button(name="Add dummy aruco dict", button_type="success")
+        self._widget_aruco_marker.on_click(self._callback_set_aruco)
 
-    def _callback_aruco_connect(self, event):
-        self.aruco_connect = event.new
+        self._widget_clear_marker = pn.widgets.Button(name="Clear aruco dict", button_type="warning")
+        self._widget_clear_marker.on_click(self._callback_clear_aruco)
 
-    def _callback_aruco_color(self, event):
-        self.aruco_color = event.new
+        pane = pn.WidgetBox("<b> Dummy aruco </b>",
+                            pn.Row(self._widget_aruco_id, self._widget_aruco_x, self._widget_aruco_y),
+                            self._widget_aruco_marker,
+                            self._widget_clear_marker)
+        return pane
 
+    def _callback_aruco_scatter(self, event): self.aruco_scatter = event.new
 
+    def _callback_aruco_annotate(self, event): self.aruco_annotate = event.new
 
+    def _callback_aruco_connect(self, event): self.aruco_connect = event.new
+
+    def _callback_aruco_color(self, event): self.aruco_color = event.new
+
+    def _callback_clear_aruco(self, event): self._widget_position = {}
+
+    def _callback_set_aruco(self, event):
+        x = self._widget_aruco_x.value
+        y = self._widget_aruco_y.value
+        arucoid = self._widget_aruco_id.value
+        self._set_widget_position(dict_position={arucoid: [x, y]})

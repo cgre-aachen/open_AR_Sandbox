@@ -20,7 +20,8 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False, **kwargs):
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False,
+                 **kwargs):
         """
 
         Args:
@@ -45,9 +46,6 @@ class MainThread:
         self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
         self._modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
 
-        #self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
-        #self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
-
         # threading
         self.lock = threading.Lock()
         self.thread = None
@@ -68,6 +66,7 @@ class MainThread:
                           'cmap': plt.cm.get_cmap('gist_earth'),
                           'norm': None,
                           'active_cmap': True,
+                          'active_shading': True,
                           'active_contours': True,
                           'same_frame': False,
                           'lock_thread': self.lock,
@@ -119,7 +118,6 @@ class MainThread:
             frame = self.previous_frame #if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
             self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
-            #plt.pause(0.2)
         else:
             frame = self.sensor.get_frame()
             self.sb_params['extent'] = self.sensor.extent
@@ -140,7 +138,6 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            #plt.pause(0.2)
         self.lock.release()
 
         self.sb_params['marker'] = df
@@ -307,7 +304,8 @@ class MainThread:
         self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
                                                   onlychanged=False)
 
-        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list", button_type="warning")
+        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list",
+                                                    button_type="warning")
         self._widget_clear_axes.param.watch(self._callback_clear_axes, 'clicks',
                                             onlychanged=False)
 

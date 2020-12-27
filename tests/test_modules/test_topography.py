@@ -1,10 +1,10 @@
-from sandbox import _test_data as test_data
+from sandbox import _test_data
 from sandbox.modules import TopoModule
 import matplotlib.pyplot as plt
 import pytest
 import numpy as np
 
-file = np.load(test_data['topo'] + "DEM1.npz")
+file = np.load(_test_data['topo'] + "DEM1.npz")
 frame = file['arr_0']
 frame = frame + np.abs(frame.min())
 extent = np.asarray([0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()])
