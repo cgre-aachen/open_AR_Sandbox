@@ -118,7 +118,6 @@ class MainThread:
             frame = self.previous_frame #if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
             self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
-            #plt.pause(0.2)
         else:
             frame = self.sensor.get_frame()
             self.sb_params['extent'] = self.sensor.extent
@@ -139,7 +138,6 @@ class MainThread:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            #plt.pause(0.2)
         self.lock.release()
 
         self.sb_params['marker'] = df

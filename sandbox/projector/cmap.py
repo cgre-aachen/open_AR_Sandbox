@@ -10,13 +10,12 @@ class CmapModule:
     """
     Class to manage changes in the colormap and plot in the desired projector figure
     """
-    def __init__(self, cmap='gist_earth', norm=None, lot=None, vmin=None, vmax=None, extent=None):
+    def __init__(self, cmap='gist_earth', norm=None, vmin=None, vmax=None, extent=None):
         """
         Initialize the colormap to plot using imshow()
         Args:
             cmap (str or plt.Colormap): Matplotlib colormap, given as name or instance.
             norm: Apply norm to imshow
-            lot: Future feature!
             vmin (float): ...
             vmax (float): ...
             extent (list): ...
@@ -34,24 +33,21 @@ class CmapModule:
         else:
             self.vmax = extent[5]
 
-        self.cmap = plt.cm.get_cmap(cmap)#self.set_cmap(plt.cm.get_cmap(cmap), over, under, bad)
+        self.cmap = plt.cm.get_cmap(cmap)
         self._cmap = None
         self.norm = norm
-        self.lot = lot  # TODO: Future feature ??
         self.col = None
         self._col = None  # weakreference of self.col
         self.active = True
 
         # Relief shading
         self.relief_shading = True
-        self.shade = None
-        self._shade = None  # weakreference of self.shade
 
         self.azdeg = 315
         self.altdeg = 45
         self.ve = 0.25
 
-    def update(self, sb_params: dict):# data, extent, ax, cmap, norm):
+    def update(self, sb_params: dict):
         active = sb_params.get('active_cmap')
         active_shade = sb_params.get('active_shading')
         ax = sb_params.get('ax')
@@ -61,6 +57,11 @@ class CmapModule:
         extent = sb_params.get('extent')
         self.vmin = extent[-2]
         self.vmax = extent[-1]
+
+        if active_shade and self.relief_shading:
+            # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
+            ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
+            data = ls.shade(data, cmap=self.cmap, vert_exag=self.ve, blend_mode='overlay')
 
         if active and self.active:
             if self._col is not None and self._col() not in ax.images:
@@ -73,6 +74,17 @@ class CmapModule:
                 self.set_norm(norm)
                 self.set_extent(extent)
                 sb_params['cmap'] = self.cmap
+        elif active_shade and self.relief_shading:
+            cmap = plt.cm.gray
+            if self._col is not None and self._col() not in ax.images:
+                self.col = None
+            if self.col is None:
+                self.render_frame(data, ax, vmin=self.vmin, vmax=self.vmax, extent=extent[:4])
+            else:
+                self.set_data(data)
+                self.set_cmap(cmap, 'k', 'k', 'k')
+                self.set_norm(norm)
+                self.set_extent(extent)
         else:
             if self.col is not None:
                 self.col.remove()
@@ -80,42 +92,13 @@ class CmapModule:
             if self._col is not None and self._col() in ax.images:
                 ax.images.remove(self._col)
 
-        if active_shade and self.relief_shading:
-            if self._shade is not None and self._shade() not in ax.images:
-                self.shade = None
-            # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
-            ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
-            frame_shade = ls.shade(data, cmap=plt.cm.gray, vert_exag=self.ve, blend_mode='hsv')
-            if self.shade is None:
-                self.render_shade(frame_shade, ax, extent=extent[:4])
-            else:
-                self.shade.set_data(frame_shade)
-                self.shade.set_extent(extent[:4])
-        else:
-            if self.shade is not None:
-                self._delete_shade()
-            if self._shade is not None and self._shade() in ax.images:
-                ax.images.remove(self._shade)
         return sb_params
-
-    def _delete_shade(self):
-        """remove relief shading from the axes if present"""
-        if self.shade:
-            self.shade.remove()
-        self.shade = None
-
-    def render_shade(self, frame_shade, ax, extent=None):
-        """Renders a new image or actualizes the current one"""
-        self.shade = ax.imshow(frame_shade, origin='lower', extent=extent, alpha=0.4, aspect='auto', zorder=-4)
-        self._shade = weakref.ref(self.shade)
-        return None
-
 
     def set_extent(self, extent):
         self.col.set_extent(extent[:4])
 
     def set_norm(self, norm):
-        #if norm is None:
+        # if norm is None:
         #    norm = matplotlib.colors.Normalize(vmin=None, vmax=None, clip=False)
         self.norm = norm
         if self.norm is not None:
@@ -134,7 +117,6 @@ class CmapModule:
         """
         if isinstance(cmap, str):
             cmap = plt.cm.get_cmap(cmap)
-
         if self._cmap is not None and self._cmap.name != cmap.name:
             cmap = self._cmap
             self._cmap = None
@@ -208,12 +190,6 @@ class CmapModule:
 
         return True
 
-    def _callback_plot_colormap(self, event):
-        self.active = event.new
-
-    def _callback_plot_cmap(self, event):
-        self._cmap = plt.cm.get_cmap(event.new)
-
     def _widget_lightsource(self):
         self._widget_relief_shading = pn.widgets.Checkbox(name='Show relief shading',
                                                           value=self.relief_shading)
@@ -244,14 +220,14 @@ class CmapModule:
         panel = pn.Column("<b> Lightsource </b> ", widgets)
         return panel
 
-    def _callback_relief_shading(self, event):
-        self.relief_shading = event.new
+    def _callback_plot_colormap(self, event): self.active = event.new
 
-    def _callback_ve(self, event):
-        self.ve = event.new
+    def _callback_plot_cmap(self, event): self._cmap = plt.cm.get_cmap(event.new)
 
-    def _callback_lightsource_altdeg(self, event):
-        self.altdeg = event.new
+    def _callback_relief_shading(self, event): self.relief_shading = event.new
 
-    def _callback_lightsource_azdeg(self, event):
-        self.azdeg = event.new
+    def _callback_ve(self, event): self.ve = event.new
+
+    def _callback_lightsource_altdeg(self, event): self.altdeg = event.new
+
+    def _callback_lightsource_azdeg(self, event): self.azdeg = event.new
