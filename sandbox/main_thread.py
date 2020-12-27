@@ -304,7 +304,8 @@ class MainThread:
         self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
                                                   onlychanged=False)
 
-        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list", button_type="warning")
+        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list",
+                                                    button_type="warning")
         self._widget_clear_axes.param.watch(self._callback_clear_axes, 'clicks',
                                             onlychanged=False)
 

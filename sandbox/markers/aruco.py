@@ -158,7 +158,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if self.kinect == "dummy":
             dict_position = kwargs.get("dict_position")
             depth_frame = kwargs.get("depth_frame")
-            plt.pause(0.1) # TODO: To avoid problems with the common issue od NoneType dpi
+            plt.pause(0.15) # TODO: To avoid problems with the common issue #3 of NoneType dpi
             self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
             return self.markers_in_frame
 
