@@ -24,7 +24,7 @@ class Sensor:
     """
     Wrapping API-class
     """
-    def __init__(self, calibsensor: str = None, name: str ='kinect_v2', crop_values: bool = True,
+    def __init__(self, calibsensor: str = None, name: str = 'kinect_v2', crop_values: bool = True,
                  clip_values: bool = True, gauss_filter: bool = True,
                  n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
         """
@@ -157,8 +157,8 @@ class Sensor:
 
                 print("JSON configuration loaded for sensor.")
             else:
-                print(
-                    "JSON configuration incompatible.\nPlease select a valid calibration file or start a new calibration!")
+                print("JSON configuration incompatible."
+                      "\nPlease select a valid calibration file or start a new calibration!")
 
     def save_json(self, file: str = 'sensor_calibration.json'):
         """
@@ -205,14 +205,13 @@ class Sensor:
             crop = frame[self.s_bottom:-self.s_top, self.s_left:]
         else:
             crop = frame[self.s_bottom:-self.s_top, self.s_left:-self.s_right]
-
         return crop
 
     def depth_mask(self, frame: numpy.ndarray) -> numpy.ndarray:
         """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
         above and below. If you also want to use clipping, make sure to use the mask before.
         """
-        #TODO: depth mask is masking everything. returning empty
+        # TODO: depth mask is masking everything. returning empty
         mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.s_min, self.s_max))
         return mask
 
@@ -232,7 +231,7 @@ class Sensor:
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            #frame = self.depth_mask(frame) #TODO: When is this needed?
+            # frame = self.depth_mask(frame) #TODO: When is this needed?
             frame = self.clip_frame(frame)
         if self.invert:
             frame = self.get_inverted_frame(frame)
@@ -247,12 +246,11 @@ class Sensor:
     @property
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox
-        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun point(total height in mm)] """
+        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun
+        point(total height in mm)] """
         return [0, self.s_frame_width, 0, self.s_frame_height, 0, self.vmax]
 
     @property
     def physical_dimensions(self):
         """returns the physical extent of the sandbox in mm. Used for scaling gempy models"""
         return [self.box_width, self.box_height]
-
-

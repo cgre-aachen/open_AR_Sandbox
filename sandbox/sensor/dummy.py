@@ -5,7 +5,7 @@ from scipy.interpolate import griddata  # for DummySensor
 
 class DummySensor:
 
-    def __init__(self, *args, width=512, height=424, depth_limits=(0, 400), extent=None,
+    def __init__(self, width=512, height=424, depth_limits=(0, 400), extent=None,
                  corners=True, points_n=4, points_distance=0.3,
                  alteration_strength=0.1, **kwargs):
         """
@@ -78,13 +78,13 @@ class DummySensor:
         return True
 
     def _pick_positions(self):
-        '''
+        """
         Param:
             grid: Set of possible points to pick from
             n: desired number of points (without corners counting), not guaranteed to be reached
             distance: distance or range between points
         :return:
-        '''
+        """
 
         numpy.random.seed(seed=self.seed)
         gl = self.grid.shape[0]

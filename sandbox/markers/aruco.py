@@ -17,7 +17,7 @@ except ImportError:
     warn('opencv is not installed. Object detection will not work')
 
 
-class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
+class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
