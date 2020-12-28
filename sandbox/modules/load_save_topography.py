@@ -439,9 +439,9 @@ class LoadSaveTopoModule(ModuleTemplate):
             print("Unknown file id")
 
     def show_widgets(self):
-        tabs = pn.Tabs(('Load Topography', self.widgets_load()),
-                       ('Box widgets', self.widgets_box()),
+        tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
+                       ('Load Topography', self.widgets_load()),
                        ('Save Topography', self.widgets_save())
                        )
         return tabs

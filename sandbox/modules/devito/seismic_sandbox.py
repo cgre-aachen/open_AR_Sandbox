@@ -1,10 +1,14 @@
 from sandbox.modules.template import ModuleTemplate
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 from scipy import ndimage
 from matplotlib import cm
+import panel as pn
 
+from sandbox.modules.load_save_topography import LoadSaveTopoModule
 from .model import Model
 from .source import RickerSource, TimeAxis, Receiver
 from devito import TimeFunction, Eq, solve, Operator
@@ -13,36 +17,40 @@ from devito import TimeFunction, Eq, solve, Operator
 class SeismicModule(ModuleTemplate):
     """ Follow the link to see the code that inspired the module
     https://nbviewer.jupyter.org/github/devitocodes/devito/blob/master/examples/seismic/tutorials/01_modelling.ipynb"""
-    def __init__(self, **kwargs):
+    def __init__(self, extent: list = None, **kwargs):
         """Importing packages and setting correctly the path to the devito package, this beacuse we need the examples"""
-        self.vp = None #Normalized or smoothed or None topography to be the velocity model
-        self.model: Model = None #the model
-        self.time_range = None #the time of the simulation
-        self.src = None #the ricker source
-        self.u = None #wavefield time function
-        self.pde = None #PDE to solve. Wave equation with corresponding discretizations
-        self.stencil= None # a time marching updating equation known as a stencil using customized SymPy functions
-        self.src_coordinates=[]
-        self.src_term = [] #all sources together
+        self.Load_Area = LoadSaveTopoModule(extent=extent, **kwargs)
+        self.vp = None  # Normalized or smoothed or None topography to be the velocity model
+        self.model: Model = None  # the model
+        self.time_range = None  # the time of the simulation
+        self.src = None  # the ricker source
+        self.u = None  # wavefield time function
+        self.pde = None  # PDE to solve. Wave equation with corresponding discretizations
+        self.stencil= None  # a time marching updating equation known as a stencil using customized SymPy functions
+        self.src_coordinates = []
+        self.src_term = []  # all sources together
         self.rec=None
-        self.rec_term = [] #all receivers
-        self.op = None #aAfter constructing all the necessary expressions for updating the wavefield, injecting the source term and interpolating onto the receiver points, we can now create the Devito operator
+        self.rec_term = []  # all receivers
+
+        # After constructing all the necessary expressions for updating the wavefield,
+        # injecting the source term and interpolating onto the receiver points, we can now create the Devito operator
+        self.op = None
         self.n_frames_speed = 10
-        #self.aruco_sources_coord = []
+        self.frequency = 0.025  # Source peak frequency is 25Hz (0.025 kHz)
+        # self.aruco_sources_coord = []
         # For the cropping, because when normalizing the velocities dont work
         self.crop = True
-        self.box_origin = [10, 10]  # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
-        self.box_width = 250
-        self.box_height = 180
-        self.margin = 15
-        self.xy_aruco=[]
+        self.xy_aruco = []
         # for the plotting
         self.timeslice = 0
+        self.threshold = 0.03
         self.field = None
+
         self.p_velocity = True
-        self.p_wave = True
         self.ready_velocity = False
+        self.p_wave = True
         self.ready_wave = False
+
         self.framerate = 10
         self._vp = None
         self._w = None
@@ -50,20 +58,24 @@ class SeismicModule(ModuleTemplate):
         self.model_extent = None
         self.frame = None
         self.extent = None
+        self.max_wave_frame = 1
 
-    @property
-    def to_box_extent(self):
-        """When using imshow to plot data over the image. pass this as extent argumment to display the
-        image in the correct area of the sandbox box-area"""
-        #return (self.box_origin[0], self.box_width + self.box_origin[0],
-        #        self.box_origin[1], self.box_height + self.box_origin[1])
-        return (self.margin, self.extent[1] - self.margin, self.margin, self.extent[3]-self.margin)
+        #Widgets
+        self.lock = None
+        self.figure = Figure()
+        self.axes = Axes(self.figure, [0., 0., 1., 1.])
+        self.figure.add_axes(self.axes)
+        self.panel_figure = pn.pane.Matplotlib(self.figure, tight=True)#, height=300)
+        plt.close(self.figure)  # close figure to prevent inline display
+        return print("SeismicModule loaded succesfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
         ax = sb_params.get('ax')
         marker = sb_params.get('marker')
         self.extent = sb_params.get('extent')[:4]
+        self.lock = sb_params.get("lock_thread")
+        sb_params = self.Load_Area.update(sb_params)
         if self.crop:
             self.frame = np.transpose(self.crop_frame(frame))
         else:
@@ -72,7 +84,7 @@ class SeismicModule(ModuleTemplate):
         if len(marker) > 0:
             self.xy_aruco = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
         else:
-            self.xy_aruco=[]
+            self.xy_aruco = []
 
         ax = self.plot(ax)
         return sb_params
@@ -94,10 +106,9 @@ class SeismicModule(ModuleTemplate):
     def plot_seismic_velocity(self, ax):
         if self.field is not None:
             if self._vp is None:
-
                 self._vp = ax.imshow(self.field, cmap=plt.get_cmap("jet"),
                           vmin=np.min(self.field), vmax=np.max(self.field),
-                          extent=self.to_box_extent if self.crop else self.extent, origin="lower", zorder=2)
+                          extent=self.Load_Area.to_box_extent if self.crop else self.extent, origin="lower", zorder=2)
             else:
                 self._vp.set_data(self.field)
 
@@ -110,10 +121,11 @@ class SeismicModule(ModuleTemplate):
         if self.u is not None and self.model is not None:
             if self._w is None:
                 self._w = ax.imshow(self.wavefield(self.timeslice),
-                          vmin=-1e0, vmax=1e0,
-                          cmap=plt.get_cmap('seismic'),
-                          aspect=1, extent=self.to_box_extent if self.crop else self.extent,
-                          interpolation='none', origin="lower", zorder=3)
+                                    vmin=-1e0, vmax=1e0,
+                                    cmap=plt.get_cmap('seismic'),
+                                    aspect=1,
+                                    extent=self.Load_Area.to_box_extent if self.crop else self.extent,
+                                    interpolation='none', origin="lower", zorder=3)
             else:
                 self._w.set_data(self.wavefield(self.timeslice))
 
@@ -121,7 +133,6 @@ class SeismicModule(ModuleTemplate):
                 self.timeslice += self.framerate
                 if self.timeslice >= self.time_range.num:
                     self.timeslice = 0
-
 
     def delete_wavefield(self):
         if self._w is not None:
@@ -131,7 +142,7 @@ class SeismicModule(ModuleTemplate):
     def run_simulation(self, vmin=2, vmax=4, nbl=40, **kwargs):
         if self.model is None:
             self.init_model(vmin=vmin, vmax=vmax, frame=self.frame, nbl=nbl, **kwargs)
-        if len(self.src_coordinates)==0:
+        if len(self.src_coordinates) == 0:
             return print("Put an aruco marker as a source or manually specify a source term")
         self.insert_aruco_source()
         self.operator_and_solve()
@@ -157,10 +168,11 @@ class SeismicModule(ModuleTemplate):
             for counter, aru in enumerate(self.xy_aruco):
                 #Modify to the simulation area
                 #aru_mod = (aru[0]-self.box_origin[0], aru[1]-self.box_origin[1])
-                aru_mod = (aru[0] - self.margin, aru[1] - self.margin)
-                src = self.create_source(name="src%i"%counter, f0=0.025,
-                                         source_coordinates=(aru_mod[0]*self.model.spacing[0],aru_mod[1]*self.model.spacing[1]),
-                                                             show_wavelet=False,show_model=False)
+                aru_mod = (aru[0] - self.Load_Area.box_origin[0], aru[1] - self.Load_Area.box_origin[1])
+                src = self.create_source(name="src%i"%counter, f0=self.frequency,
+                                         source_coordinates=(aru_mod[0]*self.model.spacing[0],
+                                                             aru_mod[1]*self.model.spacing[1]),
+                                                             show_wavelet=False, show_model=False)
                 self.inject_source(src)
         else:
             return print("No arucos founded")
@@ -169,9 +181,10 @@ class SeismicModule(ModuleTemplate):
         #self.box_origin = origin # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         #self.box_width = width
         #self.box_height = height
-        #return frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
-        #            self.box_origin[0]:self.box_origin[0] + self.box_width]
-        return frame[self.margin:-self.margin, self.margin:-self.margin]
+        # return frame[self.margin:-self.margin, self.margin:-self.margin]
+
+        return frame[self.Load_Area.box_origin[1]:self.Load_Area.box_origin[1] + self.Load_Area.box_height,
+                    self.Load_Area.box_origin[0]:self.Load_Area.box_origin[0] + self.Load_Area.box_width]
 
     def scale_linear(self, topo: np.ndarray, high: float, low:float):
         """
@@ -216,7 +229,8 @@ class SeismicModule(ModuleTemplate):
             sigma_x: smooth in x direction
             sigma_y: smooth in y_direction
             spacing: Grid spacing in m
-            origin: What is the location of the top left corner. This is necessary to define the absolute location of the source and receivers
+            origin: What is the location of the top left corner. This is necessary to define the absolute location of
+            the source and receivers
             nbl: size of the absorbing layer
             show_velocity: plot of the velocity model
         Returns:
@@ -264,6 +278,7 @@ class SeismicModule(ModuleTemplate):
         """
         dt = self.model.critical_dt
         self.time_range = TimeAxis(start=t0, stop=tn, step=dt)
+        self.max_wave_frame = self.time_range.num - 1
         return self.time_range
 
     @property
@@ -301,9 +316,14 @@ class SeismicModule(ModuleTemplate):
 
     def create_time_function(self):
         """
-        second order time discretization: This derivative is represented in Devito by u.dt2 where u is a TimeFunction object.
-        Spatial discretization: This derivative is represented in Devito by u.laplace where u is a TimeFunction object.
-        With space and time discretization defined, we can fully discretize the wave-equation with the combination of time and space discretizations
+        second order time discretization: This derivative is represented in Devito by u.dt2
+        where u is a TimeFunction object.
+
+        Spatial discretization: This derivative is represented in Devito by u.laplace where u is a
+        TimeFunction object.
+
+        With space and time discretization defined, we can fully discretize the wave-equation
+        with the combination of time and space discretizations
         Returns:
 
         """
@@ -372,16 +392,16 @@ class SeismicModule(ModuleTemplate):
         self.op(dt=self.model.critical_dt)
         self.ready_wave = True
 
-    def wavefield(self, timeslice, thrshld=0.01):
+    def wavefield(self, timeslice):
         """get rid of the sponge that attenuates the waves"""
         #wf_data=self.u.data[:, self.model.nbl:-self.model.nbl, self.model.nbl:-self.model.nbl]
         if timeslice>=self.time_range.num:
-            print('timeslice not valid for value %i, setting values of %i' %(timeslice,self.time_range.num-1))
+            print('timeslice not valid for value %i, setting values of %i' %(timeslice, self.time_range.num-1))
             timeslice=self.time_range.num-1
 
         wf_data = self.u.data[timeslice, self.model.nbl:-self.model.nbl, self.model.nbl:-self.model.nbl]
         wf_data_normalize = wf_data / np.amax(wf_data)
-        waves = np.ma.masked_where(np.abs(wf_data_normalize) <= thrshld, wf_data_normalize)
+        waves = np.ma.masked_where(np.abs(wf_data_normalize) <= self.threshold, wf_data_normalize)
         return np.transpose(waves)
 
     def show_wavefield(self, timeslice:int):
@@ -440,12 +460,12 @@ class SeismicModule(ModuleTemplate):
         ax.set_xlabel('X position (km)')
         ax.set_ylabel('Depth (km)')
 
-        # Plot source points, if provided
+        # Plot receiver points, if provided
         if receiver is not None:
             ax.scatter(1e-3 * receiver[:, 0], 1e-3 * receiver[:, 1],
                         s=25, c='green', marker='D')
 
-        # Plot receiver points, if provided
+        # Plot source points, if provided
         if source is not None:
             if not isinstance(source, list):
                 source = [source]
@@ -461,6 +481,47 @@ class SeismicModule(ModuleTemplate):
         fig.colorbar(plot, cax=cax, ax=ax, label="Velocity (km/s)")
 
         fig.show()
+
+    def update_panel_plot(self):
+        #slices = tuple(slice(self.model.nbl, -self.model.nbl) for _ in range(2))
+        #if getattr(self.model, 'vp', None) is not None:
+        #    field = self.model.vp.data[slices]
+        #else:
+        #    field = self.model.lam.data[slices]
+        #field = np.transpose(field)
+        self.figure.clf()
+        self.axes.cla()
+        self.figure.add_axes(self.axes)
+        model_param = dict(vmin=self.vp.max(), vmax=self.vp.min(), cmap=plt.get_cmap('jet'), aspect=1, extent=self.model_extent, origin="lower")
+
+        _vp = self.axes.imshow(self.vp, **model_param)
+        self.axes.set_ylabel('Depth (km)')
+        self.axes.set_xlabel('x position (km)')
+        if self.p_wave and self.ready_wave:
+            data_param = dict(vmin=-1e0, vmax=1e0, cmap=plt.get_cmap('seismic'), aspect=1, extent=self.model_extent,
+                              interpolation='none', origin="lower")  # , alpha=.4)
+            _wave = self.axes.imshow(self.wavefield(self.timeslice), **data_param)
+            self.axes.set_title("t = {:.0f} ms".format((self.timeslice)*self.time_range.step))
+
+        #plot = self.axes.imshow(field, animated=True, cmap=cmap,
+        #                 vmin=np.min(field), vmax=np.max(field),
+        #                 extent=self.model_extent, origin="lower")
+        #self.axes.set_xlabel('X position (km)')
+        #self.axes.set_ylabel('Depth (km)')
+
+        # Plot source points, if provided
+        if self.src_coordinates is not None and len(self.src_coordinates) > 0:
+            for sou in self.src_coordinates:
+                self.axes.scatter(1e-3 * sou[:, 0], 1e-3 * sou[:, 1],
+                                  s=25, c='red', marker='o')
+
+        # Ensure axis limits
+        self.axes.set_xlim(self.model_extent[0], self.model_extent[1])
+        self.axes.set_ylim(self.model_extent[2], self.model_extent[3])
+        divider = make_axes_locatable(self.axes)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        self.figure.colorbar(_vp, cax=cax, ax=self.axes, label="Velocity (km/s)")
+        self.panel_figure.param.trigger("object")
 
     def show_shotrecord(self, rec, model, t0, tn):
         """
@@ -492,6 +553,143 @@ class SeismicModule(ModuleTemplate):
 
 
     def show_widgets(self):
-        pass
+        panel = pn.Row(self.show_simulation_widgets(),
+                       self.show_plotting_widgets())
+        return panel
 
+    def show_plotting_widgets(self):
+        self._widget_real_time = pn.widgets.Checkbox(name='Real time', value=self.real_time)
+        self._widget_real_time.param.watch(self._callback_real_time, 'value',
+                                              onlychanged=False)
 
+        self._widget_framerate = pn.widgets.Spinner(name='Framerate', value=self.framerate, step=1)
+        self._widget_framerate.param.watch(self._callback_framerate, 'value', onlychanged=False)
+
+        self._widget_wave_selector = pn.widgets.IntSlider(
+            name='Wavefield in frame',
+            value=self.timeslice,
+            start=0,
+            end=self.max_wave_frame
+        )
+        self._widget_wave_selector.param.watch(self._callback_select_wave, 'value', onlychanged=False)
+
+        self._widget_p_velocity = pn.widgets.Checkbox(name='Velocity Model', value=self.p_velocity)
+        self._widget_p_velocity.param.watch(self._callback_p_velocity, 'value',
+                                              onlychanged=False)
+
+        self._widget_p_wavefield = pn.widgets.Checkbox(name='Wavefield', value=self.p_wave)
+        self._widget_p_wavefield.param.watch(self._callback_p_wavefield, 'value',
+                                              onlychanged=False)
+
+        self._widget_threshold = pn.widgets.Spinner(name='Wavefield threshold', value=self.threshold, step=0.01)
+        self._widget_threshold.param.watch(self._callback_threshold, 'value', onlychanged=False)
+
+        panel = pn.Column("### <b>Controllers</b>",
+                          self.panel_figure,
+                          "<b>Show Seismic wave in real time</b>",
+                          self._widget_real_time,
+                          self._widget_framerate,
+                          self._widget_threshold,
+                          "<b>Visualize single seismic wave</b> (First deactivate real time)",
+                          self._widget_wave_selector,
+                          "<b>Hide or show velocity model and wavefield</b>",
+                          self._widget_p_velocity,
+                          self._widget_p_wavefield
+                          )
+        return panel
+
+    def show_simulation_widgets(self):
+        self._widget_vmin = pn.widgets.Spinner(name="vmin", value=2.0, step=0.1)
+        self._widget_vmax = pn.widgets.Spinner(name="vmax", value=5.0, step=0.1)
+        self._widget_nbl = pn.widgets.Spinner(name="Damping thickness", value=40, step=1)
+
+        self._widget_create_model = pn.widgets.Button(name="Create velocity model", button_type="success")
+        self._widget_create_model.param.watch(self._callback_velocity_model, 'clicks',
+                                          onlychanged=False)
+
+        self._widget_t0 = pn.widgets.Spinner(name="t0", value=0, step=1)
+        self._widget_tn = pn.widgets.Spinner(name="tn", value=800, step=1)
+        self._widget_create_time = pn.widgets.Button(name="Create time axis", button_type="success")
+        self._widget_create_time.param.watch(self._callback_create_time, 'clicks',
+                                              onlychanged=False)
+
+        self._widget_frequency = pn.widgets.Spinner(name="Frequency (Hz)", value=self.frequency*1000, step=1)
+
+        self._widget_insert_aruco = pn.widgets.Button(name="Insert sources", button_type="warning")
+        self._widget_insert_aruco.param.watch(self._callback_insert_aruco, 'clicks',
+                                              onlychanged=False)
+
+        self._widget_solve = pn.widgets.Button(name="Solve PDE", button_type="success")
+        self._widget_solve.param.watch(self._callback_solve, 'clicks',
+                                              onlychanged=False)
+
+        column = pn.Column("### <b>Simulation</b>",
+                           "<b>1) Costruct velocity model</b>",
+                           self._widget_vmax,
+                           self._widget_vmin,
+                           self._widget_nbl,
+                           self._widget_create_model,
+                           "<b>2) Create time axis and functions</b>",
+                           self._widget_t0,
+                           self._widget_tn,
+                           self._widget_create_time,
+                           "<b>3) Insert source terms</b>",
+                           "Place aruco markers in position and click the button",
+                           self._widget_frequency,
+                           self._widget_insert_aruco,
+                           "<b>4) Solve",
+                           self._widget_solve)
+        return column
+
+    def _callback_threshold(self, event):
+        self.threshold = event.new
+
+    def _callback_velocity_model(self, event):
+        self.lock.acquire()
+        vmin = self._widget_vmin.value
+        vmax = self._widget_vmax.value
+        nbl = self._widget_nbl.value
+        _ = self.create_velocity_model(topo=self.frame, vmax=vmax, vmin=vmin, nbl=nbl)
+        self.update_panel_plot()
+        self.lock.release()
+
+    def _callback_create_time(self, event):
+        self.lock.acquire()
+        t0 = self._widget_t0.value
+        tn = self._widget_tn.value
+        _ = self.create_time_axis(t0, tn)
+        self._widget_wave_selector.end = self.max_wave_frame
+        _ = self.create_time_function()
+        _ = self.solve_PDE()
+        self.lock.release()
+
+    def _callback_insert_aruco(self, event):
+        self.lock.acquire()
+        self.frequency = self._widget_frequency.value/1000  # (to put in kHz)
+        self.insert_aruco_source()
+        self.update_panel_plot()
+        self.lock.release()
+
+    def _callback_solve(self, event):
+        self.lock.acquire()
+        self.operator_and_solve()
+        self.update_panel_plot()
+        self.lock.release()
+
+    def _callback_real_time(self, event):
+        self.real_time = event.new
+
+    def _callback_framerate(self, event):
+        self.framerate = event.new
+
+    def _callback_select_wave(self, event):
+        self.lock.acquire()
+        self.timeslice = event.new
+        self.update_panel_plot()
+        self.lock.release()
+
+    def _callback_p_velocity(self, event):
+        self.p_velocity = event.new
+
+    def _callback_p_wavefield(self, event):
+        self.p_wave = event.new
