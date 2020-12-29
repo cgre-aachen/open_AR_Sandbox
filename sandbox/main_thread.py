@@ -200,8 +200,10 @@ class MainThread:
 
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
+        self.lock.acquire()
         self.modules[name] = module
         self._modules[name] = module
+        self.lock.release()
         #self.modules.move_to_end(name, last=True)
         print('module ' + name + ' added to modules')
 
