@@ -1,16 +1,16 @@
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 import panel as pn
 import numpy
 import pygimli as pg
 import pygimli.meshtools as mt
 import pygimli.physics.ert as ert
 from pygimli.viewer.mpl.meshview import drawStreamLines, drawStreams
-import logging                                                                                                                                                             
-pg.setLogLevel(logging.WARNING)  # to reduce logging output
-
 from ..template import ModuleTemplate
+
+import logging
+
+pg.setLogLevel(logging.WARNING)  # to reduce logging output
 
 
 class GeoelectricsModule(ModuleTemplate):
@@ -19,9 +19,9 @@ class GeoelectricsModule(ModuleTemplate):
     check "https://www.pygimli.org/_examples_auto/3_dc_and_ip/plot_04_ert_2_5d_potential.html#sphx-glr-examples-auto-3-dc-and-ip-plot-04-ert-2-5d-potential-py"
     for more information
     """
+
     def __init__(self, *args, extent: list = None, **kwargs):
         if extent is not None:
-
             self.extent = extent
         self.vmin = 5.  # ohm*m
         self.vmax = 1e5  # ohm*m
@@ -47,41 +47,31 @@ class GeoelectricsModule(ModuleTemplate):
         self.df_markers = []
         self._figsize = (15, 8)
 
-        #Widgets
+        # Widgets
         self._a_id = 0
         self._b_id = 3
         self._n_id = 1
         self._m_id = 2
         self.figure_mesh = Figure()
-        #self.axes_mesh = Axes(self.figure_mesh, [0., 0., 1., 1.])
-        #self.figure_mesh.add_axes(self.axes_mesh)
         self.panel_figure_mesh = pn.pane.Matplotlib(self.figure_mesh, tight=True)
-        #self.axes_mesh.set_title("Coarse Mesh")
-        plt.close(self.figure_mesh)  # close figure to prevent inline display
+        plt.close(self.figure_mesh)
 
         self.figure_field = Figure()
-        #self.axes_field = Axes(self.figure_field, [0., 0., 1., 1.])
-        #self.figure_field.add_axes(self.axes_field)
         self.panel_figure_field = pn.pane.Matplotlib(self.figure_field, tight=True)
-        #self.axes_field.set_title("Current Flow")
-        plt.close(self.figure_field)  # close figure to prevent inline display
+        plt.close(self.figure_field)
 
         self.figure_sensitivity = Figure()
-        #self.axes_sensitivity = Axes(self.figure_sensitivity, [0., 0., 1., 1.])
-        #self.figure_sensitivity.add_axes(self.axes_sensitivity)
         self.panel_figure_sensitivity = pn.pane.Matplotlib(self.figure_sensitivity, tight=True)
-        #self.axes_sensitivity.set_title("Sensitivity")
-        plt.close(self.figure_sensitivity)  # close figure to prevent inline display
+        plt.close(self.figure_sensitivity)
 
         return print("GeoelectricsModule loaded successfully")
-        
+
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
         extent = sb_params.get('extent')
-        frame, extent = self.scale_linear(frame, extent)
+        frame, extent = self.scale_data(frame, extent)
         ax = sb_params.get('ax')
         markers = sb_params.get('marker')
-        active_contours = sb_params.get("active_contours")
         self.lock = sb_params.get("lock_thread")
         if len(markers) > 0:
             self.df_markers = markers.loc[markers.is_inside_box]
@@ -92,13 +82,13 @@ class GeoelectricsModule(ModuleTemplate):
                     if self.sensitivity:
                         self.calculate_sensitivity()
 
-        ax, activate_c = self.plot(ax, self.extent)
+        ax, activate_c = self.plot(ax)
         sb_params["frame"] = frame
         sb_params["extent"] = extent
         sb_params["active_contours"] = activate_c
         return sb_params
 
-    def plot(self, ax, extent):
+    def plot(self, ax):
         self.delete_image(ax)
         activate_c = True
         if self.p_stream and self.pot is not None:
@@ -108,10 +98,10 @@ class GeoelectricsModule(ModuleTemplate):
             self.plot_quiver(ax)
             activate_c = False
         if self.view == "potential" and self.pot is not None:
-            self.plot_potential(ax, extent)
+            self.plot_potential(ax)
             activate_c = False
         elif self.view == "sensitivity" and self.normsens is not None:
-            self.plot_sensitivity(ax, extent)
+            self.plot_sensitivity(ax)
             activate_c = False
         return ax, activate_c
 
@@ -137,7 +127,7 @@ class GeoelectricsModule(ModuleTemplate):
         self.extent = extent
         return self.frame, self.extent
 
-    def scale_linear(self, frame, extent, vmin:float = None, vmax: float = None):
+    def scale_linear(self, frame, extent, vmin: float = None, vmax: float = None):
         """
         DOES NOT WORK WITH THIS SCALING!!! Neds to be more extreme
         Modify the frame to get some realistic Ohm*m values
@@ -166,23 +156,26 @@ class GeoelectricsModule(ModuleTemplate):
         return self.frame, self.extent
 
     def delete_image(self, ax):
-        #[coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.PathCollection )]
-        ax.cla() #TODO: find a better way to do this
+        # [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.PathCollection )]
+        ax.cla()  # TODO: find a better way to do this
         ax.set_axis_off()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
     def plot_stream_lines(self, ax):
         drawStreamLines(ax, self.mesh, self.pot, color='Black', nx=100, ny=100, linewidth=1.0, zorder=50)
+
     def plot_quiver(self, ax):
         drawStreams(ax, self.mesh, pg.solver.grad(self.mesh, -self.pot), color='Black', quiver=True, zorder=49)
-    def plot_potential(self, ax, extent):
+
+    def plot_potential(self, ax):
         pg.show(self.mesh, self.pot, ax=ax, cMap="RdBu_r", nLevs=11, colorBar=False, extent=self.extent[:4], zorder=20)
-    def plot_sensitivity(self, ax, extent):
+
+    def plot_sensitivity(self, ax):
         pg.show(self.mesh, self.normsens, cMap="RdGy_r", ax=ax, colorBar=False, nLevs=3, cMin=-1, cMax=1,
                 extent=self.extent[:4], zorder=30)
 
-    def set_id_aruco(self, ids:dict):
+    def set_id_aruco(self, ids: dict):
         """
         key of the dictionary must be the aruco id and the value is the postion from 0 to 3.
         i.e. id = {12: 0, 20: 1, 13: 2, 4: 3}
@@ -206,14 +199,13 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         df = df[['box_x', 'box_y']].copy()
-        markers = numpy.zeros((4,2))
+        markers = numpy.zeros((4, 2))
         try:
             for index in self.id.keys():
                 markers[self.id[index], :] = df.loc[index]
             self.set_electrode_positions(markers)
         except:
-            print("index "+str(index)+"  not found in aruco markers inside box, check your markers again")
-
+            print("index " + str(index) + "  not found in aruco markers inside box, check your markers again")
 
     def update_resistivity(self, frame, extent, step):
         _ = self.create_mesh(frame, step, extent)
@@ -225,7 +217,8 @@ class GeoelectricsModule(ModuleTemplate):
         create a grid mesh and populate the mesh with the frame data
         Args:
             frame:
-
+            step:
+            extent:
         Returns:
 
         """
@@ -236,13 +229,13 @@ class GeoelectricsModule(ModuleTemplate):
             y = extent[3]
 
         self.mesh_fine = mt.createGrid(numpy.arange(0, x, step=1),
-                             numpy.arange(0, y, step=1))
+                                       numpy.arange(0, y, step=1))
         self.data_fine = mt.nodeDataToCellData(self.mesh_fine, frame.ravel())
 
         self.mesh = mt.createGrid(numpy.arange(0, x + step, step=step),
-                             numpy.arange(0, y + step, step=step))
+                                  numpy.arange(0, y + step, step=step))
         self.data = pg.interpolate(srcMesh=self.mesh_fine, inVec=self.data_fine,
-                              destPos=self.mesh.cellCenters()).array()
+                                   destPos=self.mesh.cellCenters()).array()
         return self.mesh, self.data
 
     def show_mesh(self):
@@ -253,7 +246,7 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=self._figsize)
-        #plt.close()
+        plt.close(fig)
         pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=True, label="Resistivity ($\Omega m$)",
                 extent=self.extent[:4])
         pg.show(self.mesh, self.data, ax=ax2, colorBar=True, label="Resistivity ($\Omega m$)",
@@ -280,13 +273,14 @@ class GeoelectricsModule(ModuleTemplate):
         """
         self.electrode = markers
 
-    def create_data_containerERT(self, measurements = numpy.array([[0, 1, 2, 3],]), #Dipole-Dipole
-                                 scheme_type = "abmn", verbose= False):
+    def create_data_containerERT(self, measurements=numpy.array([[0, 1, 2, 3], ]),  # Dipole-Dipole
+                                 scheme_type="abmn", verbose=False):
         """
         creates the scheme from the previous 4 aruco markers detected
         Args:
             measurements: Dipole-Dipole
             scheme_type: assign the type of electrode to the aruco
+            verbose:
 
         Returns:
 
@@ -309,20 +303,20 @@ class GeoelectricsModule(ModuleTemplate):
         if time:
             pg.tic()
         self.sim = ert.simulate(self.mesh, res=self.data, scheme=self.scheme, sr=False,
-                           calcOnly=True, verbose=verbose, returnFields=True)
+                                calcOnly=True, verbose=verbose, returnFields=True)
         if time:
             pg.toc("Current flow", box=True)
         self.pot = pg.utils.logDropTol(self.sim[0] - self.sim[1], 10)
         return self.sim, self.pot
 
-    def show_streams(self, quiver = False):
+    def show_streams(self, quiver=False):
         """
         Show the solution of the simulation and draw a stream plot perpendicular to the electric field
         Returns:
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=self._figsize, sharey=True)
-        #plt.close()
+        plt.close(fig)
         pg.show(self.mesh, self.data, ax=ax1, label="Resistivity ($\Omega m$)", extent=self.extent[:4])
         pg.show(self.mesh, self.pot, ax=ax2, nLevs=11, cMap="RdBu_r",
                 label="Potential ($u$)", extent=self.extent[:4])
@@ -361,7 +355,7 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, ax = plt.subplots(figsize=self._figsize)
-        #plt.close()
+        plt.close(fig)
         pg.show(self.mesh, self.normsens, cMap="RdGy_r", orientation="vertical", ax=ax,
                 label="Normalized\nsensitivity", nLevs=3, cMin=-1, cMax=1, extent=self.extent[:4])
         for m in self.electrode:
@@ -369,10 +363,6 @@ class GeoelectricsModule(ModuleTemplate):
         return fig
 
     def update_panel_mesh(self):
-        #self.figure_mesh.clf()
-        #self.axes_mesh.cla()
-        #self.figure_mesh.add_axes(self.axes_mesh)
-
         fig, ax = plt.subplots()
         plt.close(fig)
         pg.show(self.mesh, self.data, ax=ax, colorBar=True, extent=self.extent[:4],
@@ -387,9 +377,6 @@ class GeoelectricsModule(ModuleTemplate):
         self.panel_figure_mesh.param.trigger("object")
 
     def update_panel_field(self):
-        #self.figure_field.clf()
-        #self.axes_field.cla()
-        #self.figure_field.add_axes(self.axes_field)
         fig, ax = plt.subplots()
         plt.close(fig)
         pg.show(self.mesh, self.pot, ax=ax, nLevs=11, cMap="RdBu_r", extent=self.extent[:4],
@@ -404,9 +391,6 @@ class GeoelectricsModule(ModuleTemplate):
         self.panel_figure_field.param.trigger("object")
 
     def update_panel_sensitivity(self):
-        #self.figure_sensitivity.clf()
-        #self.axes_sensitivity.cla()
-        #self.figure_sensitivity.add_axes(self.axes_sensitivity)
         fig, ax = plt.subplots()
         plt.close(fig)
         pg.show(self.mesh, self.normsens, cMap="RdGy_r", orientation="vertical", ax=ax,
@@ -501,7 +485,6 @@ class GeoelectricsModule(ModuleTemplate):
                           )
         return panel
 
-
     def _callback_visualize(self, event):
         self.view = event.new
 
@@ -517,7 +500,7 @@ class GeoelectricsModule(ModuleTemplate):
         self._widget_progress.value = 0
         self.vmin = self._widget_vmin.value
         self.vmax = self._widget_vmax.value
-        #frame, _ = self.scale_data
+        # frame, _ = self.scale_data
         self.step = self._widget_step.value
         self.create_mesh(frame=self.frame, step=self.step)
         self._widget_progress.value = 50
