@@ -65,6 +65,7 @@ class DummySensor:
         """
         self._alter_values()
         self._interpolate()
+        self.depth[self.depth < 0] = 0  # TODO: Solve the problem of having negative values
         return self.depth
 
     def _oscillating_depth(self, random):

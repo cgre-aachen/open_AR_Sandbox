@@ -50,6 +50,19 @@ class MarkerDetection:
         if frame is not None:
             self._depth_frame = frame
 
+    def delete_aruco_position(self, ids = None):
+        """If None, delete all positions. If ids match with one aruco only delete that one
+        Args:
+            ids: aruco id to delete
+        """
+        if ids:
+            if ids in self.dict_position.keys():
+                del self.dict_position[ids]
+            else:
+                print("id: ", ids, " not found")
+        else:
+            self._dict_position = {}
+
     def _set_widget_position(self, dict_position: dict = {}):
         self._widget_position = {**self._widget_position, **dict_position}
 
