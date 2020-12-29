@@ -57,7 +57,7 @@ class MarkerDetection:
         """
         if ids:
             if ids in self.dict_position.keys():
-                del self.dict_position[ids]
+                self.dict_position.pop(ids)
             else:
                 print("id: ", ids, " not found")
         else:

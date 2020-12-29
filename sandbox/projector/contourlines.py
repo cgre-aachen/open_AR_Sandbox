@@ -1,5 +1,4 @@
 import numpy
-import matplotlib.pyplot as plt
 import matplotlib
 import panel as pn
 pn.extension()
@@ -51,6 +50,7 @@ class ContourLinesModule:
             self.check_change = check_change
             self._rtol = 0.2
             self._atol = 0
+            self._threshold = 200  # Maximum amount of contour lines per plot. If more then set levels to automatic
             self.extent = extent
             self.vmin = self.extent[4]
             self.vmax = self.extent[5]
@@ -111,11 +111,6 @@ class ContourLinesModule:
 
         return sb_params
 
-
-    #def set_array(self, data):
-    ##    self.major.set_array(data)
-     #   self.minor.set_array(data)
-
     def delete_contourns(self, ax):
         [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
         [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
@@ -130,21 +125,23 @@ class ContourLinesModule:
         Uses the different attributes to style contour lines and contour labels.
         """
         self.major = ax.contour(data,
-                                levels=self.contours_levels,
+                                levels=self.contours_levels
+                                if len(self.contours_levels) < self._threshold else None,
                                 linewidths=self.contours_width,
                                 colors=self.contours_color,
                                 extent=extent,
-                                zorder=5
+                                zorder=100
                                 )
 
 
     def add_minor_contours(self, data, ax, extent=None):
         self.minor = ax.contour(data,
-                                levels=self.contours_levels_minor,
+                                levels=self.contours_levels_minor
+                                if len(self.contours_levels_minor) < self._threshold else None,
                                 linewidths=self.contours_width_minor,
                                 colors=self.contours_color,
                                 extent=extent,
-                                zorder=4
+                                zorder=99
                                 )
 
     def add_label_contours(self, ax, extent=None):
