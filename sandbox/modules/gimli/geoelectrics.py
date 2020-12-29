@@ -37,7 +37,7 @@ class GeoelectricsModule(ModuleTemplate):
         self.electrode = None
 
         self.step = 7.5
-        self.sensitivity = False
+        self.sensitivity_real_time = False
         self.view = "mesh"  # "potential"  "sensitivity""
         self.id = None
         self.real_time = False
@@ -46,6 +46,7 @@ class GeoelectricsModule(ModuleTemplate):
         self.frame = None
         self.df_markers = []
         self._figsize = (15, 8)
+        self._recalculate_mesh = False
 
         # Widgets
         self._a_id = 0
@@ -79,7 +80,7 @@ class GeoelectricsModule(ModuleTemplate):
                 self.set_aruco_electrodes(self.df_markers)
                 if self.real_time:
                     self.update_resistivity(frame, self.extent, self.step)
-                    if self.sensitivity:
+                    if self.sensitivity_real_time:
                         self.calculate_sensitivity()
 
         ax, activate_c = self.plot(ax)
@@ -208,7 +209,10 @@ class GeoelectricsModule(ModuleTemplate):
             print("index " + str(index) + "  not found in aruco markers inside box, check your markers again")
 
     def update_resistivity(self, frame, extent, step):
-        _ = self.create_mesh(frame, step, extent)
+        if self.mesh is None:
+            _ = self.create_mesh(frame, step, extent)
+        if self._recalculate_mesh:
+            _ = self.create_mesh(frame, step, extent)
         _ = self.create_data_containerERT()
         _ = self.calculate_current_flow()
 
@@ -402,18 +406,19 @@ class GeoelectricsModule(ModuleTemplate):
         self.panel_figure_sensitivity.param.trigger("object")
 
     def show_widgets(self):
-        controller = self.widgets_controller()
+        controller, real = self.widgets_controller()
         simulation = self.widgets_simulation()
 
         self._widget_progress = pn.widgets.Progress(name="Progress", active=True)
-        self._widget_markdown_progress = pn.pane.Markdown("Waiting")
+        self._widget_markdown_progress = pn.pane.Markdown("<p>Waiting</p><p>.</p>")
 
-        panel = pn.Row(pn.Column(simulation, controller),
+        panel = pn.Row(simulation,
                        pn.Column(self.panel_figure_mesh,
                                  self.panel_figure_field,
                                  self.panel_figure_sensitivity,
                                  self._widget_progress,
-                                 self._widget_markdown_progress))
+                                 self._widget_markdown_progress),
+                       pn.Column(controller, real))
         return panel
 
     def widgets_controller(self):
@@ -435,7 +440,30 @@ class GeoelectricsModule(ModuleTemplate):
                           self._widget_p_stream,
                           self._widget_p_quiver
                           )
-        return panel
+        self._widget_real_time = pn.widgets.Checkbox(name='Activate real time calculation',
+                                                     value=self.real_time)
+        self._widget_real_time.param.watch(self._callback_real_time, 'value', onlychanged=False)
+
+        self._widget_recalculate_mesh = pn.widgets.Checkbox(name='Create mesh for every frame',
+                                                            value=self._recalculate_mesh)
+        self._widget_recalculate_mesh.param.watch(self._callback_recalculate, 'value', onlychanged=False)
+
+        self._widget_recalculate_sensitivity = pn.widgets.Checkbox(name='Calculate sensitivity for every frame',
+                                                                   value=self.sensitivity_real_time)
+        self._widget_recalculate_sensitivity.param.watch(self._callback_recalculate_sensitivity, 'value',
+                                                         onlychanged=False)
+        self._widget_update_plots = pn.widgets.Button(name="Update all plots", button_type="success")
+        self._widget_update_plots.param.watch(self._callback_update_plots, 'clicks', onlychanged=False)
+
+        real = pn.WidgetBox("###<b>Update real time</b>",
+                            self._widget_real_time,
+                            self._widget_recalculate_mesh,
+                            self._widget_recalculate_sensitivity,
+                            "Remember that all 4 arucos must be detected and assigned to their respective electrodes. "
+                            "Otherwise the real time calculation is stopped until it "
+                            "can detect all electrodes",
+                            self._widget_update_plots)
+        return panel, real
 
     def widgets_simulation(self):
         self._widget_step = pn.widgets.Spinner(name="Coarsen the mesh by", value=self.step, step=0.1)
@@ -483,7 +511,32 @@ class GeoelectricsModule(ModuleTemplate):
                           "<b>4) Calculate sensitivity",
                           self._widget_sensitivity
                           )
+
         return panel
+
+    def _callback_update_plots(self, event):
+        self.lock.acquire()
+        self._widget_markdown_progress.object = "Updating mesh plot..."
+        self._widget_progress.value = 0
+        self.update_panel_mesh()
+        self._widget_markdown_progress.object = "Updating field plot..."
+        self._widget_progress.value = 40
+        self.update_panel_field()
+        self._widget_markdown_progress.object = "Updating sensitivity plot..."
+        self._widget_progress.value = 80
+        self.update_panel_sensitivity()
+        self._widget_markdown_progress.object = "Done"
+        self._widget_progress.value = 100
+        self.lock.release()
+
+    def _callback_recalculate_sensitivity(self, event):
+        self.sensitivity_real_time = event.new
+
+    def _callback_recalculate(self, event):
+        self._recalculate_mesh = event.new
+
+    def _callback_real_time(self, event):
+        self.real_time = event.new
 
     def _callback_visualize(self, event):
         self.view = event.new
