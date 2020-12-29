@@ -250,7 +250,7 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=self._figsize)
-        plt.close(fig)
+        #plt.close(fig)
         pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=True, label="Resistivity ($\Omega m$)",
                 extent=self.extent[:4])
         pg.show(self.mesh, self.data, ax=ax2, colorBar=True, label="Resistivity ($\Omega m$)",
@@ -320,7 +320,7 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=self._figsize, sharey=True)
-        plt.close(fig)
+        #plt.close(fig)
         pg.show(self.mesh, self.data, ax=ax1, label="Resistivity ($\Omega m$)", extent=self.extent[:4])
         pg.show(self.mesh, self.pot, ax=ax2, nLevs=11, cMap="RdBu_r",
                 label="Potential ($u$)", extent=self.extent[:4])
@@ -359,7 +359,7 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, ax = plt.subplots(figsize=self._figsize)
-        plt.close(fig)
+        #plt.close(fig)
         pg.show(self.mesh, self.normsens, cMap="RdGy_r", orientation="vertical", ax=ax,
                 label="Normalized\nsensitivity", nLevs=3, cMin=-1, cMax=1, extent=self.extent[:4])
         for m in self.electrode:
