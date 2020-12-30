@@ -553,7 +553,6 @@ class GeoelectricsModule(ModuleTemplate):
         self._widget_progress.value = 0
         self.vmin = self._widget_vmin.value
         self.vmax = self._widget_vmax.value
-        # frame, _ = self.scale_data
         self.step = self._widget_step.value
         self.create_mesh(frame=self.frame, step=self.step)
         self._widget_progress.value = 50

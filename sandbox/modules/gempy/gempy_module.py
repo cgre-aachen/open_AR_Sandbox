@@ -21,8 +21,8 @@ except ImportError:
 
 
 class GemPyModule(ModuleTemplate):
-    def __init__(self, *args, geo_model=None, extent: list = None, box: list = None,
-                 load_examples: bool=True, name_example: list = all_models, ** kwargs) -> object:
+    def __init__(self, geo_model = None, extent: list = None, box: list = None,
+                 load_examples: bool = True, name_example: list = all_models, ** kwargs) -> object:
         # TODO: include save elevation map and export geologic map --self.geo_map
         """
 

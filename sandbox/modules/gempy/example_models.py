@@ -1,8 +1,12 @@
 import os
 import gempy as gp
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
-all_models = ['Horizontal_layers', 'Recumbent_fold', 'Anticline',
-                  'Pinchout', 'Fault', 'Unconformity']
+all_models = ['Horizontal_layers',
+              'Recumbent_fold',
+              'Anticline',
+              'Pinchout',
+              'Fault',
+              'Unconformity']
 data_path = 'https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/'
 path_to_data = data_path + "/data/input_data/jan_models/"
 

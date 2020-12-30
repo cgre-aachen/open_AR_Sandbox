@@ -20,7 +20,8 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False,
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None,
+                 check_change: bool = False, kwargs_contourlines: dict = {}, kwargs_cmap: dict = {},
                  **kwargs):
         """
 
@@ -39,8 +40,8 @@ class MainThread:
         self.sensor = sensor
         self.projector = projector
         self.projector.clear_axes()
-        self.contours = ContourLinesModule(extent=self.sensor.extent)
-        self.cmap_frame = CmapModule(extent=self.sensor.extent)
+        self.contours = ContourLinesModule(extent=self.sensor.extent, **kwargs_contourlines)
+        self.cmap_frame = CmapModule(extent=self.sensor.extent, **kwargs_cmap)
 
         #start the modules
         self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
