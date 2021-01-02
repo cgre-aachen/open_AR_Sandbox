@@ -169,7 +169,7 @@ class CmapModule:
 
     def show_widgets(self):
         self._create_widgets()
-        panel = pn.Column("<b> Colormap </b>",
+        panel = pn.Column("###<b>Colormap </b>",
                           self._widget_plot_colormap,
                           self._widget_plot_cmap,
                           self._widget_lightsource())

@@ -198,26 +198,20 @@ class SearchMethodsModule(ModuleTemplate):
 
         if self.plot_xy:
             ax.plot(self.x_list,
-                              self.y_list,
-                              color = self.point_color,
-                              marker = self.marker,
-                              markersize = self.marker_size,
-                              linestyle = self.linestyle)
-
-            #ax.get_xaxis().set_visible(False)
-            #ax.get_yaxis().set_visible(False)
-            #ax.set_xlim(0, self.calib.s_frame_width)
-            #self.plot.ax.set_ylim(0, self.calib.s_frame_height)
-            #self.plot.ax.set_axis_off()
+                    self.y_list,
+                    color=self.point_color,
+                    marker=self.marker,
+                    markersize=self.marker_size,
+                    linestyle=self.linestyle)
 
         if method == self.options[1]:
-            #self.activate_frame_capture = True
+            # self.activate_frame_capture = True
             self.x_list = []
             self.y_list = []
             self.x_list, self.y_list = self.mcmc_random(xy, self.mesh)
 
         elif method == self.options[2]:
-            #self.activate_frame_capture = False
+            # self.activate_frame_capture = False
             if self.x is None and self.y is None:
                 self.x_list = []
                 self.y_list = []
