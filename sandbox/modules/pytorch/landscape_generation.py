@@ -1,5 +1,6 @@
 import os
 import time
+from warnings import warn
 import matplotlib.pyplot as plt
 import numpy
 import traceback
@@ -36,8 +37,13 @@ class LandscapeGeneration(ModuleTemplate):
         # fig = self.save_image(DEM)
         # self.run_cmd(self.package_dir)
         self.name_trained_models = self._search_all_possible_models()
-        assert len(self.name_trained_models) > 0
-        self.name_model = self.name_trained_models[0]
+        if len(self.name_trained_models) == 0:
+            warn("No trained models found. Please upload a model in the predefined folder and load the module again")
+            self.name_model = "None"
+        else:
+            self.name_model = self.name_trained_models[0]
+        # assert len(self.name_trained_models) > 0
+        return print("LandscapeGeneration loaded succesfully")
 
     def update(self, sb_params: dict):
         sb_params = self.LoadArea.update(sb_params)
@@ -224,7 +230,9 @@ class LandscapeGeneration(ModuleTemplate):
                           self._widget_read_image,
                           self._widget_show_landscape
                           )
-        return panel
+        tabs = pn.Tabs(("Landscape", panel),
+                       ("LoadSaveTopo", self.LoadArea.show_widgets()))
+        return tabs
 
     def _create_widgets(self):
         self._widget_name_trained_models = pn.widgets.RadioBoxGroup(name='Available Trained models',

@@ -6,7 +6,7 @@ try:
     if _platform == 'Windows':
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
-    elif _platform =='Linux':
+    elif _platform == 'Linux':
         from freenect2 import Device, FrameType
 except ImportError:
     print('dependencies not found for KinectV2 to work. Check installation and try again')

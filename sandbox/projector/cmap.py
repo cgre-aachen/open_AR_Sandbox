@@ -59,9 +59,12 @@ class CmapModule:
         self.vmax = extent[-1]
 
         if active_shade and self.relief_shading:
-            # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
-            ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
-            data = ls.shade(data, cmap=self.cmap, vert_exag=self.ve, blend_mode='overlay')
+            if len(data.shape) > 2:  # 3 Then is an image already
+                active_shade = False
+            else:
+                # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
+                ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
+                data = ls.shade(data, cmap=self.cmap, vert_exag=self.ve, blend_mode='overlay')
 
         if active and self.active:
             if self._col is not None and self._col() not in ax.images:
@@ -166,7 +169,7 @@ class CmapModule:
 
     def show_widgets(self):
         self._create_widgets()
-        panel = pn.Column("<b> Colormap </b>",
+        panel = pn.Column("###<b>Colormap </b>",
                           self._widget_plot_colormap,
                           self._widget_plot_cmap,
                           self._widget_lightsource())

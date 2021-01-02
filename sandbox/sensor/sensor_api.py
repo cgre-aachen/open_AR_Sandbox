@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy
 import scipy
@@ -140,25 +141,33 @@ class Sensor:
          Returns:
 
          """
-        with open(file) as calibration_json:
-            data = json.load(calibration_json)
-            if data['version'] == self.version:
-                self.s_name = data['s_name']
-                self.s_top = data['s_top']
-                self.s_right = data['s_right']
-                self.s_bottom = data['s_bottom']
-                self.s_left = data['s_left']
-                self.s_min = data['s_min']
-                self.s_max = data['s_max']
-                self.s_width = data["s_frame_width"] + data['s_right'] + data['s_left']
-                self.s_height = data["s_frame_height"] + data['s_top'] + data['s_bottom']
-                self.box_width = data['box_width']
-                self.box_height = data['box_height']
 
+        def json_load(dict_data):
+            if dict_data['version'] == self.version:
+                self.s_name = dict_data['s_name']
+                self.s_top = dict_data['s_top']
+                self.s_right = dict_data['s_right']
+                self.s_bottom = dict_data['s_bottom']
+                self.s_left = dict_data['s_left']
+                self.s_min = dict_data['s_min']
+                self.s_max = dict_data['s_max']
+                self.s_width = dict_data["s_frame_width"] + dict_data['s_right'] + dict_data['s_left']
+                self.s_height = dict_data["s_frame_height"] + dict_data['s_top'] + dict_data['s_bottom']
+                self.box_width = dict_data['box_width']
+                self.box_height = dict_data['box_height']
                 print("JSON configuration loaded for sensor.")
             else:
                 print("JSON configuration incompatible."
                       "\nPlease select a valid calibration file or start a new calibration!")
+
+        if os.path.isfile(file):
+            with open(file) as calibration_json:
+                data = json.load(calibration_json)
+                json_load(data)
+        else:
+            data = json.loads(file)
+            json_load(data)
+        return True
 
     def save_json(self, file: str = 'sensor_calibration.json'):
         """

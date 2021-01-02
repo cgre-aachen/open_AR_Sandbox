@@ -1,3 +1,4 @@
+import os
 import panel as pn
 import matplotlib
 from matplotlib.figure import Figure
@@ -146,7 +147,7 @@ class Projector(object):
                             )
         return True
 
-    def _write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
+    def write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
         """
         Display a custom text to be displayed in the middle of the sandbox
         Args:
@@ -251,19 +252,25 @@ class Projector(object):
         Returns:
 
         """
-        with open(file) as calibration_json:
-            data = json.load(calibration_json)
-            if data['version'] == self.version:
-                self.p_width = data['p_width']
-                self.p_height = data['p_height']
-                self.p_frame_top = data['p_frame_top']
-                self.p_frame_left = data['p_frame_left']
-                self.p_frame_width = data['p_frame_width']
-                self.p_frame_height = data['p_frame_height']
+        def json_load(dict_data):
+            if dict_data['version'] == self.version:
+                self.p_width = dict_data['p_width']
+                self.p_height = dict_data['p_height']
+                self.p_frame_top = dict_data['p_frame_top']
+                self.p_frame_left = dict_data['p_frame_left']
+                self.p_frame_width = dict_data['p_frame_width']
+                self.p_frame_height = dict_data['p_frame_height']
                 print("JSON configuration loaded for projector.")
             else:
                 print("JSON configuration incompatible." +
                       "\nPlease select a valid calibration file or start a new calibration!")
+        if os.path.isfile(file):
+            with open(file) as calibration_json:
+                data = json.load(calibration_json)
+                json_load(data)
+        else:
+            data = json.loads(file)
+            json_load(data)
         return True
 
     def calibrate_projector(self):

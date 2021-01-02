@@ -25,7 +25,10 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
 
     def __init__(self, sensor=None, aruco_dict=None, **kwargs):
         if not aruco_dict:
-            self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
+            if CV2_IMPORT:
+                self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
+            else:
+                self.aruco_dict = None
         else:
             self.aruco_dict = aruco_dict
         #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
