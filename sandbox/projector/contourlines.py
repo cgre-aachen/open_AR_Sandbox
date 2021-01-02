@@ -44,6 +44,7 @@ class ContourLinesModule:
             """
             self.lock = None  # For locking the multithreading while using bokeh server
             self._active = False
+            self.active_contours = True
             self.major = None
             self.minor = None
             self.label = None
@@ -74,10 +75,12 @@ class ContourLinesModule:
 
     def update(self, sb_params: dict):
         active = sb_params.get('active_contours')
+        active = bool(active * self.active_contours)
         ax = sb_params.get('ax')
         frame = sb_params.get('frame')
-        if len(frame.shape)>2: #3 Then is an image
+        if len(frame.shape) > 2: # 3 Then is an image
             active = False
+
         if active:
             self._active = active
 
@@ -166,6 +169,7 @@ class ContourLinesModule:
     def show_widgets(self):
         self._create_widgets()
         panel = pn.Column("<b> Contour lines </b>",
+                          self._widget_active_contours,
                           self._widget_plot_contours,
                           self._widget_plot_step_contours,
                           self._widget_plot_minorcontours,
@@ -177,8 +181,11 @@ class ContourLinesModule:
         return panel
 
     def _create_widgets(self):
+        self._widget_active_contours = pn.widgets.Checkbox(name='<b>Active contours</b>', value=self.active_contours)
+        self._widget_active_contours.param.watch(self._callback_active_contours, 'value',
+                                               onlychanged=False)
 
-        self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours)
+        self._widget_plot_contours = pn.widgets.Checkbox(name='Show major contours', value=self.contours)
         self._widget_plot_contours.param.watch(self._callback_plot_contours, 'value',
                                                onlychanged=False)
 
@@ -201,6 +208,8 @@ class ContourLinesModule:
         self._widget_plot_contours_label_fontsize = pn.widgets.Spinner(name='set a contour label fontsize',
                                                                        value=self.contours_label_fontsize)
         self._widget_plot_contours_label_fontsize.param.watch(self._callback_plot_contours_label_fontsize, 'value', onlychanged=False)
+
+    def _callback_active_contours(self, event): self.active_contours = event.new
 
     def _callback_plot_contours(self, event): self.contours = event.new
 
