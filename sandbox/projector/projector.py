@@ -146,7 +146,7 @@ class Projector(object):
                             )
         return True
 
-    def _write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
+    def write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
         """
         Display a custom text to be displayed in the middle of the sandbox
         Args:

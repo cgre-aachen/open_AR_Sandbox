@@ -104,6 +104,7 @@ class Sandbox:
         self.load_modules(kwargs_gempy_module=kwargs_gempy_module, **kwargs_external_modules)
         self.Main_Thread = self.start_main_thread(kwargs_contourlines=kwargs_contourlines,
                                                   kwargs_cmap=kwargs_cmap)
+        self.lock = self.Main_Thread.lock
 
         return print('Sandbox server ready')
 
@@ -220,6 +221,7 @@ class Sandbox:
     def start(self):
         #self.Main_Thread.run()
         self.show_widgets().show()
+        self.Main_Thread._update_widget_module_selector()
 
     def _create_widgets(self):
         # Local Modules
@@ -284,14 +286,14 @@ class Sandbox:
     def show_widgets(self):
         self._create_widgets()
         widgets = pn.Column("# Module selector",
-                            '<b>Select the module you want to show the widgets and start </b>',
                             self._widget_main_thread,
+                            '<b>Select the module you want to show the widgets and start </b>',
                             self._widget_topo,
                             self._widget_gradient,
                             self._widget_load_save_topo,
                             self._widget_landslide,
                             self._widget_search,
-                            'External modules',
+                            '<b>External modules</b>',
                             self._widget_gempy if self.Modules.get('GemPyModule') is not None else None,
                             self._widget_pygimli if self.Modules.get('GeoelectricsModule') is not None else None,
                             self._widget_devito if self.Modules.get('SeismicModule') is not None else None,
@@ -311,7 +313,8 @@ class Sandbox:
                            self._widget_aruco,
                            "<b>Manager of all modules</b>",
                            self.Main_Thread._widget_module_selector,
-                           self.Main_Thread._widget_clear_axes)
+                           self.Main_Thread._widget_clear_axes,
+                           self.Main_Thread._widget_error_markdown)
 
         panel = pn.Row(widgets, thread)
 

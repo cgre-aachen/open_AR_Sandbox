@@ -21,11 +21,10 @@ setup(
         'jupyter',
         'cython',
         'seaborn',
-
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',
-    author='Simon Virgo, Daniel Escallon, Miguel de la Varga',
+    author='Daniel Escallon, Simon Virgo, Miguel de la Varga',
     author_email='simon@terranigma-solutions.com',
     description='An Open-source, Python-based Augmented reality (AR) sandbox to display many modules.',
     keywords=['AR', 'Augmented reality', 'sandbox', 'geology']

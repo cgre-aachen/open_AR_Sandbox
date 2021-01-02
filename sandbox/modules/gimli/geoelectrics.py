@@ -472,7 +472,8 @@ class GeoelectricsModule(ModuleTemplate):
 
         self._widget_create_mesh = pn.widgets.Button(name="Create mesh", button_type="success")
         self._widget_create_mesh.param.watch(self._callback_create_mesh, 'clicks', onlychanged=False)
-        s = """<p>Original None </p><p>.</p><p>.</p><p>Coarser None</p><p>.</p><p>.</p><p>Size reduction by None</p><p>.</p>"""
+        s = "<p>Original None </p><p>.</p>" + \
+            "<p>.</p> <p>Coarser None</p><p>.</p><p>.</p><p>Size reduction by None</p><p>.</p>"
         self._widget_markdown_mesh = pn.pane.Markdown(s)
 
         self._widget_a = pn.widgets.Spinner(name="Positive current electrode A", value=self._a_id, step=1)

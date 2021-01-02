@@ -193,7 +193,7 @@ class SearchMethodsModule(ModuleTemplate):
         """
         if self.plot_contour_xy:
             ax.collections = [] #TODO: Improve this
-            ax = sns.kdeplot(self.x_list, self.y_list, ax=ax)
+            ax = sns.kdeplot(self.x_list, self.y_list, ax=ax, color="red" )
             self.trigger()
 
         if self.plot_xy:

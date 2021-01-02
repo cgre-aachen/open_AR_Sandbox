@@ -69,10 +69,12 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
-        #Stores the axes
+        # Stores the axes
         self._lod = None
-        #self._dif = None
+        # self._dif = None
         self.frame = None
+        # create the widgets if used from another module
+        _ = self.widgets_box()
         return print("LoadSaveTopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
@@ -512,18 +514,15 @@ class LoadSaveTopoModule(ModuleTemplate):
                                           onlychanged=False)
 
         widgets = pn.Column('<b>Modify box size </b>',
-                               self._widget_move_box_horizontal,
-                               self._widget_move_box_vertical,
-                               self._widget_box_width,
-                               self._widget_box_height,
-                               '<b>Take snapshot</b>',
-                               self._widget_snapshot,
-                               '<b>Show in sandbox</b>',
+                            self._widget_move_box_horizontal,
+                            self._widget_move_box_vertical,
+                            self._widget_box_width,
+                            self._widget_box_height,
+                            '<b>Take snapshot</b>',
+                            self._widget_snapshot,
+                            '<b>Show in sandbox</b>',
                             self._widget_show_type
-                               #self._widget_show_snapshot,
-                               #'<b>Show difference plot</b>',
-                               #self._widget_show_difference
-                               )
+                            )
 
         rows = pn.Row(widgets, self.snapshot_frame)
         panel = pn.Column("### Interaction widgets", rows)

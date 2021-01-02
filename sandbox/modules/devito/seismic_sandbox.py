@@ -57,7 +57,7 @@ class SeismicModule(ModuleTemplate):
         self.framerate = 10
         self._vp = None
         self._w = None
-        self.real_time = True
+        self.real_time = False
         self.model_extent = None
         self.frame = None
         self.extent = None
@@ -537,7 +537,9 @@ class SeismicModule(ModuleTemplate):
     def show_widgets(self):
         panel = pn.Row(self.show_simulation_widgets(),
                        self.show_plotting_widgets())
-        return panel
+        tabs = pn.Tabs(("Seismic", panel),
+                       ("LoadSaveModule", self.Load_Area.show_widgets()))
+        return tabs
 
     def show_plotting_widgets(self):
         self._widget_real_time = pn.widgets.Checkbox(name='Real time', value=self.real_time)
