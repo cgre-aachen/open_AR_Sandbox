@@ -392,7 +392,7 @@ and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aach
 
 ### Maintainers (also external to CGRE)
 
-* Daniel Escallón Botero
+* Daniel Escallón 
 * Simon Virgo
 * Miguel de la Varga
 
