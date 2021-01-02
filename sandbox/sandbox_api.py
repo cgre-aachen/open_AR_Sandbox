@@ -1,10 +1,9 @@
 # TODO: Load all the modules from here!!! Important for testing (?)
 import panel as pn
 import traceback
-import json
+from sandbox import _calibration_dir
 import platform
 _platform = platform.system()
-from sandbox import _calibration_dir
 
 # logging and exception handling
 verbose = False
@@ -15,6 +14,11 @@ if verbose:
                         level=logging.WARNING,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         )
+# Store the name of the sensor as a global variable, and the projector resolution
+# so it can be used and changed in the same session for all the functions
+name_sensor = "kinect_v2"
+p_width = 1280
+p_height = 800
 
 
 def calibrate_projector():
@@ -24,26 +28,42 @@ def calibrate_projector():
     widget.show()
     return proj
 
-def calibrate_sensor(calibprojector: str =_calibration_dir + "my_projector_calibration.json",
-                     name: str = "kinect_v2"):
+
+def calibrate_sensor(calibprojector: str = _calibration_dir + "my_projector_calibration.json",
+                     name: str = None):
+    global name_sensor
+    if name is None:
+        name = name_sensor
+    else:
+        name_sensor = name
     from sandbox.sensor import CalibSensor
     module = CalibSensor(calibprojector=calibprojector, name=name)
     widget = module.calibrate_sensor()
     widget.show()
     return module.sensor
 
-def start_server(calibprojector: str = None, # _calibration_dir + "my_projector_calibration.json",
+
+def start_server(calibprojector: str = None,  # _calibration_dir + "my_projector_calibration.json",
                  calibsensor: str = None,  # _calibration_dir + "my_sensor_calibration.json",
-                 sensor_name='kinect_v2',
-                 aruco_marker=True,
+                 sensor_name: str = None,
+                 aruco_marker: bool = True,
                  kwargs_external_modules: dict = {},
                  kwargs_gempy_module: dict = {},
                  kwargs_projector: dict = {},
                  kwargs_sensor: dict = {},
                  kwargs_aruco: dict = {},
                  ):
+    global name_sensor, p_width, p_height
+    if sensor_name is None:
+        sensor_name = name_sensor
+    else:
+        name_sensor = sensor_name
 
     from sandbox.projector import Projector
+    if kwargs_projector.get("p_width") is not None:
+        p_width = kwargs_projector.get("p_width")
+    if kwargs_projector.get("p_height") is not None:
+        p_height = kwargs_projector.get("p_height")
     projector = Projector(calibprojector=calibprojector, use_panel=True, **kwargs_projector)
 
     from sandbox.sensor import Sensor
@@ -123,28 +143,30 @@ class Sandbox:
                 pass
 
         if _platform == "Linux":
-            try:  # Importing Devito for SeismicModule - Only working for Linux system
-                import devito
-                self._devito_import = True
-                del devito
+            if devito_module:
+                try:  # Importing Devito for SeismicModule - Only working for Linux system
+                    import devito
+                    self._devito_import = True
+                    del devito
+                except Exception as e:
+                    pass
+            else:
+                _devito_import = False
+
+        if gimli_module:
+            try:  # Importing pygimli for GeoelectricsModule
+                import pygimli
+                self._pygimli_import = True
+                del pygimli
             except Exception as e:
                 pass
-        else:
-            _devito_import = False
-
-        try:  # Importing pygimli for GeoelectricsModule
-            import pygimli
-            self._pygimli_import = True
-            del pygimli
-        except Exception as e:
-            pass
-
-        try:  # Importing pytorch for LandscapeGeneration
-            import torch
-            self._torch_import = True
-            del torch
-        except Exception as e:
-            pass
+        if torch_module:
+            try:  # Importing pytorch for LandscapeGeneration
+                import torch
+                self._torch_import = True
+                del torch
+            except Exception as e:
+                pass
 
     def load_modules(self,
                      gempy_module: bool = False,
@@ -256,8 +278,11 @@ class Sandbox:
         self._widget_torch = pn.widgets.Button(name="LandscapeGeneration", button_type="success")
         self._widget_torch.param.watch(self._callback_torch, 'clicks', onlychanged=False)
 
-        self._widget_calibration = pn.widgets.FileInput(name="Load calibration", accept=".json")
-        self._widget_calibration.param.watch(self._callback_calibration, 'value')
+        self._widget_calibration_projector = pn.widgets.FileInput(name="Load projector calibration", accept=".json")
+        self._widget_calibration_projector.param.watch(self._callback_calibration_projector, 'value')
+
+        self._widget_calibration_sensor = pn.widgets.FileInput(name="Load sensor calibration", accept=".json")
+        self._widget_calibration_sensor.param.watch(self._callback_calibration_sensor, 'value')
 
         self._widget_create_calibration_projector = pn.widgets.Button(name="Calibrate projector", button_type="success")
         self._widget_create_calibration_projector.param.watch(self._callback_create_calibration_projector, 'clicks',
@@ -299,7 +324,10 @@ class Sandbox:
                             self._widget_devito if self.Modules.get('SeismicModule') is not None else None,
                             self._widget_torch if self.Modules.get('LandscapeGeneration') is not None else None,
                             '<b>Change the calibration file</b>',
-                            self._widget_calibration,
+                            pn.WidgetBox('Projector',
+                                         self._widget_calibration_projector,
+                                         'Sensor',
+                                         self._widget_calibration_sensor),
                             '<b>Create new projector calibration file</b>',
                             self._widget_create_calibration_projector,
                             '<b>Create new sensor calibration file</b>',
@@ -356,24 +384,34 @@ class Sandbox:
     def _callback_torch(self, event):
         self.add_to_main_thread('LandscapeGeneration')
 
-    def _callback_calibration(self, event):
+    def _callback_calibration_projector(self, event):
+        global p_width, p_height
         data_bytes = event.new
         data_decode = data_bytes.decode()
-        data_dict = json.loads(data_decode)
-        self.calib.__dict__ = data_dict
-        self.sensor.__init__(self.calib)
-        self.projector.__init__(self.calib)
+        self._projector_calib = data_decode
+        self.projector.__init__(data_decode, p_width=p_width, p_height=p_height)
+        self.Main_Thread.projector = self.projector
+
+    def _callback_calibration_sensor(self, event):
+        global name_sensor
+        data_bytes = event.new
+        data_decode = data_bytes.decode()
+        self._sensor_calib = data_decode
+        self.sensor.__init__(data_decode, name=name_sensor)
+        self.Main_Thread.sensor = self.sensor
 
     def _callback_create_calibration_projector(self, event):
         self.projector = calibrate_projector()
         self.Main_Thread.projector = self.projector
 
     def _callback_create_calibration_sensor(self, event):
+        self.Main_Thread.stop()
         self.sensor = calibrate_sensor()
         self.Main_Thread.sensor = self.sensor
 
     def _callback_new_server(self, event):
-        self.projector.__init__(self._projector_calib)
+        global p_width, p_height
+        self.projector.__init__(self._projector_calib, p_width=p_width, p_height=p_height)
         self.Main_Thread.projector = self.projector
 
     def _callback_thread_selector(self, event):

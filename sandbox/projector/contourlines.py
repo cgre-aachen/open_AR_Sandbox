@@ -147,10 +147,9 @@ class ContourLinesModule:
                                 )
 
     def add_minor_contours(self, data, ax, extent=None):
-        if not self.automatic_contours:
+        if len(self.contours_levels_minor) < self._threshold and not self.automatic_contours:
             self.minor = ax.contour(data,
-                                    levels=self.contours_levels_minor
-                                    if len(self.contours_levels_minor) < self._threshold else None,
+                                    levels=self.contours_levels_minor,
                                     linewidths=self.contours_width_minor,
                                     colors=self.contours_color,
                                     extent=extent,
