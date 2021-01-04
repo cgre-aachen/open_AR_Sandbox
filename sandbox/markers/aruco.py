@@ -31,7 +31,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
                 self.aruco_dict = None
         else:
             self.aruco_dict = aruco_dict
-        #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
+        # self.area = area  # TODO: set a square Area of interest here (Hot-Area). Need it?
         if sensor is not None:
             if sensor == "dummy" or isinstance(sensor.Sensor, DummySensor):
                 self.kinect = "dummy"

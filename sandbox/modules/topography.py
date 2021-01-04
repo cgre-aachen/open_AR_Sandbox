@@ -118,7 +118,7 @@ class TopoModule(ModuleTemplate):
         if extent[-2] != 0:
             displ = 0 - extent[-2]
             frame = frame - displ
-        # calculate how much we need to move the fram eso the 0 value correspond to the approximate 0 in the frame
+        # calculate how much we need to move the frame so the 0 value correspond to the approximate 0 in the frame
         # min_height assuming is under 0.
 
         if min_height < 0:
