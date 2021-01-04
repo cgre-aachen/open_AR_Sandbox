@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib
 from gempy.plot.visualization_2d import Plot2D
@@ -201,12 +202,20 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
 
     if hillshade is True:
         from matplotlib.colors import LightSource
-
-        ls = LightSource(azdeg=azdeg, altdeg=altdeg)
+        # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
+        ls = LightSource(azdeg=azdeg - 180, altdeg=altdeg)
+        # TODO: Is is better to use ls.hillshade or ls.shade??
         hillshade_topography = ls.hillshade(values)
+                                        # vert_exag=0.3,
+                                        # blend_mode='overlay')
         global hill
-        hill = ax.imshow(hillshade_topography, origin='lower', extent=extent_val, alpha=0.5, zorder=11,
-                         cmap='copper', aspect='auto')
+        hill = ax.imshow(hillshade_topography,
+                         cmap=plt.cm.gray,
+                         origin='lower',
+                         extent=extent_val,
+                         alpha=0.4,
+                         zorder=11,
+                         aspect='auto')
 
 
 def delete_ax(ax):
