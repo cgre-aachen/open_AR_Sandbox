@@ -80,6 +80,7 @@ def plot_gempy(ax,
     extent_val = extent[:4]  # [*ax.get_xlim(), *ax.get_ylim()]
     delete_ax(ax)
     if show_lith:
+        # Todo: use instead native cmap module of sandbox
         plot_lith(ax, geo_model, extent_val, cmap, norm)
     if show_boundary:
         plot_contacts(ax, geo_model, extent_val, cmap, only_faults=show_only_faults)
