@@ -17,7 +17,7 @@ except ImportError:
     warn('opencv is not installed. Object detection will not work')
 
 
-class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
+class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
     """
     class to detect Aruco markers in the kinect data (IR and RGB)
     An Area of interest can be specified, markers outside this area will be ignored
@@ -25,10 +25,13 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
 
     def __init__(self, sensor=None, aruco_dict=None, **kwargs):
         if not aruco_dict:
-            self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
+            if CV2_IMPORT:
+                self.aruco_dict = aruco.DICT_4X4_50  # set the default dictionary here
+            else:
+                self.aruco_dict = None
         else:
             self.aruco_dict = aruco_dict
-        #self.area = area  #TODO: set a square Area of interest here (Hot-Area). Need it?
+        # self.area = area  # TODO: set a square Area of interest here (Hot-Area). Need it?
         if sensor is not None:
             if sensor == "dummy" or isinstance(sensor.Sensor, DummySensor):
                 self.kinect = "dummy"
@@ -158,7 +161,7 @@ class ArucoMarkers(object): # TODO: Include widgets to calibrate arucos
         if self.kinect == "dummy":
             dict_position = kwargs.get("dict_position")
             depth_frame = kwargs.get("depth_frame")
-            plt.pause(0.1) # TODO: To avoid problems with the common issue od NoneType dpi
+            plt.pause(0.15) # TODO: To avoid problems with the common issue #3 of NoneType dpi
             self.markers_in_frame = dummy_markers_in_frame(dict_position, depth_frame)
             return self.markers_in_frame
 

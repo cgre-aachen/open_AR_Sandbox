@@ -10,7 +10,7 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 
 
-class CalibSensor: #TODO: include automatic
+class CalibSensor:  # TODO: include automatic
     """Module to calibrate the sensor"""
     def __init__(self,  calibprojector: str = None, name: str = 'kinectv2', **kwargs):
         # color map setup

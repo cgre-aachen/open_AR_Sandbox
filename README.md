@@ -1,6 +1,11 @@
 # open_AR_Sandbox
 Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
 
+:warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
+own work is serious **scientific fraud**! And if you develop content further, then please push these developments
+back to this repostory - in the very interest of scientific development (and also a requirement of the license).
+For more details, please consult the information below and the license.
+
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
 
 [![What is AR-Sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
@@ -29,8 +34,8 @@ Table of Contents
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
 * [Getting Started](README.md#getting-started)
-* [Maintainers](README.md#maintainers)
-* [Visit us](README.md#visit-us)
+* [Project Development](README.md#project-development)
+* [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
 
 Introduction
@@ -53,7 +58,7 @@ Features
 * We recently added computer vision algorithms to the sandbox that open up a whole new field of possibilities! By placing printed markers into the sandbox, thew user can trigger actions or define points, lines and areas in the sandbox without using the computer
 
 Some of the modules already implemented include:
-* [MarkerDetection](notebooks/tutorials/01_MainThread_MarkerDetection): Place virtual boreholes in the model, Define a cross section with multiple markers, Set the start position for simulations (landslides, earthquakes, etc.) check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
+* [MarkerDetection](notebooks/tutorials/00_Calibration): Place virtual boreholes in the model, Define a cross section with multiple markers, Set the start position for simulations (landslides, earthquakes, etc.) check the arucos marker detection for more information (https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html)
 * [TopoModule](notebooks/tutorials/02_TopoModule/): Normalize the depth image to display a topography map with fully customizable contour lines and variable heights.
 * [SearchMethodsModule](notebooks/tutorials/03_SearchMethodsModule): Takes the depth image and performs Monte-Carlo simulation algorithms to construct the probability distribution based on the structure of the current DEM in an interactive way. (https://chi-feng.github.io/mcmc-demo/app.html)
 * [GemPyModule](notebooks/tutorials/04_GempyModule): Use the full advantage of the powerful [GemPy](https://github.com/cgre-aachen/gempy) package to construct geological models and visualize them on the sandbox in real-time
@@ -77,21 +82,63 @@ The open_AR_Sandbox as well as GemPy are under continuous development and includ
 * Improve compatibility with Linux and MacOS
 * ...
 
+License, use and attribution
+----------------------------
+
+Feel free to download and use the Open_AR_Sandbox software! We do not provide any
+warranty and any guarantee for the use. We also do not provide professional
+support, but we aim to answer questions posted as Issues on the github page as
+quickly as possible.
+
+Open_AR_Sandbox is published under an **GNU Lesser General Public License v3.0**, which
+means that you are
+free to use it, if you do not do any modifications, in a wide variety of ways
+(even commercially). However, if you plan to _modify and redistribute_ the
+code, you also _have to make it available under the same license_!
+
+Also, if you do any modifications, especially for scientific and educational use,
+then please _provide them back to the main project_ in the form of a pull request,
+as common practice in the open-source community. If you have questions on
+the procedure, feel free to contact us about it.
+
+These are the main conditions for using this library:
+- License and copyright notice
+- Disclose source
+- State changes
+- Same license (library)
+
+For more details on the licsense, please see provided license file.
+
+If you use Open-AR-Sandbox in a scientific abstract or publication, please
+include appropriate recognition of the original work. For the time being,
+please cite:
+
+Virgo, S., De La Varga Hormazabal, M., & Wellmann, F. (2019).
+Open-AR-Sandbox: An open-source Augmented Reality platform for geoscience.
+In Geophysical Research Abstracts (Vol. 21).
+
 
 Requirements
 --------
 You will need: 
-* Microsoft Kinect (we tested the first and second generation kinect with a usb adapter, but every kinect compatible with the pykinect drivers will likely work).
+* Microsoft Kinect (we tested the first and second generation kinect with a usb adapter, but every kinect compatible 
+with the pykinect drivers will likely work).
 * Projector
 * A box of Sand
 
-Mount the kinect and projector facing down vertically in the center above of the box. The optimal distance will depend on the size of your sandbox and the optics of the projector, from our experience a distance of 150 cm is well suited for a 80 cm x 100 cm box. 
-More details on how to set up the kinect and projector can be found in the `calib_sensor.ipynb` and `calib_projector.ipynb` notebooks.
+Mount the kinect and projector facing down vertically in the center above of the box. The optimal distance will depend 
+on the size of your sandbox and the optics of the projector, from our experience a distance of 150 cm is well suited 
+for a 80 cm x 100 cm box. 
+More details on how to set up the kinect and projector can be found in the `1_calib_projector.ipynb` 
+and `2_calib_sensor.ipynb` notebooks, and if you want to use the ArUco markers `3_calib_arucos.ipynb`.
 
 
 Installation 
 -----
-First of all you will need a healthy Python 3 environment. We recommend using [Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed installation instructions.\
+First of all you will need a healthy Python 3 environment. We recommend using 
+[Anaconda](https://www.anaconda.com/distribution/). In addition to some standard Python packages, you will need a 
+specific setup dependent on the Kinect version you are using. In the following we provide detailed installation 
+instructions.\
 Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
 1. First clone the repository:
@@ -102,21 +149,16 @@ git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
 ```
 conda create -n sandbox-env python=3.7
 ```
-3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the environment before starting anything
+3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
+environment before starting anything
 ```
 conda activate sandbox-env
 ```
 ### Standard packages
 
-The standard packages 
+To install all the standard packages please use the  `requirements.txt` file:
 
-```conda install numpy pandas jupyter notebook scipy panel scikit-image matplotlib```
-
-```pip install numpy pandas jupyter notebook scipy panel scikit-image matplotlib```
-
-or simply use our `requirements.txt file`
-
-```pip install -r requirements.txt file```
+```pip install -r requirements.txt```
 
 You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
@@ -132,10 +174,13 @@ There is still no support for kinect V1...
 
 #### Kinect V2 - PyKinect2
 
-(Tested on Windows 10). First, **install the current** [Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) **including drivers**. You can use the software bundle to test the connection to your
+(Tested on Windows 10). First, **install the current** 
+[Kinect SDK](https://www.microsoft.com/en-us/download/confirmation.aspx?id=44561) **including drivers**. 
+You can use the software bundle to test the connection to your
  kinect, before you continue.
 
-To make Python and the Kinect SDK communicate, install the related [PyKinect2](https://github.com/Kinect/PyKinect2) wrappers which can be easily installed via:
+To make Python and the Kinect SDK communicate, install the related [PyKinect2](https://github.com/Kinect/PyKinect2) 
+wrappers which can be easily installed via:
 
 ```pip install pykinect2```
 
@@ -164,11 +209,13 @@ To make open_AR_Sandbox talk to the first generation kinect you will need the
 [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). 
 The installation is kind of straight forward for Linux and MacOS but 
 challenging for Microsoft (in fact: if you pull it off, let us know how you did it!)
-The steps can be summarized as follows (refer to any problems regarding installation in to [link](https://github.com/OpenKinect/libfreenect))
+The steps can be summarized as follows (refer to any problems regarding installation in to
+[link](https://github.com/OpenKinect/libfreenect))
 To build libfreenect, you'll need
 
 - [libusb](http://libusb.info) >= 1.0.18 (Windows needs >= 1.0.22)
-- [CMake](http://cmake.org) >= 3.12.4 (you can visit [this](https://www.claudiokuenzler.com/blog/796/install-upgrade-cmake-3.12.1-ubuntu-14.04-trusty-alternatives)
+- [CMake](http://cmake.org) >= 3.12.4 (you can visit 
+[this](https://www.claudiokuenzler.com/blog/796/install-upgrade-cmake-3.12.1-ubuntu-14.04-trusty-alternatives)
 page for detailed instructions for the installation)
 
 Once these are installed we can follow the next commands
@@ -192,10 +239,13 @@ python demo_cv2_async.py
 
 #### Kinect v2 - freenect2
 or pylibfreenect2 \
-For this we are going to use a python interface for the library [libfreenect2](https://github.com/OpenKinect/libfreenect2)
+For this we are going to use a python interface for the library 
+[libfreenect2](https://github.com/OpenKinect/libfreenect2)
 called [freenect2](https://github.com/rjw57/freenect2-python). 
-* First we need to install the [freenect2](https://github.com/rjw57/freenect2-python) as described in the installation guide. 
-The steps can be summarized as follows (refer to any problems regarding installation in to [link](https://rjw57.github.io/freenect2-python/))
+* First we need to install the [freenect2](https://github.com/rjw57/freenect2-python) as described in the installation 
+guide. 
+The steps can be summarized as follows (refer to any problems regarding installation in to 
+[link](https://rjw57.github.io/freenect2-python/))
 ```
 git clone https://github.com/OpenKinect/libfreenect2.git
 cd libfreenect2
@@ -223,7 +273,8 @@ Now unplug and replug the Kinect sensor.
 * You should be able to see the kinect image working. If not, check  [libfreenect2](https://github.com/OpenKinect/libfreenect2) 
 installation guide for more detailed instructions of installation
 
-* If everything is working until now, we can install the python wrapper. For this first we need to indicate where the `freenect2` folder can be found.
+* If everything is working until now, we can install the python wrapper. For this first we need to indicate where the 
+`freenect2` folder can be found.
 ```
 export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 ```
@@ -233,15 +284,19 @@ installation guide.
 ```
 pip install freenect2
 ```
-IMPORTANT: To this point will work in any python that starts with the terminal. Nevertheless, if we start python from another source, the error 
-`ImportError: libfreenect2.so.0.2: cannot open shared object file: No such file or directory` will appear every time we import the package. To fix this problem we will need
-to export the variables again or if you want a more permanent solution, open the `.bashrc` file and paste the following at the end of the file:
+IMPORTANT: To this point will work in any python that starts with the terminal. Nevertheless, if we start python from 
+another source, the error 
+`ImportError: libfreenect2.so.0.2: cannot open shared object file: No such file or directory` will appear every time we 
+import the package. To fix this problem we will need
+to export the variables again or if you want a more permanent solution, open the `.bashrc` file and paste the following
+ at the end of the file:
 ```
 # set PATH to freenect2 to be imported in python
 export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 ```
 * With this it will always work for any python open from the terminal. Including jupyter notebooks
-* But now if we want to run this package in Pycharm or symilar, we can directly copy the 3 files (`libfreenect2.2.s0...`) from the `freenect2/lib` folder into the 
+* But now if we want to run this package in Pycharm or symilar, we can directly copy the 3 files 
+(`libfreenect2.2.s0...`) from the `freenect2/lib` folder into the 
 `lib` folder of your environment. Ej:
  * if you are using an anaconda environment, open the folder:
 ```
@@ -258,7 +313,8 @@ sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/
 Git LFS
 -------
 
-To clone and use this repository, and specially have the landslides simulations and run the tests, you'll need Git Large File Storage (LFS).
+To clone and use this repository, and specially have the landslides simulations and run the tests, you'll need Git Large
+ File Storage (LFS).
 
 Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
 explains how to set up Git LFS for LSST development.
@@ -305,19 +361,25 @@ pip install --user git+https://github.com/devitocodes/devito.git
 ```
 
 ### PyGimli
-This library is a powerful tool for Geophysical inversion and Modelling. Some examples can be found in `notebooks/tutorials/11_Geophysics/`. 
-[PyGimli](https://www.pygimli.org/) can be installed following the installation intructions [here](https://www.pygimli.org/installation.html)
+This library is a powerful tool for Geophysical inversion and Modelling. Some examples can be found in 
+`notebooks/tutorials/11_Geophysics/`. 
+[PyGimli](https://www.pygimli.org/) can be installed following the installation intructions 
+[here](https://www.pygimli.org/installation.html)
 
-We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox dependencies.
+We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox 
+dependencies.
 ```
 conda create -n sandbox-env -c gimli -c conda-forge pygimli=1.1.0
 ```
-* And now go back to [installation](README.md#installation) and follow all over again the instruction but skipping step 2. 
+* And now go back to [installation](README.md#installation) and follow all over again the instruction but skipping 
+step 2. 
 
 ### PyTorch
 
-To use the LandscapeGeneration module we need to install [PyTorch](https://pytorch.org/). This module use the power of [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
-to take a topography from the sandbox, translate this as a DEM and then display it again on the sandbox as a Landscape image. 
+To use the LandscapeGeneration module we need to install [PyTorch](https://pytorch.org/). This module use the power 
+of [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
+to take a topography from the sandbox, translate this as a DEM and then display it again on the sandbox as a Landscape 
+image. 
 To install the dependencies for this module do:
 ```
 #For Windows
@@ -332,18 +394,38 @@ git clone https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
 cd pytorch-CycleGAN-and-pix2pix
 pip install -r requirements.txt
 ```
-Once this is installed, copy the trained model in `/notebooks/tutorials/09_LandscapeGeneration/checkpoints` folder, and then follow the notebook.
+Once this is installed, copy the trained model in `/notebooks/tutorials/09_LandscapeGeneration/checkpoints` folder, 
+and then follow the notebook.
 Get in contact with us to provide you with the train model for this module. 
 
 
-Maintainers
-------
-* Daniel Escallón Botero
+Project Development
+-------------------
+
+Open-AR-Sandbox is developed at the research unit [Computational Geoscience
+and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aachen University, Germany.
+
+[![CGRE](https://www.cgre.rwth-aachen.de/global/show_picture.asp?id=aaaaaaaaabaxmhn)](https://www.cgre.rwth-aachen.de/)
+
+
+
+### Project Lead
+
+[Prof. Florian Wellmann, PhD](https://www.cgre.rwth-aachen.de/cms/CGRE/Das-Lehr-und-Forschungsgebiet/~dnyyj/Prof-Wellmann/lidx/1/)
+
+### Maintainers (also external to CGRE)
+
+* Daniel Escallón 
 * Simon Virgo
 * Miguel de la Varga
 
-Visit us
-------
-https://www.gempy.org/ar-sandbox
+Obtaining a full system
+-----------------------
+
+If you are interested in buying a fully operating set-up including appropriate
+hardware, pre-installed software, and set-up and maintenance, please contact
+[Terranigma Solutions GmbH](https://www.terranigma-solutions.com/services).
+
+
 
  

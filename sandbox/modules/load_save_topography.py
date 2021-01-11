@@ -69,10 +69,12 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.snapshot_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
 
-        #Stores the axes
+        # Stores the axes
         self._lod = None
-        #self._dif = None
+        # self._dif = None
         self.frame = None
+        # create the widgets if used from another module
+        _ = self.widgets_box()
         return print("LoadSaveTopoModule loaded succesfully")
 
     def update(self, sb_params: dict):
@@ -258,7 +260,7 @@ class LoadSaveTopoModule(ModuleTemplate):
             self.loaded = self.absolute_topo[:shape_frame[0], :shape_frame[1]]
             #if self._lod is None:
 
-            self._lod = ax.imshow(self.loaded, cmap='gist_earth', origin="lower left", #TODO: data is inverted, need to fix this for all the landsladides topography data
+            self._lod = ax.imshow(self.loaded, cmap='gist_earth', origin="lower", #TODO: data is inverted, need to fix this for all the landsladides topography data
                                       zorder=2, extent=self.to_box_extent, aspect="auto")
             #else:
              #   self._lod.set_array(self.loaded[:-1,:-1].ravel())
@@ -439,9 +441,9 @@ class LoadSaveTopoModule(ModuleTemplate):
             print("Unknown file id")
 
     def show_widgets(self):
-        tabs = pn.Tabs(('Load Topography', self.widgets_load()),
-                       ('Box widgets', self.widgets_box()),
+        tabs = pn.Tabs(('Box widgets', self.widgets_box()),
                        ('Release area widgets', self.widgets_release_area()),
+                       ('Load Topography', self.widgets_load()),
                        ('Save Topography', self.widgets_save())
                        )
         return tabs
@@ -512,18 +514,15 @@ class LoadSaveTopoModule(ModuleTemplate):
                                           onlychanged=False)
 
         widgets = pn.Column('<b>Modify box size </b>',
-                               self._widget_move_box_horizontal,
-                               self._widget_move_box_vertical,
-                               self._widget_box_width,
-                               self._widget_box_height,
-                               '<b>Take snapshot</b>',
-                               self._widget_snapshot,
-                               '<b>Show in sandbox</b>',
+                            self._widget_move_box_horizontal,
+                            self._widget_move_box_vertical,
+                            self._widget_box_width,
+                            self._widget_box_height,
+                            '<b>Take snapshot</b>',
+                            self._widget_snapshot,
+                            '<b>Show in sandbox</b>',
                             self._widget_show_type
-                               #self._widget_show_snapshot,
-                               #'<b>Show difference plot</b>',
-                               #self._widget_show_difference
-                               )
+                            )
 
         rows = pn.Row(widgets, self.snapshot_frame)
         panel = pn.Column("### Interaction widgets", rows)

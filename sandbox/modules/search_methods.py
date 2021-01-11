@@ -14,7 +14,8 @@ class SearchMethodsModule(ModuleTemplate):
     Module for visualization of different search techniques based on gradients and
     #TODO: have deterministic and probabilistic search methods and later combine them
     """
-    def __init__(self, *args, extent, **kwargs):
+
+    def __init__(self, extent: list = None):
 
         self.speed_alpha = 2
         self.tolerance = 1e-10
@@ -50,16 +51,16 @@ class SearchMethodsModule(ModuleTemplate):
         self.marker_size = 10
         self.direction_search = "Maximum"
         self.xy_aruco = []
-        self.bins=100
+        self.bins = 100
 
-        self.activate_frame_capture = True
+        self.activate_frame_capture = False
 
         self.init_variance = [self.step_variance]
-        #self.init_variance = [150]
-        self.step_search_covariance = 100 # step for generate a new cov
+        # self.init_variance = [150]
+        self.step_search_covariance = 100  # step for generate a new cov
         self.memory_steps = 10  # memory steps, per 100 steps, calculate the accept again
 
-        self.p_sample = [] #ratio of acceptance of samples
+        self.p_sample = []  # ratio of acceptance of samples
         self.counter_total = 0
         self.active_gradient_descend = True
 
@@ -80,25 +81,30 @@ class SearchMethodsModule(ModuleTemplate):
                         'Hamiltonian MC step']
         self.method = 'None'
 
-        self.histogram = pn.pane.Matplotlib(plt.figure(), tight=False)#, height=335)
+        self.histogram = pn.pane.Matplotlib(plt.figure(), tight=False)  # , height=335)
         plt.close()
         self.trigger = None
         self.lock = None
 
+        self.frame = None
+        self.frame_norm = None
+
         self._create_widgets()
         return print("SearchMethodsModule loaded succesfully")
-
 
     def update(self, sb_params: dict):
         self.frame = sb_params.get('frame')
         self.lock = sb_params.get('lock_thread')
         ax = sb_params.get('ax')
-        #extent=sb_params.get('extent')
+        # extent=sb_params.get('extent')
         same_frame = sb_params.get('same_frame')
         self.trigger = sb_params.get('trigger')
+        if self.mesh is None:  # create a mesh for the very first time
+            self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)
+
         if self.activate_frame_capture:
             if not same_frame:
-                self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)#, extent=extent)
+                self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)
             sb_params['freeze_frame'] = False
         else:
             sb_params['freeze_frame'] = True
@@ -106,7 +112,7 @@ class SearchMethodsModule(ModuleTemplate):
         if len(marker) > 0:
             self.xy_aruco = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values
         else:
-            self.xy_aruco=[]
+            self.xy_aruco = []
 
         self.plot(ax)
 
@@ -115,7 +121,11 @@ class SearchMethodsModule(ModuleTemplate):
     def plot(self, ax):
         self.remove_lines(ax)
         if self.active_gradient_descend:
-            self.x_grad, self.y_grad = self.gradient_descent(self.xy_aruco, self.mesh, self.mesh_dx, self.mesh_dy, self.direction_search)
+            self.x_grad, self.y_grad = self.gradient_descent(self.xy_aruco,
+                                                             self.mesh,
+                                                             self.mesh_dx,
+                                                             self.mesh_dy,
+                                                             self.direction_search)
             for i in range(len(self.x_grad)):
                 ax.plot(self.x_grad[i], self.y_grad[i], "r*-")
                 ax.plot(self.x_grad[i][-1], self.y_grad[i][-1], "b*", markersize=20)
@@ -133,11 +143,12 @@ class SearchMethodsModule(ModuleTemplate):
         Args:
             frame: kinect frame
             fill_value:
+            margins_crop:
 
         Returns:
 
         """
-        if margins_crop!=0:
+        if margins_crop != 0:
             frame = frame[margins_crop:-margins_crop, margins_crop:-margins_crop]
 
         height_i, width_i = frame.shape
@@ -184,40 +195,34 @@ class SearchMethodsModule(ModuleTemplate):
         """
         selected over the possible options a search algorithm
         Args:
-            mesh:
             method:
             xy:
+            ax:
 
         Returns:
 
         """
         if self.plot_contour_xy:
-            ax.collections = [] #TODO: Improve this
-            ax = sns.kdeplot(self.x_list, self.y_list, ax=ax)
+            ax.collections = []  # TODO: Improve this
+            ax = sns.kdeplot(self.x_list, self.y_list, ax=ax, color="red")
             self.trigger()
 
         if self.plot_xy:
             ax.plot(self.x_list,
-                              self.y_list,
-                              color = self.point_color,
-                              marker = self.marker,
-                              markersize = self.marker_size,
-                              linestyle = self.linestyle)
-
-            #ax.get_xaxis().set_visible(False)
-            #ax.get_yaxis().set_visible(False)
-            #ax.set_xlim(0, self.calib.s_frame_width)
-            #self.plot.ax.set_ylim(0, self.calib.s_frame_height)
-            #self.plot.ax.set_axis_off()
+                    self.y_list,
+                    color=self.point_color,
+                    marker=self.marker,
+                    markersize=self.marker_size,
+                    linestyle=self.linestyle)
 
         if method == self.options[1]:
-            #self.activate_frame_capture = True
+            # self.activate_frame_capture = True
             self.x_list = []
             self.y_list = []
             self.x_list, self.y_list = self.mcmc_random(xy, self.mesh)
 
         elif method == self.options[2]:
-            #self.activate_frame_capture = False
+            # self.activate_frame_capture = False
             if self.x is None and self.y is None:
                 self.x_list = []
                 self.y_list = []
@@ -229,13 +234,13 @@ class SearchMethodsModule(ModuleTemplate):
             self.x, self.y = self.mcmc_random_step(self.mesh, self.x, self.y, ax)
 
         elif method == self.options[3]:
-            #self.activate_frame_capture = True
+            # self.activate_frame_capture = True
             self.x_list = []
             self.y_list = []
             self.x_list, self.y_list = self.mcmc_adaptiveMH(self.mesh)
 
         elif method == self.options[4]:
-            #self.activate_frame_capture = False
+            # self.activate_frame_capture = False
             if self.x is None and self.y is None:
                 self.x_list = []
                 self.y_list = []
@@ -247,14 +252,14 @@ class SearchMethodsModule(ModuleTemplate):
             self.x, self.y = self.mcmc_adaptiveMH_step(self.mesh, self.x, self.y, ax)
 
         elif method == self.options[5]:
-            #self.activate_frame_capture = True
+            # self.activate_frame_capture = True
             self.x_list = []
             self.y_list = []
             self.x_list, self.y_list = self.mcmc_hamiltonianMC(self.mesh_hm,
                                                                self.mesh_dx_hm,
                                                                self.mesh_dy_hm)
         elif method == self.options[6]:
-            #self.activate_frame_capture = False
+            # self.activate_frame_capture = False
             if self.x is None and self.y is None:
                 self.x_list = []
                 self.y_list = []
@@ -311,8 +316,10 @@ class SearchMethodsModule(ModuleTemplate):
         ay = []
 
         for t in range(0, self.burn_in_period + self.number_samples):
-            x_1, y_1 = numpy.random.multivariate_normal(mean=[x, y], cov=[[self.step_variance, 0], [0, self.step_variance]])
-            #if self.margins_crop < x_1 < self.xmax - self.margins_crop and self.margins_crop < y_1 < self.ymax - self.margins_crop:
+            x_1, y_1 = numpy.random.multivariate_normal(mean=[x, y],
+                                                        cov=[[self.step_variance, 0], [0, self.step_variance]])
+            # if self.margins_crop < x_1 < self.xmax - self.margins_crop and
+            # self.margins_crop < y_1 < self.ymax - self.margins_crop:
             x_sample = x_1
             y_sample = y_1
             accept_prob = min(1, mesh(x_sample, y_sample) / mesh(x, y) * 1.0)
@@ -334,32 +341,32 @@ class SearchMethodsModule(ModuleTemplate):
                                                     cov=[[self.step_variance, 0],
                                                          [0, self.step_variance]])
 
-        #if self.margins_crop < x_1 < self.xmax - self.margins_crop and \
-         #       self.margins_crop < y_1 < self.ymax - self.margins_crop:
+        # if self.margins_crop < x_1 < self.xmax - self.margins_crop and \
+        #       self.margins_crop < y_1 < self.ymax - self.margins_crop:
         x_sample = x_1
         y_sample = y_1
         accept_prob = min(1, mesh(x_sample, y_sample) / mesh(x, y) * 1.0)
         u = random.uniform(0, 1)
 
         if self.start_plotting:
-            #point = self.plot.ax.plot(x, y, "r.")
-            circle1 = plt.Circle((x, y), numpy.sqrt(self.step_variance), fill=False, linewidth = 5)
-            circle2 = plt.Circle((x, y), numpy.sqrt(self.step_variance)*2, fill=False, linewidth = 5)
+            # point = self.plot.ax.plot(x, y, "r.")
+            circle1 = plt.Circle((x, y), numpy.sqrt(self.step_variance), fill=False, linewidth=5)
+            circle2 = plt.Circle((x, y), numpy.sqrt(self.step_variance) * 2, fill=False, linewidth=5)
             ax.add_artist(circle1)
             ax.add_artist(circle2)
             arrow = ax.arrow(x, y,
-                                       (x_sample - x),
-                                       (y_sample - y),
-                                       length_includes_head=True,
-                                       width=1,
-                                       color="black")
+                             (x_sample - x),
+                             (y_sample - y),
+                             length_includes_head=True,
+                             width=1,
+                             color="black")
             self.trigger()
             plt.pause(self.sleep)
 
         if u < accept_prob:  #
             x = x_sample
             y = y_sample
-            # gren#
+            # green
             if self.start_plotting:
                 arrow.set_color("green")
                 self.trigger()
@@ -385,10 +392,10 @@ class SearchMethodsModule(ModuleTemplate):
         return x, y
 
     def mcmc_adaptiveMH(self, mesh):
-        x, y = (100,100)
+        x, y = (100, 100)
         z = mesh
         m = 50  # burn in period
-        #n = 5000  # sample numbers, and n/L must be an int
+        # n = 5000  # sample numbers, and n/L must be an int
         K_s = 100  # the original cov
         L = 100  # memory steps, per 100 steps, calculate the accept again
         a = 0.23  # resable accept_prob
@@ -411,13 +418,14 @@ class SearchMethodsModule(ModuleTemplate):
 
             while i < L + m:
                 x_1, y_1 = numpy.random.multivariate_normal(mean=[x, y], cov=[[K[t], 0], [0, 100]])
-                #print(x_1)
-                #if self.margins_crop < x_1 < self.xmax - self.margins_crop and self.margins_crop < y_1 < self.ymax - self.margins_crop:
+                # print(x_1)
+                # if self.margins_crop < x_1 < self.xmax - self.margins_crop and
+                # self.margins_crop < y_1 < self.ymax - self.margins_crop:
                 x_sample = x_1
                 y_sample = y_1
-                #print(x_sample)
+                # print(x_sample)
 
-                accept_prob = min(1, z(x_sample,y_sample) / z(x,y) * 1.0)
+                accept_prob = min(1, z(x_sample, y_sample) / z(x, y) * 1.0)
                 # print('accept_prob:',accept_prob)
                 u = random.uniform(0, 1)
                 # print('u:',u)
@@ -434,7 +442,6 @@ class SearchMethodsModule(ModuleTemplate):
                     bx_sample.append(x)
                     by_sample.append(y)
 
-
                 if t == 0:  # only the first time has burn in period
 
                     if u < accept_prob:  #
@@ -442,14 +449,13 @@ class SearchMethodsModule(ModuleTemplate):
                         y = y_sample
 
                         if i >= m:
-                            count = count + 1  # after burn in period, the number of accpetance
+                            count = count + 1  # after burn in period, the number of acceptance
 
                     if i >= m:
                         bx_sample.append(x)
                         by_sample.append(y)
 
                 i = i + 1
-
 
             P_accept = count * 1.0 / L
             P_sample.append(P_accept)
@@ -470,7 +476,8 @@ class SearchMethodsModule(ModuleTemplate):
 
         x_1, y_1 = numpy.random.multivariate_normal(mean=[x, y],
                                                     cov=[[self.init_variance[-1], 0], [0, self.step_variance]])
-        #if self.margins_crop < x_1 < self.xmax - self.margins_crop and self.margins_crop < y_1 < self.ymax - self.margins_crop:
+        # if self.margins_crop < x_1 < self.xmax - self.margins_crop and
+        # self.margins_crop < y_1 < self.ymax - self.margins_crop:
         x_sample = x_1
         y_sample = y_1
         accept_prob = min(1, mesh(x_sample, y_sample) / mesh(x, y) * 1.0)
@@ -493,24 +500,24 @@ class SearchMethodsModule(ModuleTemplate):
         if self.counter_t > 0:
             self.start_plotting = True
             if self.start_plotting:
-                ellipse1 = matplotlib.patches.Ellipse((x,y),
-                                                     numpy.sqrt(self.init_variance[-1]),
-                                                     numpy.sqrt(self.step_variance),
-                                                     fill = False,
-                                                     linewidth = 5)
+                ellipse1 = matplotlib.patches.Ellipse((x, y),
+                                                      numpy.sqrt(self.init_variance[-1]),
+                                                      numpy.sqrt(self.step_variance),
+                                                      fill=False,
+                                                      linewidth=5)
                 ellipse2 = matplotlib.patches.Ellipse((x, y),
-                                                     2*numpy.sqrt(self.init_variance[-1]),
-                                                     2*numpy.sqrt(self.step_variance),
-                                                     fill=False,
-                                                     linewidth=5)
+                                                      2 * numpy.sqrt(self.init_variance[-1]),
+                                                      2 * numpy.sqrt(self.step_variance),
+                                                      fill=False,
+                                                      linewidth=5)
                 ax.add_artist(ellipse1)
                 ax.add_artist(ellipse2)
                 arrow = ax.arrow(x, y,
-                                           (x_sample - x),
-                                           (y_sample - y),
-                                           length_includes_head=True,
-                                           width=1,
-                                           color="black")
+                                 (x_sample - x),
+                                 (y_sample - y),
+                                 length_includes_head=True,
+                                 width=1,
+                                 color="black")
                 self.trigger()
                 plt.pause(self.sleep)
 
@@ -552,32 +559,35 @@ class SearchMethodsModule(ModuleTemplate):
                 if tau >= 2 and numpy.abs(a - self.p_sample[tau - 1]) > numpy.abs(a - self.p_sample[tau - 2]):
                     self.init_variance[-1] = self.init_variance[-2]
 
-                self.init_variance.append(numpy.abs(numpy.random.normal(self.init_variance[-1], self.step_search_covariance)))
+                self.init_variance.append(numpy.abs(numpy.random.normal(self.init_variance[-1],
+                                                                        self.step_search_covariance)))
                 self.counter_t = 1
                 self.counter_total = 1
 
         return x, y
 
-    def mcmc_hamiltonianMC(self, mesh, dx_mesh, dy_mesh, n = 700, l = 10):
+    def mcmc_hamiltonianMC(self, mesh, dx_mesh, dy_mesh, n=700, l=10):
         x, y = self.init_search
         x_list = [x]
         y_list = [y]
-        #for t in range(self.number_samples):
+        # for t in range(self.number_samples):
         for t in range(n):
             # sample random momentum
             proposed_momentum_vector = numpy.random.multivariate_normal(mean=[0, 0],
-                                                        cov=[[self.step_variance, 0], [0, self.step_variance]])
-           # proposed_momentum_vector = numpy.random.normal(0, self.step_variance, 2)
+                                                                        cov=[[self.step_variance, 0],
+                                                                             [0, self.step_variance]])
+            # proposed_momentum_vector = numpy.random.normal(0, self.step_variance, 2)
             # leapfrog
             # if the xStar[,] is inside the frame or not
-            #if self.margins_crop < x < self.xmax - self.margins_crop and self.margins_crop < y < self.ymax - self.margins_crop:
-                # gradient
+            # if self.margins_crop < x < self.xmax - self.margins_crop and
+            # self.margins_crop < y < self.ymax - self.margins_crop:
+            # gradient
             gradient_xy = numpy.array([dx_mesh(x, y), dy_mesh(x, y)])
             # momentum, make a half step for momentum at the beginning
             momentum_vector = proposed_momentum_vector - (self.leapfrog_step * gradient_xy) / 2.0
             # lepfrog steps
             x_sample, y_sample = x, y
-            #for j in range(self.leapfrog_points - 1):
+            # for j in range(self.leapfrog_points - 1):
             for j in range(l):
                 # postion/sample,full step for position/sample
                 x_sample, y_sample = numpy.array([x_sample, y_sample]) + self.leapfrog_step * momentum_vector
@@ -588,12 +598,12 @@ class SearchMethodsModule(ModuleTemplate):
                 momentum_vector = momentum_vector - self.leapfrog_step * gradient_xy
             # last half step
             x_sample, y_sample = numpy.array([x_sample, y_sample]) + self.leapfrog_step * momentum_vector
-            #if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
+            # if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
             gradient_xy = numpy.array([dx_mesh(x_sample, y_sample), dy_mesh(x_sample, y_sample)])
             momentum_vector = momentum_vector - (self.leapfrog_step * gradient_xy) / 2.0
 
             # evaluate energy
-            #if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
+            # if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
             potential_energy = mesh(x_sample, y_sample)
             previous_potential_energy = mesh(x, y)
 
@@ -603,10 +613,12 @@ class SearchMethodsModule(ModuleTemplate):
 
             # acceptance
             accept_prob = min(1, numpy.exp(- potential_energy + previous_potential_energy -
-                                     kinetic_e + previous_kinetic_e))
+                                           kinetic_e + previous_kinetic_e))
             uc = numpy.random.rand()
 
-            if uc < accept_prob and self.margins_crop < x_sample < self.xmax - self.margins_crop and self.margins_crop < y_sample < self.ymax - self.margins_crop:
+            if uc < accept_prob and \
+                    self.margins_crop < x_sample < self.xmax - self.margins_crop and \
+                    self.margins_crop < y_sample < self.ymax - self.margins_crop:
                 x = x_sample
                 y = y_sample
                 x_list.append(x)
@@ -615,15 +627,16 @@ class SearchMethodsModule(ModuleTemplate):
         return x_list, y_list
 
     def mcmc_hamiltonianMC_step(self, mesh, dx_mesh, dy_mesh, x, y, ax):
-        #for t in range(self.number_samples):
+        # for t in range(self.number_samples):
         # sample random momentum
         proposed_momentum_vector = numpy.random.multivariate_normal(mean=[0, 0],
-                                                   cov=[[self.step_variance, 0], [0, self.step_variance]])
-       # proposed_momentum_vector = numpy.random.normal(0, self.step_variance, 2)
+                                                                    cov=[[self.step_variance, 0],
+                                                                         [0, self.step_variance]])
+        # proposed_momentum_vector = numpy.random.normal(0, self.step_variance, 2)
         # leapfrog
         # if the xStar[,] is inside the frame or not
-        #if self.margins_crop < x < self.xmax - self.margins_crop and self.margins_crop < y < self.ymax - self.margins_crop:
-            # gradient
+        # if self.margins_crop < x < self.xmax - self.margins_crop and self.margins_crop < y < self.ymax - self.margins_crop:
+        # gradient
         gradient_xy = numpy.array([dx_mesh(x, y), dy_mesh(x, y)])
         # momentum, make a half step for momentum at the beginning
         momentum_vector = proposed_momentum_vector - (self.leapfrog_step * gradient_xy) / 2.0
@@ -631,7 +644,7 @@ class SearchMethodsModule(ModuleTemplate):
         x_sample, y_sample = x, y
         x_temp = [x]
         y_temp = [y]
-        #for j in range(self.leapfrog_points - 1):
+        # for j in range(self.leapfrog_points - 1):
         for j in range(self.leapfrog_points):
             # postion/sample,full step for position/sample
             x_sample, y_sample = numpy.array([x_sample, y_sample]) + self.leapfrog_step * momentum_vector
@@ -648,32 +661,31 @@ class SearchMethodsModule(ModuleTemplate):
         plt.pause(self.sleep)
 
         x_sample, y_sample = numpy.array([x_sample, y_sample]) + self.leapfrog_step * momentum_vector
-        #if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
+        # if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
         gradient_xy = numpy.array([dx_mesh(x_sample, y_sample), dy_mesh(x_sample, y_sample)])
         momentum_vector = momentum_vector - (self.leapfrog_step * gradient_xy) / 2.0
 
         # evaluate energy
-        #if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
+        # if 0 <= xStar[0] < xmax - 2 and 0 <= xStar[1] < ymax - 2:
         potential_energy = mesh(x_sample, y_sample)
         previous_potential_energy = mesh(x, y)
 
-        #### Kinetic energy function  KE = (p @ p) / 2.0
+        # Kinetic energy function  KE = (p @ p) / 2.0
         previous_kinetic_e = numpy.vdot(proposed_momentum_vector, proposed_momentum_vector) / 2.0
         kinetic_e = numpy.vdot(momentum_vector, momentum_vector) / 2.0
 
         # acceptance
-        accept_prob = min(1, numpy.exp(- potential_energy + previous_potential_energy -
-                                 kinetic_e + previous_kinetic_e))
+        accept_prob = min(1, numpy.exp(- potential_energy + previous_potential_energy - kinetic_e + previous_kinetic_e))
         uc = numpy.random.rand()
 
-        if uc < accept_prob and self.margins_crop < x_sample < self.xmax - self.margins_crop and self.margins_crop < y_sample < self.ymax - self.margins_crop:
+        if uc < accept_prob and \
+                self.margins_crop < x_sample < self.xmax - self.margins_crop and \
+                self.margins_crop < y_sample < self.ymax - self.margins_crop:
             x = x_sample
             y = y_sample
             self.x_list.append(x)
             self.y_list.append(y)
-
-
-        #step_plot.remove()
+        # step_plot.remove()
 
         return x, y
 
@@ -683,20 +695,23 @@ class SearchMethodsModule(ModuleTemplate):
         Returns:
 
         """
-        #x = self.frame_norm.sum(axis=0)
-        #y = self.frame_norm.sum(axis=1)
+        # x = self.frame_norm.sum(axis=0)
+        # y = self.frame_norm.sum(axis=1)
 
         fig = plt.figure(figsize=(10, 10))
         ax_x = fig.add_subplot(121)
         ax_x = sns.distplot(self.x_list, bins=self.bins, ax=ax_x)
-        #ax_x.hist(self.x_list, bins=self.bins)
-        #ax_x.plot(range(len(x)), x, "r--")
+        # ax_x = sns.histplot(self.x_list, bins=self.bins, ax=ax_x)
+
+        # ax_x.hist(self.x_list, bins=self.bins)
+        # ax_x.plot(range(len(x)), x, "r--")
         ax_x.set_title('x_direction')
 
         ax_y = fig.add_subplot(122)
-        #ax_y.hist((self.y_list), bins=self.bins)
-        ax_x = sns.distplot(self.y_list, bins=self.bins, ax=ax_y)
-        #ax_y.plot(range(len(y)), y, "r--")
+        # ax_y.hist((self.y_list), bins=self.bins)
+        # ax_y = sns.histplot(self.y_list, bins=self.bins, ax=ax_y)
+        ax_y = sns.distplot(self.y_list, bins=self.bins, ax=ax_y)
+        # ax_y.plot(range(len(y)), y, "r--")
         ax_y.set_title('y direction')
 
         return fig
@@ -747,85 +762,85 @@ class SearchMethodsModule(ModuleTemplate):
         )
         self._widget_selector.param.watch(self._callback_selector, 'value', onlychanged=False)
 
-        self._widget_search_active = pn.widgets.RadioButtonGroup(name='Start the search', options=['Start', 'Stop'], value='Stop')
+        self._widget_search_active = pn.widgets.RadioButtonGroup(name='Start the search', options=['Start', 'Stop'],
+                                                                 value='Stop')
         self._widget_search_active.param.watch(self._callback_search_active, 'value',
                                                onlychanged=False)
 
         self._widget_plot_points = pn.widgets.Checkbox(name='Show the points', value=self.plot_xy)
-        self._widget_plot_points.param.watch(self._callback_plot_points, 'value',
-                                                onlychanged=False)
+        self._widget_plot_points.param.watch(self._callback_plot_points, 'value', onlychanged=False)
 
-        self._widget_plot_contour = pn.widgets.Checkbox(name='Show the contours of the points', value=self.plot_contour_xy)
-        self._widget_plot_contour.param.watch(self._callback_plot_contour, 'value',
-                                             onlychanged=False)
+        self._widget_plot_contour = pn.widgets.Checkbox(name='Show the contours of the points',
+                                                        value=self.plot_contour_xy)
+        self._widget_plot_contour.param.watch(self._callback_plot_contour, 'value', onlychanged=False)
 
         self._widget_show_frame = pn.widgets.Checkbox(name='Show the frame', value=self.show_frame)
-        self._widget_show_frame.param.watch(self._callback_show_frame, 'value',
-                                              onlychanged=False)
+        self._widget_show_frame.param.watch(self._callback_show_frame, 'value', onlychanged=False)
 
-        self._widget_activate_frame_capture = pn.widgets.Checkbox(name='Update frame realtime', value=self.activate_frame_capture)
+        self._widget_activate_frame_capture = pn.widgets.Checkbox(name='Update frame realtime',
+                                                                  value=self.activate_frame_capture)
         self._widget_activate_frame_capture.param.watch(self._callback_activate_frame_capture, 'value',
-                                            onlychanged=False)
+                                                        onlychanged=False)
 
         self._widget_activate_gradient_descend = pn.widgets.Checkbox(name='Activate gradient descend',
-                                                                  value=self.active_gradient_descend)
+                                                                     value=self.active_gradient_descend)
         self._widget_activate_gradient_descend.param.watch(self._callback_active_gradient_descend, 'value',
-                                                        onlychanged=False)
+                                                           onlychanged=False)
 
         self._widget_refresh_frame = pn.widgets.Button(name="Manually refresh mesh", button_type="success")
         self._widget_refresh_frame.param.watch(self._callback_refresh_frame, 'clicks',
-                                          onlychanged=False)
+                                               onlychanged=False)
 
         self._widget_sleep = pn.widgets.FloatSlider(name='Step delay (seconds)',
-                                                  value=self.sleep,
-                                                  start=0.0,
-                                                  end=5.0,
+                                                    value=self.sleep,
+                                                    start=0.0,
+                                                    end=5.0,
                                                     step=0.05)
         self._widget_sleep.param.watch(self._callback_sleep, 'value', onlychanged=False)
 
         self._widget_histogram_refresh = pn.widgets.Button(name="Manually refresh histogram", button_type="success")
         self._widget_histogram_refresh.param.watch(self._callbak_histogram_refresh, 'clicks',
-                                               onlychanged=False)
+                                                   onlychanged=False)
 
-        self._widget_variance = pn.widgets.Spinner(name='Proposed Variance', value=self.step_variance, step =10)
+        self._widget_variance = pn.widgets.Spinner(name='Proposed Variance', value=self.step_variance, step=10)
         self._widget_variance.param.watch(self._callback_variance, 'value', onlychanged=False)
 
         self._widget_speed_gradient_descend = pn.widgets.FloatSlider(name='Speed convergence',
                                                                      start=0.0,
                                                                      end=10.0,
                                                                      value=self.speed_alpha)
-        self._widget_speed_gradient_descend.param.watch(self._callback_speed_gradient_descend, 'value', onlychanged=False)
+        self._widget_speed_gradient_descend.param.watch(self._callback_speed_gradient_descend, 'value',
+                                                        onlychanged=False)
 
         self._widget_number_samples = pn.widgets.Spinner(name='Number of samples', value=self.number_samples)
         self._widget_number_samples.param.watch(self._callback_number_samples, 'value',
-                                                        onlychanged=False)
+                                                onlychanged=False)
 
         self._widget_memory_steps = pn.widgets.Spinner(name='Memory steps', value=self.memory_steps)
         self._widget_memory_steps.param.watch(self._callback_memory_steps, 'value',
-                                                onlychanged=False)
+                                              onlychanged=False)
 
         self._widget_leapfrog_step = pn.widgets.FloatSlider(name='Leapfrog_step',
                                                             start=0.0,
                                                             end=10.0,
                                                             value=self.leapfrog_step)
         self._widget_leapfrog_step.param.watch(self._callback_leapfrog_step, 'value',
-                                              onlychanged=False)
+                                               onlychanged=False)
 
         self._widget_leapfrog_points = pn.widgets.Spinner(name='Leapfrog points', value=self.leapfrog_points)
         self._widget_leapfrog_points.param.watch(self._callback_leapfrog_points, 'value',
-                                              onlychanged=False)
-
-        self._widget_optimum = pn.widgets.Select(
-            name='Select convergence to local optimum',
-            options=["Maximum", "Minimum"],
-            value=self.direction_search
-        )
-        self._widget_optimum.param.watch(self._callback_optimum, 'value', onlychanged=False)
-
-        self._widget_margins_crop = pn.widgets.Spinner(name='Crop margins to reduce search area', value=self.margins_crop)
-        self._widget_margins_crop.param.watch(self._callback_margins_crop, 'value',
                                                  onlychanged=False)
 
+        self._widget_optimum = pn.widgets.Select(name='Select convergence to local optimum',
+                                                 options=["Maximum", "Minimum"],
+                                                 value=self.direction_search
+                                                 )
+        self._widget_optimum.param.watch(self._callback_optimum, 'value', onlychanged=False)
+
+        self._widget_margins_crop = pn.widgets.Spinner(name='Crop margins to reduce search area',
+                                                       value=self.margins_crop)
+        self._widget_margins_crop.param.watch(self._callback_margins_crop, 'value',
+                                              onlychanged=False)
 
     def _callback_selector(self, event):
         self.x = None
@@ -840,46 +855,54 @@ class SearchMethodsModule(ModuleTemplate):
         else:
             self.search_active = False
 
-    def _callback_plot_points(self, event): self.plot_xy = event.new
+    def _callback_plot_points(self, event):
+        self.plot_xy = event.new
 
-    def _callback_plot_contour(self, event): self.plot_contour_xy = event.new
+    def _callback_plot_contour(self, event):
+        self.plot_contour_xy = event.new
 
-    def _callback_show_frame(self, event): self.show_frame = event.new
+    def _callback_show_frame(self, event):
+        self.show_frame = event.new
 
-    def _callback_activate_frame_capture(self, event): self.activate_frame_capture = event.new
+    def _callback_activate_frame_capture(self, event):
+        self.activate_frame_capture = event.new
 
-    def _callback_active_gradient_descend(self, event): self.active_gradient_descend = event.new
+    def _callback_active_gradient_descend(self, event):
+        self.active_gradient_descend = event.new
 
     def _callback_refresh_frame(self, event):
         self.lock.acquire()
-        #self.pause()
-        #frame = self.sensor.get_frame()
-        #if self.crop:
-        #    frame = self.crop_frame(frame)
-        #    frame = self.clip_frame(frame)
         self.update_mesh(self.frame, margins_crop=self.margins_crop, fill_value=0)
         self.lock.release()
-        #self.run()
 
-    def _callback_sleep(self, event): self.sleep = event.new
+    def _callback_sleep(self, event):
+        self.sleep = event.new
 
     def _callbak_histogram_refresh(self, event):
         self.lock.acquire()
         self.histogram.object = self.hist_distribution()
         self.lock.acquire()
 
-    def _callback_variance(self, event): self.step_variance = event.new
+    def _callback_variance(self, event):
+        self.step_variance = event.new
 
-    def _callback_speed_gradient_descend(self, event): self.speed_alpha = event.new
+    def _callback_speed_gradient_descend(self, event):
+        self.speed_alpha = event.new
 
-    def _callback_number_samples(self, event): self.number_samples = event.new
+    def _callback_number_samples(self, event):
+        self.number_samples = event.new
 
-    def _callback_memory_steps(self, event): self.memory_steps = event.new
+    def _callback_memory_steps(self, event):
+        self.memory_steps = event.new
 
-    def _callback_leapfrog_step(self, event): self.leapfrog_step = event.new
+    def _callback_leapfrog_step(self, event):
+        self.leapfrog_step = event.new
 
-    def _callback_leapfrog_points(self, event): self.leapfrog_points = event.new
+    def _callback_leapfrog_points(self, event):
+        self.leapfrog_points = event.new
 
-    def _callback_optimum(self, event): self.direction_search = event.new
+    def _callback_optimum(self, event):
+        self.direction_search = event.new
 
-    def _callback_margins_crop(self, event): self.margins_crop = event.new
+    def _callback_margins_crop(self, event):
+        self.margins_crop = event.new

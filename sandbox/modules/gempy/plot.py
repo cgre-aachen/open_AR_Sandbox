@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib
 from gempy.plot.visualization_2d import Plot2D
@@ -6,16 +7,20 @@ from gempy.plot.visualization_2d import Plot2D
 lith = None
 hill = None
 
-def plot_gempy_topography(ax, geo_model, extent,
-                          show_lith: bool=True,
-                          show_boundary: bool=True,
-                          show_hillshade: bool=True,
-                          show_contour:bool =False, **kwargs):
+def plot_gempy_topography(ax,
+                          geo_model,
+                          extent,
+                          show_lith: bool = True,
+                          show_boundary: bool = True,
+                          show_hillshade: bool = True,
+                          show_contour: bool = False,
+                          **kwargs):
     """
     Use the native plotting function class of gempy to plot the lithology, boundaries and hillshading.
     Args:
         ax: axes of sandbox to paint in
         geo_model: geo_model from gempy
+        extent:
         show_lith: default True
         show_boundary: default True
         show_hillshade: default True
@@ -36,17 +41,20 @@ def plot_gempy_topography(ax, geo_model, extent,
     if show_hillshade or show_contour:
         p.plot_topography(ax,
                           contour=show_contour,
-        #                  fill_contour=True,
+                          # fill_contour=True,
                           hillshade=show_hillshade,
-        #                  cmap= cmap,
+                          # cmap= cmap,
                           section_name="topography")
     ax.set_axis_off()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-    #ax.set_title("")
+    # ax.set_title("")
     return ax, cmap
 
-def plot_gempy(ax, geo_model, extent,
+
+def plot_gempy(ax,
+               geo_model,
+               extent,
                show_lith: bool = True,
                show_boundary: bool = True,
                show_hillshade: bool = True,
@@ -58,6 +66,7 @@ def plot_gempy(ax, geo_model, extent,
     Args:
         ax: axes of sandbox to paint in
         geo_model: geo_model from gempy
+        extent:
         show_lith: default True
         show_boundary: default True
         show_hillshade: default True
@@ -67,12 +76,12 @@ def plot_gempy(ax, geo_model, extent,
 
     """
     cmap = mcolors.ListedColormap(list(geo_model._surfaces.df['color']))
-    #cmap_lith = mcolors.ListedColormap(list(geo_model._surfaces.df.loc[geo_model._surfaces.df['isFault']==False, 'color']))
     norm = mcolors.Normalize(vmin=0.5, vmax=len(cmap.colors) + 0.5)
-    #color_dir = dict(zip(self.model._surfaces.df['surface'], self.model._surfaces.df['color']))
-    extent_val = extent[:4]#[*ax.get_xlim(), *ax.get_ylim()]
+    # color_dir = dict(zip(self.model._surfaces.df['surface'], self.model._surfaces.df['color']))
+    extent_val = extent[:4]  # [*ax.get_xlim(), *ax.get_ylim()]
     delete_ax(ax)
     if show_lith:
+        # Todo: use instead native cmap module of sandbox
         plot_lith(ax, geo_model, extent_val, cmap, norm)
     if show_boundary:
         plot_contacts(ax, geo_model, extent_val, cmap, only_faults=show_only_faults)
@@ -90,6 +99,7 @@ def plot_gempy(ax, geo_model, extent,
     ax.set_ylim(extent_val[2], extent_val[3])
     return ax, cmap
 
+
 def plot_lith(ax, geo_model, extent_val, cmap, norm):
     """
 
@@ -97,6 +107,8 @@ def plot_lith(ax, geo_model, extent_val, cmap, norm):
         ax: sandbox axes
         geo_model: gempy geo_model
         extent_val: extent x and y of the model
+        cmap:
+        norm:
 
     Returns:
 
@@ -104,7 +116,8 @@ def plot_lith(ax, geo_model, extent_val, cmap, norm):
     image = geo_model.solutions.geological_map[0].reshape(
         geo_model._grid.topography.values_2d[:, :, 2].shape)
     global lith
-    lith = ax.imshow(image, origin='lower', zorder=-100, extent=extent_val, cmap=cmap, norm = norm, aspect='auto')
+    lith = ax.imshow(image, origin='lower', zorder=-10, extent=extent_val, cmap=cmap, norm=norm, aspect='auto')
+
 
 def plot_contacts(ax, geo_model, extent_val, cmap, only_faults=False):
     """
@@ -141,6 +154,7 @@ def plot_contacts(ax, geo_model, extent_val, cmap, only_faults=False):
                    extent=extent_val, zorder=zorder - (e + len(level))
                    )
         c_id = c_id2
+
 
 def plot_topography(ax, geo_model, extent_val, **kwargs):
     """
@@ -188,12 +202,20 @@ def plot_topography(ax, geo_model, extent_val, **kwargs):
 
     if hillshade is True:
         from matplotlib.colors import LightSource
-
-        ls = LightSource(azdeg=azdeg, altdeg=altdeg)
+        # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
+        ls = LightSource(azdeg=azdeg - 180, altdeg=altdeg)
+        # TODO: Is is better to use ls.hillshade or ls.shade??
         hillshade_topography = ls.hillshade(values)
+                                        # vert_exag=0.3,
+                                        # blend_mode='overlay')
         global hill
-        hill = ax.imshow(hillshade_topography, origin='lower', extent=extent_val, alpha=0.5, zorder=11,
-                  cmap='copper', aspect='auto')
+        hill = ax.imshow(hillshade_topography,
+                         cmap=plt.cm.gray,
+                         origin='lower',
+                         extent=extent_val,
+                         alpha=0.4,
+                         zorder=11,
+                         aspect='auto')
 
 
 def delete_ax(ax):
@@ -214,7 +236,7 @@ def delete_ax(ax):
     [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
     [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
     [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
-
+    return ax
 
 def _plot_gempy(ax, geo_model):
     """
@@ -233,13 +255,16 @@ def _plot_gempy(ax, geo_model):
     ax = _add_lith(ax, geo_model, cmap)
     return ax, cmap
 
+
 def _add_faults(ax, geo_model, cmap):
     ax = _extract_boundaries(ax, geo_model, cmap, e_faults=True, e_lith=False)
     return ax
 
+
 def _add_lith(ax, geo_model, cmap):
     ax = _extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=True)
     return ax
+
 
 def _extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=False):
     faults = list(geo_model._faults.df[geo_model._faults.df['isFault'] == True].index)
@@ -250,35 +275,35 @@ def _extract_boundaries(ax, geo_model, cmap, e_faults=False, e_lith=False):
     counter = a.shape[0]
 
     if e_faults:
-        counters = numpy.arange(0, len(faults), 1)
+        counters = np.arange(0, len(faults), 1)
         c_id = 0  # color id startpoint
     elif e_lith:
-        counters = numpy.arange(len(faults), counter, 1)
+        counters = np.arange(len(faults), counter, 1)
         c_id = len(faults)  # color id startpoint
     else:
         raise AttributeError
 
     for f_id in counters:
         block = a[f_id]
-        level = geo_model.solutions.scalar_field_at_surface_points[f_id][numpy.where(
+        level = geo_model.solutions.scalar_field_at_surface_points[f_id][np.where(
             geo_model.solutions.scalar_field_at_surface_points[f_id] != 0)]
 
-        levels = numpy.insert(level, 0, block.max())
+        levels = np.insert(level, 0, block.max())
         c_id2 = c_id + len(level)
         if f_id == counters.max():
-            levels = numpy.insert(levels, level.shape[0], block.min())
+            levels = np.insert(levels, level.shape[0], block.min())
             c_id2 = c_id + len(levels)  # color id endpoint
         block = block.reshape(shape)
         zorder = zorder - (f_id + len(level))
 
         if f_id >= len(faults):
-            fill = ax.contourf(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][::-1],
+            fill = ax.contourf(block, 0, levels=np.sort(levels), colors=cmap.colors[c_id:c_id2][::-1],
+                               linestyles='solid', origin='lower',
+                               extent=extent, zorder=zorder)
+        else:
+            fau = ax.contour(block, 0, levels=np.sort(levels), colors=cmap.colors[c_id:c_id2][0],
                              linestyles='solid', origin='lower',
                              extent=extent, zorder=zorder)
-        else:
-            fau = ax.contour(block, 0, levels=numpy.sort(levels), colors=cmap.colors[c_id:c_id2][0],
-                            linestyles='solid', origin='lower',
-                            extent=extent, zorder=zorder)
         c_id += len(level)
 
     return ax

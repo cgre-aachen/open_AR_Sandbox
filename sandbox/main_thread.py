@@ -3,10 +3,14 @@ import collections
 import numpy
 import threading
 import panel as pn
+
 pn.extension()
 import matplotlib.pyplot as plt
 import pandas as pd
 import traceback
+from datetime import datetime
+
+dateTimeObj = datetime.now()
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
@@ -18,7 +22,10 @@ class MainThread:
     """
     Module with threading methods
     """
-    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None, check_change: bool = False, **kwargs):
+
+    def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None,
+                 check_change: bool = False, kwargs_contourlines: dict = {}, kwargs_cmap: dict = {},
+                 **kwargs):
         """
 
         Args:
@@ -31,19 +38,17 @@ class MainThread:
             check_change:
             **kwargs:
         """
-        #TODO: in all the modules be carefull with zorder
+        self._error_message = ''
+        # TODO: in all the modules be carefull with zorder
         self.sensor = sensor
         self.projector = projector
         self.projector.clear_axes()
-        self.contours = ContourLinesModule(extent=self.sensor.extent)
-        self.cmap_frame = CmapModule(extent=self.sensor.extent)
+        self.contours = ContourLinesModule(extent=self.sensor.extent, **kwargs_contourlines)
+        self.cmap_frame = CmapModule(extent=self.sensor.extent, **kwargs_cmap)
 
-        #start the modules
+        # start the modules
         self.modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
         self._modules = collections.OrderedDict({'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours})
-
-        #self.modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours}
-        #self._modules = {'CmapModule': self.cmap_frame, 'ContourLinesModule': self.contours} #cachee
 
         # threading
         self.lock = threading.Lock()
@@ -65,18 +70,20 @@ class MainThread:
                           'cmap': plt.cm.get_cmap('gist_earth'),
                           'norm': None,
                           'active_cmap': True,
+                          'active_shading': True,
                           'active_contours': True,
                           'same_frame': False,
                           'lock_thread': self.lock,
-                          'trigger': self.projector.trigger, #TODO: Carefull with this use because it can make to paint the figure incompletely
-                          'del_contour': True,}
-                          #'freeze_frame': False}
+                          'trigger': self.projector.trigger,
+                          # TODO: Carefull with this use because it can make to paint the figure incompletely
+                          'del_contour': True, }
+        # 'freeze_frame': False}
 
         self.previous_frame = self.sb_params['frame']
 
-        #To reduce the noise of the data
+        # To reduce the noise of the data
         self.check_change = check_change
-        self._rtol = 0.07 #Widgets for this
+        self._rtol = 0.07  # Widgets for this
         self._atol = 0.001
         # render the frame
         self.cmap_frame.render_frame(self.sb_params['frame'], self.sb_params['ax'])
@@ -87,9 +94,11 @@ class MainThread:
         self._create_widgets()
 
         self._loaded_frame = False
+        self._error_message = ''
+        self._widget_error_markdown = pn.pane.Markdown("<p>Open_AR_Sandbox</p>")
 
-    #@property @TODO: test if this works
-    #def sb_params(self):
+    # @property @TODO: test if this works
+    # def sb_params(self):
     #    return {'frame': self.sensor.get_frame(),
     #              'ax': self.projector.ax,
     #              'extent': self.sensor.extent,
@@ -111,14 +120,11 @@ class MainThread:
         """
         self.sb_params['ax'] = self.projector.ax
 
-        #if not self.sb_params.get('del_contour'):
-        #    if 'ContourLinesModule' in self.modules.keys():
-        #        self.modules['ContourLinesModule'].delete_contourns(self.sb_params['ax'])
         if self._loaded_frame:
-            frame = self.previous_frame #if loaded DEM the previous frame will have this information
+            frame = self.previous_frame  # if loaded DEM the previous frame will have this information
             self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], frame.min(), frame.max()]
-            self.sb_params['same_frame'] = False #TODO: need to organize the usage of same_frame because is contradictory
-            plt.pause(0.2)
+            self.sb_params[
+                'same_frame'] = False  # TODO: need to organize the usage of same_frame because is contradictory
         else:
             frame = self.sensor.get_frame()
             self.sb_params['extent'] = self.sensor.extent
@@ -127,43 +133,44 @@ class MainThread:
                 cl = numpy.isclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True)
                 self.previous_frame[numpy.logical_not(cl)] = frame[numpy.logical_not(cl)]
                 frame = self.previous_frame
-                #self.sb_params['same_frame'] = True #TODO: Check for usage of this part
+                # self.sb_params['same_frame'] = True #TODO: Check for usage of this part
             else:
                 self.previous_frame = frame
                 self.sb_params['same_frame'] = False
-            #if not numpy.allclose(self.previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True):
-            #    self.previous_frame = frame
-            #    self.sb_params['same_frame'] = False
-            #else:
-            #    frame = self.previous_frame
-            #    self.sb_params['same_frame'] = True
-        #else: self.sb_params['same_frame'] = False
         self.sb_params['frame'] = frame
 
-        #filter
+        # filter
         self.lock.acquire()
         if self.ARUCO_ACTIVE:
             df = self.Aruco.update()
         else:
             df = pd.DataFrame()
-            plt.pause(0.2)
         self.lock.release()
 
         self.sb_params['marker'] = df
 
         try:
+            if self._error_message:
+                self.sb_params['ax'].texts = []
+                self._error_message = ''
+                self._widget_error_markdown.object = "Running"
             self.lock.acquire()
             _cmap = ['CmapModule'] if 'CmapModule' in self.modules.keys() else []
             _contours = ['ContourLinesModule'] if 'ContourLinesModule' in self.modules.keys() else []
             _always = _cmap + _contours
             _actual = [name for name in self.modules.keys() if name not in _always]
-            for key in list(_actual + _always): #TODO: maybe use OrderedDict to put this modules always at the end of the iteration
+            for key in list(
+                    _actual + _always):  # TODO: maybe use OrderedDict to put this modules always at the end of the iteration
                 self.sb_params = self.modules[key].update(self.sb_params)
             self.lock.release()
-        except Exception:
+        except Exception as e:
             traceback.print_exc()
+            self._error_message = str(dateTimeObj) + str(type(e)) + str(e)
+            self._widget_error_markdown.object = self._error_message
             self.lock.release()
             self.thread_status = 'stopped'
+            self.projector.write_text("Ups... Something went wrong. The Thread is paused..."
+                                      "\n Check 'self._error_message' to see what happened")
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
@@ -177,9 +184,11 @@ class MainThread:
 
     def load_frame(self, frame: numpy.ndarray = None):
         """
-        During the sandbox thread, if you want to fix a frame but not interrupt the thread, load the desired numpy array here.
-        This will change the flag self._loaded_frame = False to True in the update function and stop the sensor frame adquisition.
-        To stop this pass frame = None or change the flag self._loaded_frame to False.
+        During the sandbox thread, if you want to fix a frame but not interrupt the thread,
+        load the desired numpy array here.
+        This will change the flag self._loaded_frame = False to True in the update function and
+        stop the sensor frame acquisition.
+        To stop this, pass: frame = None or change the flag self._loaded_frame to False.
         Args:
             frame: numpy.ndarray: must be a matrix of desired resolution
         Returns:
@@ -194,18 +203,19 @@ class MainThread:
         elif frame is None:
             self._loaded_frame = False
         else:
-            #self.lock.acquire()
+            # self.lock.acquire()
             self._loaded_frame = True
             self.previous_frame = frame
             print("loaded")
-            #self.lock.release()
-
+            # self.lock.release()
 
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
+        self.lock.acquire()
         self.modules[name] = module
         self._modules[name] = module
-        #self.modules.move_to_end(name, last=True)
+        self.lock.release()
+        # self.modules.move_to_end(name, last=True)
         print('module ' + name + ' added to modules')
 
     def remove_module(self, name: str):
@@ -213,28 +223,32 @@ class MainThread:
         if name in self.modules.keys():
             self.lock.acquire()
             self.modules.pop(name)
-            print( 'module ' + name + ' removed')
+            print('module ' + name + ' removed')
             self.lock.release()
         else:
             print('No module with name ' + name + ' was found')
 
     def module_manager(self, active_modules: list = []):
-        #add a module
+        # add a module
         for name_module in active_modules:
             if name_module not in self.modules:
                 self.add_module(name=name_module, module=self._modules[name_module])
-        #delete the module
+        # delete the module
         if len(active_modules) > 0:
             [self.remove_module(name) for name in self.modules if name not in active_modules]
+        # self._update_widget_module_selector()
+        # if self._widget_module_selector is not None:
+        #    self._widget_module_selector.value = list(self.modules.keys())
+        #    self._widget_module_selector.options = list(self._modules.keys())
 
+    def _update_widget_module_selector(self):
         if self._widget_module_selector is not None:
-            self._widget_module_selector.options = list(self._modules.keys())
             self._widget_module_selector.value = list(self.modules.keys())
+            self._widget_module_selector.options = list(self._modules.keys())
 
     def thread_loop(self):
         while self.thread_status == 'running':
             self.update()
-
 
     def run(self):
         if self.thread_status != 'running':
@@ -284,16 +298,18 @@ class MainThread:
             rows = pn.Row(widgets, self.widget_thread_controller())
 
         panel = pn.Column("## Plotting interaction widgets", rows)
-        return panel
+        self._update_widget_module_selector()
 
+        return panel
 
     def widget_thread_controller(self):
         panel = pn.Column("##<b>Thread Controller</b>",
                           self._widget_thread_selector,
                           self._widget_check_difference,
                           self._widget_module_selector,
-                          self._widget_clear_axes
-                          #self._widget_freeze_frame)
+                          self._widget_clear_axes,
+                          self._widget_error_markdown
+                          # self._widget_freeze_frame)
                           )
         return panel
 
@@ -308,7 +324,8 @@ class MainThread:
         self._widget_check_difference.param.watch(self._callback_check_difference, 'value',
                                                   onlychanged=False)
 
-        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list", button_type="warning")
+        self._widget_clear_axes = pn.widgets.Button(name="Clear axes from projector / refresh list",
+                                                    button_type="warning")
         self._widget_clear_axes.param.watch(self._callback_clear_axes, 'clicks',
                                             onlychanged=False)
 
@@ -319,11 +336,12 @@ class MainThread:
         self._widget_module_selector.param.watch(self._callback_module_selector, 'value',
                                                  onlychanged=False)
 
-
     def _callback_clear_axes(self, event):
         self.projector.clear_axes()
-        self._widget_module_selector.options = list(self._modules.keys())
-        self._widget_module_selector.value = list(self.modules.keys())
+        self._update_widget_module_selector()
+        # if self._widget_module_selector is not None:
+        #    self._widget_module_selector.value = list(self.modules.keys())
+        #    self._widget_module_selector.options = list(self._modules.keys())
 
     def _callback_check_difference(self, event):
         self.check_change = event.new
@@ -341,7 +359,7 @@ class MainThread:
         self._widget_aruco = pn.widgets.Checkbox(name='Aruco Detection', value=self.ARUCO_ACTIVE)
         self._widget_aruco.param.watch(self._callback_aruco, 'value',
                                        onlychanged=False)
-        panel = pn.Column("## Activate aruco detetection", self._widget_aruco, self.Aruco.widgets_aruco())
+        panel = pn.Column("## Activate aruco detection", self._widget_aruco, self.Aruco.widgets_aruco())
         return panel
 
     def _callback_aruco(self, event):

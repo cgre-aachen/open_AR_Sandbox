@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy
 import scipy
@@ -24,7 +25,7 @@ class Sensor:
     """
     Wrapping API-class
     """
-    def __init__(self, calibsensor: str = None, name: str ='kinect_v2', crop_values: bool = True,
+    def __init__(self, calibsensor: str = None, name: str = 'kinect_v2', crop_values: bool = True,
                  clip_values: bool = True, gauss_filter: bool = True,
                  n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
         """
@@ -51,6 +52,8 @@ class Sensor:
             self.s_left = 10
             self.s_min = 700
             self.s_max = 1500
+            self.s_width = 512
+            self.s_height = 424
             self.box_width = 1000
             self.box_height = 800
         else:
@@ -72,10 +75,10 @@ class Sensor:
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')
         elif name == 'dummy':
-            self.Sensor = DummySensor(**kwargs)
+            self.Sensor = DummySensor(extent=self.extent, **kwargs)
         else:
             warn("Unrecognized sensor name. Activating dummy sensor")
-            self.Sensor = DummySensor(**kwargs)
+            self.Sensor = DummySensor(extent=self.extent, **kwargs)
 
         # filter parameters
         self.filter = gauss_filter
@@ -84,7 +87,6 @@ class Sensor:
         self.invert = invert
 
         self.s_name = self.Sensor.name
-        self.s_width = self.Sensor.depth_width
         self.s_width = self.Sensor.depth_width
         self.s_height = self.Sensor.depth_height
         self.depth = None
@@ -139,23 +141,33 @@ class Sensor:
          Returns:
 
          """
-        with open(file) as calibration_json:
-            data = json.load(calibration_json)
-            if data['version'] == self.version:
-                self.s_name = data['s_name']
-                self.s_top = data['s_top']
-                self.s_right = data['s_right']
-                self.s_bottom = data['s_bottom']
-                self.s_left = data['s_left']
-                self.s_min = data['s_min']
-                self.s_max = data['s_max']
-                self.box_width = data['box_width']
-                self.box_height = data['box_height']
 
+        def json_load(dict_data):
+            if dict_data['version'] == self.version:
+                self.s_name = dict_data['s_name']
+                self.s_top = dict_data['s_top']
+                self.s_right = dict_data['s_right']
+                self.s_bottom = dict_data['s_bottom']
+                self.s_left = dict_data['s_left']
+                self.s_min = dict_data['s_min']
+                self.s_max = dict_data['s_max']
+                self.s_width = dict_data["s_frame_width"] + dict_data['s_right'] + dict_data['s_left']
+                self.s_height = dict_data["s_frame_height"] + dict_data['s_top'] + dict_data['s_bottom']
+                self.box_width = dict_data['box_width']
+                self.box_height = dict_data['box_height']
                 print("JSON configuration loaded for sensor.")
             else:
-                print(
-                    "JSON configuration incompatible.\nPlease select a valid calibration file or start a new calibration!")
+                print("JSON configuration incompatible."
+                      "\nPlease select a valid calibration file or start a new calibration!")
+
+        if os.path.isfile(file):
+            with open(file) as calibration_json:
+                data = json.load(calibration_json)
+                json_load(data)
+        else:
+            data = json.loads(file)
+            json_load(data)
+        return True
 
     def save_json(self, file: str = 'sensor_calibration.json'):
         """
@@ -202,14 +214,13 @@ class Sensor:
             crop = frame[self.s_bottom:-self.s_top, self.s_left:]
         else:
             crop = frame[self.s_bottom:-self.s_top, self.s_left:-self.s_right]
-
         return crop
 
     def depth_mask(self, frame: numpy.ndarray) -> numpy.ndarray:
         """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
         above and below. If you also want to use clipping, make sure to use the mask before.
         """
-        #TODO: depth mask is masking everything. returning empty
+        # TODO: depth mask is masking everything. returning empty
         mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.s_min, self.s_max))
         return mask
 
@@ -223,10 +234,13 @@ class Sensor:
 
     def get_frame(self) -> numpy.ndarray:
         frame = self.get_raw_frame(self.filter)
+        if self.Sensor.name == "dummy":
+            self.depth = frame
+            return self.depth
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            #frame = self.depth_mask(frame) #TODO: When is this needed?
+            # frame = self.depth_mask(frame) #TODO: When is this needed?
             frame = self.clip_frame(frame)
         if self.invert:
             frame = self.get_inverted_frame(frame)
@@ -241,12 +255,11 @@ class Sensor:
     @property
     def extent(self):
         """returns the extent in pixels used for the modules to indicate the dimensions of the plot in the sandbox
-        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun point(total height in mm)] """
+        [0, width_pixels, 0, height_pixels, 0, distance from maximum point of the sensor to the minimun
+        point(total height in mm)] """
         return [0, self.s_frame_width, 0, self.s_frame_height, 0, self.vmax]
 
     @property
     def physical_dimensions(self):
         """returns the physical extent of the sandbox in mm. Used for scaling gempy models"""
         return [self.box_width, self.box_height]
-
-

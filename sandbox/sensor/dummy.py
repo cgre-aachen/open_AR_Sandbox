@@ -5,16 +5,14 @@ from scipy.interpolate import griddata  # for DummySensor
 
 class DummySensor:
 
-    def __init__(self, *args, width=512, height=424, depth_limits=(1170, 1370),
+    def __init__(self, width=512, height=424, depth_limits=(0, 400), extent=None,
                  corners=True, points_n=4, points_distance=0.3,
                  alteration_strength=0.1, **kwargs):
         """
 
         Args:
             *args:
-            width:
-            height:
-            depth_limits:
+            extent: [0, width_frame, 0, height_frame, vmin_frame, vmax_frmae]
             corners:
             points_n:
             points_distance:
@@ -31,12 +29,19 @@ class DummySensor:
         self.name = 'dummy'
         self.depth_width = width
         self.depth_height = height
+        if extent is None:
+            self.depth_lim = depth_limits
+            self._depth_width = width
+            self._depth_height = height
+        else:
+            self._depth_width = extent[1]
+            self._depth_height = extent[3]
+            self.depth_lim = extent[-2:]
 
-        self.depth_lim = depth_limits
         self.corners = corners
         self.n = points_n
         # distance in percent of grid diagonal
-        self.distance = numpy.sqrt(self.depth_width ** 2 + self.depth_height ** 2) * points_distance
+        self.distance = numpy.sqrt(self._depth_width ** 2 + self._depth_height ** 2) * points_distance
         # alteration_strength: 0 to 1 (maximum 1 equals numpy.pi/2 on depth range)
         self.strength = alteration_strength
 
@@ -60,6 +65,7 @@ class DummySensor:
         """
         self._alter_values()
         self._interpolate()
+        self.depth[self.depth < 0] = 0  # TODO: Solve the problem of having negative values
         return self.depth
 
     def _oscillating_depth(self, random):
@@ -68,18 +74,18 @@ class DummySensor:
 
     def _create_grid(self):
         # creates 2D grid for given resolution
-        x, y = numpy.meshgrid(numpy.arange(0, self.depth_width, 1), numpy.arange(0, self.depth_height, 1))
+        x, y = numpy.meshgrid(numpy.arange(0, self._depth_width, 1), numpy.arange(0, self._depth_height, 1))
         self.grid = numpy.stack((x.ravel(), y.ravel())).T
         return True
 
     def _pick_positions(self):
-        '''
+        """
         Param:
             grid: Set of possible points to pick from
             n: desired number of points (without corners counting), not guaranteed to be reached
             distance: distance or range between points
         :return:
-        '''
+        """
 
         numpy.random.seed(seed=self.seed)
         gl = self.grid.shape[0]
@@ -137,4 +143,4 @@ class DummySensor:
 
     def _interpolate(self):
         inter = griddata(self.positions[:, :2], self.values, self.grid[:, :2], method='cubic', fill_value=0)
-        self.depth = inter.reshape(self.depth_height, self.depth_width)
+        self.depth = inter.reshape(self._depth_height, self._depth_width)

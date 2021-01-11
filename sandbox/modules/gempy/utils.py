@@ -1,6 +1,7 @@
 import numpy
 
-def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy_isometric:bool=False):
+
+def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy_isometric: bool = False):
     """
     Calculates the factors for the coordinates transformation kinect-extent
     Model is extended in one horizontal direction to fit  into box while the scale
@@ -10,7 +11,7 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
     Args:
         physical_extent: [box_width, box_height]
         model_extent: [x_origin, xmax, yorigin, ymax, zmin, zmax]
-        sensor_extent:  [0, sensor_width, 0. sensor_height, sensor_min, sensor_max]
+        sensor_extent:  [0, sensor_width, 0. sensor_height, vmin, vmax]
         xy_isometric: True
     Returns:
         scale in model units, pixel_scale [modelunits/pixel], pixel_size [mm/pixel]
@@ -38,6 +39,7 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
 
     scale[0] = pixel_scale[0] / pixel_size[0]
     scale[1] = pixel_scale[1] / pixel_size[1]
+    # Vertical scaling
     scale[2] = float(model_extent[5] - model_extent[4]) / (sensor_extent[5] - sensor_extent[4])
     print("scale in Model units/ mm (X,Y,Z): " + str(scale))
     return scale, pixel_scale, pixel_size
@@ -90,23 +92,32 @@ class Grid(object):
 
     def scale_frame(self, frame):
         """Method to scale the frame"""
-        #scaled_frame = self.model_extent[5] - \
-        #               ((frame - self.sensor_extent[-2]) /
-        #                (self.sensor_extent[-1] - self.sensor_extent[-2]) *
-        #                (self.model_extent[5] - self.model_extent[4]))
-        scaled_frame = frame * self.scale[2]
-
+        if self.model_extent[-2] < 0:
+            displace = self.model_extent[-2] * (-1) * (self.sensor_extent[-1] - self.sensor_extent[-2]) / (
+                    self.model_extent[-1] - self.model_extent[-2])
+            scaled_frame = frame - displace
+            # now we set 2 regions. One above sea level and one below sea level. So now we can normalize these two
+            # regions above 0
+            scaled_frame[scaled_frame > 0] = scaled_frame[scaled_frame > 0] * (self.model_extent[-1] /
+                                                                               (self.sensor_extent[-1]-displace))
+            # below 0
+            scaled_frame[scaled_frame < 0] = scaled_frame[scaled_frame < 0] * (self.model_extent[-2] /
+                                                                               (self.sensor_extent[-2]-displace))
+        else:
+            scaled_frame = frame * self.scale[2]
+            scaled_frame = scaled_frame + self.model_extent[-2]
         return scaled_frame
 
     def update_grid(self, scale_frame):
         """
         The frame that is passed here is cropped and clipped
         Appends the z (depth) coordinate to the empty depth grid.
-        this has to be done every frame while the xy coordinates only change if the calibration or model extent is changed.
+        this has to be done every frame while the xy coordinates
+        only change if the calibration or model extent is changed.
         For performance reasons these steps are therefore separated.
 
         Args:
-            cropped_frame: The frame that is passed here is cropped and clipped
+            scale_frame: The frame that is passed here is cropped and clipped
 
         Returns:
         """
