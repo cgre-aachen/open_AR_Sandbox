@@ -357,7 +357,8 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         return self.projector_markers, self.corner_middle
 
     def create_aruco_marker(self, id: int = 1, resolution: int = 50, show: bool = False,
-                            save: bool = False, path: str = './'):
+                            save: bool = False, path: str = './',
+                            fig_filename = None):
         """ Function that creates a single aruco marker providing its id and resolution
         Args:
             id: int indicating the id of the aruco to create
@@ -365,8 +366,10 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             show: boolean. Display the created aruco marker
             save: boolean. save the created aruco marker as an image "Aruco_Markers.jpg"
             path: path to where the aruco will be saved. If none specified will be saved in the same direcory of execution the code
+            :param fig_filename: filename of arcuo file
         Returns:
             ArucoImage: numpy array with the aruco information
+
         """
         self.ArucoImage = 0
 
@@ -381,7 +384,10 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             plt.close(fig)
 
         if save is True:
-            fig.savefig(path + "Aruco_Markers.png")
+            if fig_filename is None:
+                fig.savefig(path + "Aruco_Markers.png")
+            else:
+                fig.savefig(path + fig_filename)
 
         self.ArucoImage = img
         return self.ArucoImage
