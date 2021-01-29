@@ -3,12 +3,12 @@ import collections
 import numpy
 import threading
 import panel as pn
-
 pn.extension()
 import matplotlib.pyplot as plt
 import pandas as pd
 import traceback
 from datetime import datetime
+import skimage.transform
 
 dateTimeObj = datetime.now()
 
@@ -182,32 +182,85 @@ class MainThread:
         self.projector.trigger()
         self.lock.release()
 
-    def load_frame(self, frame: numpy.ndarray = None):
+    def load_frame(self, frame: numpy.ndarray = None, from_file: str=None):
         """
         During the sandbox thread, if you want to fix a frame but not interrupt the thread,
         load the desired numpy array here.
         This will change the flag self._loaded_frame = False to True in the update function and
         stop the sensor frame acquisition.
+        # TODO: Make this compatible with DEM of differ shapes (e.g. bennisson DEM)
         To stop this, pass: frame = None or change the flag self._loaded_frame to False.
         Args:
             frame: numpy.ndarray: must be a matrix of desired resolution
+            from_file: Path to DEM. Can be either .npz or .npy (internally normalized)
         Returns:
 
         """
-
-        if isinstance(frame, str):
-            try:
-                frame = numpy.load(frame)
-            except AttributeError:
-                print(frame, " not valid")
-        elif frame is None:
+        if frame is None and from_file is None:
             self._loaded_frame = False
-        else:
-            # self.lock.acquire()
+            print("No frame to load")
+            return False
+
+        if isinstance(from_file, str):
+            try:
+                file = numpy.load(from_file)
+            except AttributeError:
+                print(from_file, " path not valid")
+                return False
+            if from_file.split(".")[1] == "npy":
+                frame_new = self.normalize_topography(file, self.sensor.extent)
+                self._loaded_frame = True
+                self.previous_frame = frame_new
+                print("loaded .npy file")
+                return True
+            elif from_file.split(".")[1] == "npz":
+                frame_new = file["arr_0"]
+                frame_new = frame_new - frame_new.min()
+                self._loaded_frame = True
+                self.previous_frame = frame_new
+                print("loaded .npz file")
+                return True
+            else:
+                print(from_file, "format not recognized. Please pass a .npy or .npz file")
+                return False
+
+        if isinstance(frame, numpy.ndarray):
             self._loaded_frame = True
             self.previous_frame = frame
             print("loaded")
-            # self.lock.release()
+            return True
+
+        print("Frame and path not valid:", frame, from_file)
+        return False
+
+    @staticmethod
+    def normalize_topography(dem, target_extent):
+        """
+        # TODO: Multiple implementations. TopoModule and LoadSaveModule
+        Normalize any size of numpy array to fit the sandbox frame.
+        Useful when passing DEM with resolution bigger than sandbox sensor.
+        Args:
+            dem:
+            target_extent: [minx, maxx, miny, maxy, vmin, vmax] ->
+            [0, frame_width, 0, frame_height, vmin_sensor, vmax_sensor]
+        Returns:
+             normalized frame
+        """
+        # Change shape of numpy array to desired shape
+        topo_changed = skimage.transform.resize(dem,
+                                                (target_extent[3], target_extent[1]),
+                                                order=3,
+                                                mode='edge',
+                                                anti_aliasing=True,
+                                                preserve_range=False)
+
+        topo_min = topo_changed.min()
+        topo_max = topo_changed.max()
+        # when the min value is not 0
+        topo_changed = topo_changed - topo_min
+        topo_changed = topo_changed * (target_extent[-1] - target_extent[-2]) / (topo_max - topo_min)
+
+        return topo_changed
 
     def add_module(self, name: str, module):
         """Add an specific module to run the update in the main thread"""
