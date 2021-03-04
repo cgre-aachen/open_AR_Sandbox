@@ -126,3 +126,7 @@ notebooks/tutorials/09_LandscapeGeneration/saved_DEMs/test/*.png
 !notebooks/tutorials/09_landscapeGeneration/saved_DEMs/test/.txt
 
 grids_do_not_push/
+
+notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.pickle
+notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.npy
+notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.tif
