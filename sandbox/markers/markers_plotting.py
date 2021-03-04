@@ -85,7 +85,7 @@ class MarkerDetection:
                     self.scat = ax.scatter(df.box_x.values,
                                            df.box_y.values,
                                            s=350, facecolors='none', edgecolors=self.aruco_color, linewidths=2,
-                                           zorder=20)
+                                           zorder=5000)
                     self._scat = weakref.ref(self.scat)
 
                 else:
@@ -102,7 +102,7 @@ class MarkerDetection:
                                              fontsize=20,
                                              textcoords='offset pixels',
                                              xytext=(20, 20),
-                                             zorder=21) for i in range(len(df))]
+                                             zorder=5001) for i in range(len(df))]
 
                 else:
                     if self.anot is not None:
@@ -119,7 +119,7 @@ class MarkerDetection:
                                           df_position[df_position['is_inside_box']]['box_y'].values,
                                           linestyle='solid',
                                           color=self.aruco_color,
-                                          zorder=22)
+                                          zorder=5002)
                     self._lin = weakref.ref(self.lines)
 
                 else:

@@ -4,11 +4,11 @@ import numpy
 import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
+import skimage.transform
 
 from .template import ModuleTemplate
 from sandbox import _test_data
 from matplotlib.figure import Figure
-
 
 
 class LoadSaveTopoModule(ModuleTemplate):
@@ -31,7 +31,8 @@ class LoadSaveTopoModule(ModuleTemplate):
             self.vmin = extent[4]
             self.vmax = extent[5]
             self.extent = extent
-
+        else:
+            self.extent=None
         self.box_origin = [40, 40]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
         self.box_width = 200
         self.box_height = 150
@@ -73,6 +74,9 @@ class LoadSaveTopoModule(ModuleTemplate):
         self._lod = None
         # self._dif = None
         self.frame = None
+        # contour lines
+        self.deactivate_main_contour = False
+        self.contours_on = False
         # create the widgets if used from another module
         _ = self.widgets_box()
         return print("LoadSaveTopoModule loaded succesfully")
@@ -81,11 +85,13 @@ class LoadSaveTopoModule(ModuleTemplate):
         frame = sb_params.get('frame')
         ax = sb_params.get('ax')
         marker = sb_params.get('marker')
+        self.extent = sb_params.get('extent')
         self.frame = frame
         if len(marker) > 0:
             self.aruco_release_area_origin = marker.loc[marker.is_inside_box, ('box_x', 'box_y')]
             self.add_release_area_origin()
         self.plot(frame, ax)
+        sb_params['active_contours'] = not self.deactivate_main_contour
 
         return sb_params
 
@@ -108,6 +114,7 @@ class LoadSaveTopoModule(ModuleTemplate):
     def plot(self, frame, ax):
         self.delete_rectangles_ax(ax)
         self.delete_im_ax(ax)
+
         if self.current_show == self.difference_types[0]:
             self.delete_im_ax(ax)
         elif self.current_show == self.difference_types[1]:
@@ -116,6 +123,15 @@ class LoadSaveTopoModule(ModuleTemplate):
             self.showDifference(ax)
         elif self.current_show == self.difference_types[3]:
             self.showGradDifference(ax)
+
+        # Show contour lines of the plot
+        self.delete_contourns(ax)
+        if self.contours_on:
+            self.showContourTopo(ax)
+        else:
+            if self.deactivate_main_contour:
+                self.delete_contourns(ax)
+                self.deactivate_main_contour = False
 
         self.showBox(ax, self.box_origin, self.box_width, self.box_height)
         self.plot_release_area(ax, self.release_area_origin, self.release_width, self.release_height)
@@ -238,12 +254,18 @@ class LoadSaveTopoModule(ModuleTemplate):
         print('Save area successful')
 
     def loadTopo(self, filename="00_savedTopography.npz"):
-        """Load the absolute topography and relative topography from a .npz file"""
+        """Load the absolute topography and relative topography from a .npz file.
+        If usinng a single .npy is assumed to be an outside DEM """
         self.is_loaded = True
         files = numpy.load(filename, allow_pickle=True)
-        self.absolute_topo = files['arr_0']
-        self.relative_topo = files['arr_1']
-        print('Load successful')
+        if filename.split(".")[-1] == "npz":
+            self.absolute_topo = files['arr_0']
+            self.relative_topo = files['arr_1']
+            print('Load sandbox topography successfully')
+        elif filename.split(".")[-1] == "npy":
+            target = [0, self.box_width, 0, self.box_height, self.extent[-2], self.extent[-1]]
+            self.absolute_topo, self.relative_topo = self.normalize_topography(files, target)
+
         self._get_id(filename)
 
     def showLoadedTopo(self, ax):
@@ -269,6 +291,72 @@ class LoadSaveTopoModule(ModuleTemplate):
            #     self._lod.remove()
            #     self._lod = None
             print("No Topography loaded, please load a Topography")
+
+    def showContourTopo(self, ax):
+        """
+         If a topography is saved internally, display the saved topograhy on the sandbox
+        Args:
+            ax: axes to plot the saved topography
+        Returns:
+        """
+        if self.is_loaded:
+            self.deactivate_main_contour = True
+            shape_frame = self.getBoxShape()
+
+            self.loaded = self.absolute_topo[:shape_frame[0], :shape_frame[1]]
+            self._cont = ax.contour(self.loaded,
+                                    zorder=1000,
+                                    extent=self.to_box_extent,
+                                    colors="k"
+                                    )
+            self._label = ax.clabel(self._cont,
+                                   inline=True,
+                                   fontsize=15,
+                                   fmt='%3.0f')
+
+        else:
+            self.delete_contourns(ax)
+            self.deactivate_main_contour = False
+            print("No Topography loaded, please load a Topography to display contour lines")
+
+    def delete_contourns(self, ax):
+        if self.deactivate_main_contour:
+            [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
+            [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
+
+    @staticmethod
+    def normalize_topography(dem, target_extent):
+        """
+        Normalize any size of numpy array to fit the sandbox frame.
+        Useful when passing DEM with resolution bigger than sandbox sensor.
+        Args:
+            dem:
+            target_extent: [minx, maxx, miny, maxy, vmin, vmax] ->
+            [0, frame_width, 0, frame_height, vmin_sensor, vmax_sensor]
+        Returns:
+             normalized frame
+        """
+        # Change shape of numpy array to desired shape
+        topo_changed = skimage.transform.resize(dem,
+                                                (target_extent[3], target_extent[1]),
+                                                order=3,
+                                                mode='edge',
+                                                anti_aliasing=True,
+                                                preserve_range=False)
+
+        topo_min = topo_changed.min()
+        topo_max = topo_changed.max()
+        # when the min value is not 0
+        if topo_min != 0:
+            displ = 0 - topo_min
+            topo_changed = topo_changed - displ
+
+        topo_changed = topo_changed * (target_extent[-1] - target_extent[-2]) / (topo_max - topo_min)
+        mean_height = topo_changed.mean()
+        absolute_topo = topo_changed - mean_height
+        relative_topo = topo_changed / (target_extent[-1] - target_extent[-2])
+
+        return absolute_topo, relative_topo
 
     def modify_to_box_coordinates(self, frame):
         """
@@ -513,6 +601,10 @@ class LoadSaveTopoModule(ModuleTemplate):
         self._widget_snapshot.param.watch(self._callback_snapshot, 'clicks',
                                           onlychanged=False)
 
+        self._widget_plot_contours = pn.widgets.Checkbox(name='Show contours', value=self.contours_on)
+        self._widget_plot_contours.param.watch(self._callback_plot_contours, 'value',
+                                               onlychanged=False)
+
         widgets = pn.Column('<b>Modify box size </b>',
                             self._widget_move_box_horizontal,
                             self._widget_move_box_vertical,
@@ -521,7 +613,9 @@ class LoadSaveTopoModule(ModuleTemplate):
                             '<b>Take snapshot</b>',
                             self._widget_snapshot,
                             '<b>Show in sandbox</b>',
-                            self._widget_show_type
+                            self._widget_show_type,
+                            '<b>Show contour lines of target topography</b>',
+                            self._widget_plot_contours
                             )
 
         rows = pn.Row(widgets, self.snapshot_frame)
@@ -580,6 +674,9 @@ class LoadSaveTopoModule(ModuleTemplate):
                           )
 
         return panel
+
+    def _callback_plot_contours(self, event):
+        self.contours_on = event.new
 
     def _callback_show(self, event):
         self.set_show(event.new)
