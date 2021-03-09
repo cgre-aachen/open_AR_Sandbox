@@ -60,7 +60,7 @@ class LiDAR:
             self.config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
 
         # Start streaming
-        profile = self.pipeline.start(self.config)
+        self.profile = self.pipeline.start(self.config)
 
         self._color = np.zeros((self.color_height, self.color_width, 3))
         self._depth = np.zeros((self.depth_height, self.depth_width))
