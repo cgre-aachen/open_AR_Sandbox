@@ -1,12 +1,14 @@
 import numpy as np
 import threading
-#%%
+
+# %%
 try:
-     import pyrealsense2 as rs
+    import pyrealsense2 as rs
 except ImportError:
     print('dependencies not found for LiDAR L515 to work. Check installation and try again')
 
-#%%
+
+# %%
 class LiDAR:
     """
     control class for the LiDAR L515 based on the Python wrappers of the Intel RealSense.
@@ -14,6 +16,7 @@ class LiDAR:
     Also we do gaussian blurring to get smoother surfaces.
 
     """
+
     def __init__(self):
         # hard coded class attributes for KinectV2's native resolution
         self.name = 'lidar'
@@ -52,9 +55,9 @@ class LiDAR:
         self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         self.config.enable_stream(rs.stream.infrared, 640, 480, rs.format.y8, 30)
         if device_product_line == 'L500':
-            self.config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+            self.config.enable_stream(rs.stream.color, 960, 540, rs.format.rgb8, 30)
         else:
-            self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            self.config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
 
         # Start streaming
         profile = self.pipeline.start(self.config)
@@ -131,7 +134,7 @@ class LiDAR:
         """
         return self._ir
 
-    def get_ir_frame(self, min = 0, max = 6000):
+    def get_ir_frame(self, vmin=0, vmax=6000):
         """
 
         Args:
@@ -142,16 +145,14 @@ class LiDAR:
                of the last frame
         """
         ir_frame_raw = self.get_ir_frame_raw()
-        self.ir_frame = np.interp(ir_frame_raw, (min, max), (0, 255)).astype('uint8')
+        self.ir_frame = np.interp(ir_frame_raw, (vmin, vmax), (0, 255)).astype('uint8')
         return self.ir_frame
 
     def get_color(self):
         """
-
+        Get the RGB image
         Returns:
 
         """
-        # Transform from BGR image to RGB
-        self.color = self._color[..., ::-1]
+        self.color = self._color
         return self.color
-
