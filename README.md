@@ -210,7 +210,7 @@ and download and execute the file:
 
 Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
 
-Now to the Python wrapper can be easily installed via:
+Now the Python wrapper can be easily installed via:
 
 ```pip install pyrealsense2```
 
@@ -352,7 +352,7 @@ In case the public key still cannot be retrieved, check and specify proxy settin
   
 Reconnect the Intel RealSense depth camera and run: `realsense-viewer` to verify the installation.
 
-Now to the Python wrapper can be easily installed via:
+Now the Python wrapper can be easily installed via:
 
 ```pip install pyrealsense2```
 
