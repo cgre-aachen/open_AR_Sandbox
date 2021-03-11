@@ -109,11 +109,9 @@ def create_CoordinateMap(depth):
     depth_z = []
     color_x = []
     color_y = []
-
     #camera_x = [] # TODO: When are the camera values needed?
     #camera_y = []
     #camera_z = []
-
     for i in tqdm(range(len(xy_points))):
         xcol_point = xy_points[i, 0]
         ycol_point = xy_points[i, 1]
@@ -148,5 +146,4 @@ def create_CoordinateMap(depth):
                                   #'Camera_y(m)': camera_y,
                                   #'Camera_z(m)': camera_z
                                   })
-
     return CoordinateMap

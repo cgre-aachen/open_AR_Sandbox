@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from sandbox.sensor.kinectV2 import KinectV2
 
 #%%
@@ -182,7 +183,7 @@ def create_CoordinateMap(depth):
     camera_z = []
     color_x = []
     color_y = []
-    for i in range(len(xy_points)):
+    for i in tqdm(range(len(xy_points))):
         x_point = xy_points[i, 0]
         y_point = xy_points[i, 1]
         z_point = depth[y_point][x_point]
@@ -192,7 +193,8 @@ def create_CoordinateMap(depth):
             camx = dp_camera_x[y_point][x_point]
             camy = dp_camera_y[y_point][x_point]
             camz = dp_camera_z[y_point][x_point]
-            # since the position of the camera and sensor are different, they will not have the same coverage. Specially in the extremes
+            # since the position of the camera and sensor are different, they will not have the same coverage.
+            # Specially in the extremes
             if y > 0:
 
                 depth_x.append(x_point)
@@ -202,8 +204,8 @@ def create_CoordinateMap(depth):
                 camera_y.append(camy)
                 camera_z.append(camz)
                 ####TODO: constants addded since image is not exact when doing the transformation
-                color_x.append(int(x) + x_correction)
-                color_y.append(int(y) + y_correction)
+                color_x.append(round(x) + x_correction)
+                color_y.append(round(y) + y_correction)
 
     CoordinateMap = pd.DataFrame({'Depth_x': depth_x,
                                   'Depth_y': depth_y,
