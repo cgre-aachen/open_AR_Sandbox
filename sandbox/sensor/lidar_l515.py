@@ -62,6 +62,8 @@ class LiDAR:
         # Start streaming
         self.profile = self.pipeline.start(self.config)
 
+        self.depth_scale = self.profile.get_device().first_depth_sensor().get_depth_scale()
+
         self._color = np.zeros((self.color_height, self.color_width, 3))
         self._depth = np.zeros((self.depth_height, self.depth_width))
         self._ir = np.zeros((self.depth_height, self.depth_width))
@@ -123,7 +125,7 @@ class LiDAR:
         Returns:
                2D Array of the shape(480, 640) containing the depth information of the latest frame in mm
         """
-        self.depth = self._depth
+        self.depth = self._depth * self.depth_scale * 1000 # depth scale to meter and 1000 to mm
         return self.depth
 
     def get_ir_frame_raw(self):
