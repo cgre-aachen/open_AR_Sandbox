@@ -41,6 +41,7 @@ class Projector(object):
       color: #CCCCCC;
     '''
 
+    # F5FCFF
     def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800,
                  show_colorbar: bool = False, show_legend: bool = False, show_hot: bool = False,
                  show_profile: bool = False, position_colorbar: str = "vertical"):
@@ -77,7 +78,8 @@ class Projector(object):
         self.pos_colorbar = position_colorbar
         self._ratio = 10
         self.enable_profile = show_profile
-        self.dim = [0, 0, 1, 1]
+        self._dim_label_ax = [0, 0, 2, 0.1] if self.pos_colorbar == "horizontal" else [0, 0, 0.1, 2]
+        self._size_label_cbar = 15
 
         # panel components (panes)
         self.panel = None
@@ -134,7 +136,7 @@ class Projector(object):
                                                margin=[0,0,0,0],
                                                dpi=self.dpi,
                                                css_classes=['colorbar'],
-                                               tight=False)
+                                               tight=True)
 
         if self.enable_legend:
             self.legend = pn.Column("### Legend",
@@ -205,16 +207,12 @@ class Projector(object):
         if isinstance(cmap, str):
             cmap = plt.get_cmap(cmap)
         cb = Figure()
-        if self.pos_colorbar == "vertical":
-            dimensions_cb = self.dim
-        elif self.pos_colorbar == "horizontal":
-            dimensions_cb = self.dim
-
-        ax = Axes(cb, dimensions_cb)
+        ax = Axes(cb, self._dim_label_ax)
         cb.add_axes(ax)
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax) if norm is None else norm
         cb1 = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=self.pos_colorbar)
-        cb1.set_label(label) if label is not None else None
+        cb1.set_label(label, size=self._size_label_cbar) if label is not None else None
+        cb1.ax.tick_params(labelsize=self._size_label_cbar)
         self.colorbar.object = cb
         self.colorbar.param.trigger("object")
 
