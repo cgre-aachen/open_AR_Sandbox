@@ -43,13 +43,17 @@ class Projector(object):
 
     def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800,
                  show_colorbar: bool = False, show_legend: bool = False, show_hot: bool = False,
-                 show_profile: bool = False):
+                 show_profile: bool = False, position_colorbar: str = "vertical"):
         """
         Args:
             calibprojector:
             use_panel: Automatically display
             p_width: x native resolution of the projector
             p_height: y native resolution of the projector
+            show_colorbar:
+            show_legend:
+            show_hot:
+            show_profile
         """
         self.version = '2.0.p'
         self.ax = None
@@ -70,7 +74,10 @@ class Projector(object):
         self.enable_legend = show_legend
         self.enable_hot = show_hot
         self.enable_colorbar = show_colorbar
+        self.pos_colorbar = position_colorbar
+        self._ratio = 10
         self.enable_profile = show_profile
+        self.dim = [0, 0, 1, 1]
 
         # panel components (panes)
         self.panel = None
@@ -118,7 +125,16 @@ class Projector(object):
         plt.close(self.figure)  # close figure to prevent inline display
 
         if self.enable_colorbar:
-            self.colorbar
+            empty_fig_bg_cb = Figure()
+            self.colorbar = pn.pane.Matplotlib(empty_fig_bg_cb,
+                                               width=self.p_frame_width if self.pos_colorbar == "horizontal"
+                                               else round(self.p_frame_width/self._ratio),
+                                               height=self.p_frame_height if self.pos_colorbar == "vertical"
+                                               else round(self.p_frame_height/self._ratio),
+                                               margin=[0,0,0,0],
+                                               dpi=self.dpi,
+                                               css_classes=['colorbar'],
+                                               tight=False)
 
         if self.enable_legend:
             self.legend = pn.Column("### Legend",
@@ -145,17 +161,62 @@ class Projector(object):
                                      )
 
         # Combine panel and deploy bokeh server
-        self.sidebar = pn.Column(self.legend, self.hot, self.profile,
-                                 margin=[self.p_frame_top, 0, 0, 0],
-                                 )
+        if self.pos_colorbar == "vertical":
+            self.sidebar = pn.Column(self.colorbar, self.legend, self.hot, self.profile,
+                                     margin=[self.p_frame_top, 0, 0, 0],
+                                     )
 
-        self.panel = pn.Row(self.frame, self.sidebar,
-                            width=self.p_width,
-                            height=self.p_height,
-                            sizing_mode='fixed',
-                            css_classes=['panel']
-                            )
+            self.panel = pn.Row(self.frame, self.sidebar,
+                                width=self.p_width,
+                                height=self.p_height,
+                                sizing_mode='fixed',
+                                css_classes=['panel']
+                                )
+        elif self.pos_colorbar == "horizontal":
+            self.sidebar = pn.Column(self.legend, self.hot, self.profile,
+                                     margin=[self.p_frame_top, 0, 0, 0],
+                                     )
+            self.colorbar.margin = [0, 0, 0, self.p_frame_left]
+            self.panel = pn.Row(pn.Column(self.frame, self.colorbar),
+                                self.sidebar,
+                                width=self.p_width,
+                                height=self.p_height,
+                                sizing_mode='fixed',
+                                css_classes=['panel']
+                                )
+        else:
+            raise AttributeError
+
         return True
+
+    def replace_colorbar(self, vmin, vmax, cmap, norm=None, label=None):
+        """
+
+        Args:
+            vmin:
+            vmax:
+            cmap:
+            norm:
+            label:
+
+        Returns:
+
+        """
+        if isinstance(cmap, str):
+            cmap = plt.get_cmap(cmap)
+        cb = Figure()
+        if self.pos_colorbar == "vertical":
+            dimensions_cb = self.dim
+        elif self.pos_colorbar == "horizontal":
+            dimensions_cb = self.dim
+
+        ax = Axes(cb, dimensions_cb)
+        cb.add_axes(ax)
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax) if norm is None else norm
+        cb1 = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=self.pos_colorbar)
+        cb1.set_label(label) if label is not None else None
+        self.colorbar.object = cb
+        self.colorbar.param.trigger("object")
 
     def write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
         """
