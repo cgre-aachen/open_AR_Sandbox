@@ -57,6 +57,8 @@ class CmapModule:
         extent = sb_params.get('extent')
         self.vmin = extent[-2]
         self.vmax = extent[-1]
+        set_cbar = sb_params.get("set_colorbar")
+        set_cbar(self.vmin, self.vmax, cmap, norm)
 
         if active_shade and self.relief_shading:
             if len(data.shape) > 2:  # 3 Then is an image already

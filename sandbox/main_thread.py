@@ -64,6 +64,7 @@ class MainThread:
 
         self.sb_params = {'frame': self.sensor.get_frame(),
                           'ax': self.projector.ax,
+                          'set_colorbar': self.projector.set_colorbar,
                           'extent': self.sensor.extent,
                           'box_dimensions': self.sensor.physical_dimensions,
                           'marker': pd.DataFrame(),

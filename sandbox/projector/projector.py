@@ -191,7 +191,7 @@ class Projector(object):
 
         return True
 
-    def replace_colorbar(self, vmin, vmax, cmap, norm=None, label=None):
+    def set_colorbar(self, vmin, vmax, cmap, norm=None, label=None):
         """
 
         Args:
