@@ -36,9 +36,14 @@ class Projector(object):
       background-color: #40C1C7;
       color: #CCCCCC;
     }
+    .bk.colorbar {
+      background-color: #2896A5;
+      color: #CCCCCC;
     '''
 
-    def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800):
+    def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800,
+                 show_colorbar: bool = False, show_legend: bool = False, show_hot: bool = False,
+                 show_profile: bool = False):
         """
         Args:
             calibprojector:
@@ -62,9 +67,10 @@ class Projector(object):
             self.load_json(calibprojector)
 
         # flags
-        self.enable_legend = False
-        self.enable_hot = False
-        self.enable_profile = False
+        self.enable_legend = show_legend
+        self.enable_hot = show_hot
+        self.enable_colorbar = show_colorbar
+        self.enable_profile = show_profile
 
         # panel components (panes)
         self.panel = None
@@ -72,6 +78,7 @@ class Projector(object):
         self.legend = None
         self.hot = None
         self.profile = None
+        self.colorbar = None
         self.sidebar = None
         # This is to solve issue #3. Give 0.01 ms to each Text from ax.arists to be plotted
         self._target_time = 0.01
@@ -109,6 +116,9 @@ class Projector(object):
                                         css_classes=['frame']
                                         )
         plt.close(self.figure)  # close figure to prevent inline display
+
+        if self.enable_colorbar:
+            self.colorbar
 
         if self.enable_legend:
             self.legend = pn.Column("### Legend",
