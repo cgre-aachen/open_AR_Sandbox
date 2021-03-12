@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 from sandbox.sensor.kinectV2 import KinectV2
 
 #%%
@@ -183,7 +183,7 @@ def create_CoordinateMap(depth):
     camera_z = []
     color_x = []
     color_y = []
-    for i in tqdm(range(len(xy_points))):
+    for i in tqdm(range(len(xy_points)), desc="Creating CoordinateMap"):
         x_point = xy_points[i, 0]
         y_point = xy_points[i, 1]
         z_point = depth[y_point][x_point]

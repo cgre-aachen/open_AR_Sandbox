@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 import pyrealsense2 as rs
 from sandbox.sensor.lidar_l515 import LiDAR
 
@@ -112,7 +112,7 @@ def create_CoordinateMap(depth):
     #camera_x = [] # TODO: When are the camera values needed?
     #camera_y = []
     #camera_z = []
-    for i in tqdm(range(len(xy_points))):
+    for i in tqdm(range(len(xy_points)), desc="Creating CoordinateMap"):
         xcol_point = xy_points[i, 0]
         ycol_point = xy_points[i, 1]
         #if z_point != 0:  # values that do not have depth information cannot be projected to the color space
