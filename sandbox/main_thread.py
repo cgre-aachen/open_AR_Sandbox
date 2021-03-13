@@ -64,6 +64,8 @@ class MainThread:
 
         self.sb_params = {'frame': self.sensor.get_frame(),
                           'ax': self.projector.ax,
+                          'set_colorbar': self.projector.set_colorbar,
+                          'set_legend': self.projector.set_legend,
                           'extent': self.sensor.extent,
                           'box_dimensions': self.sensor.physical_dimensions,
                           'marker': pd.DataFrame(),
@@ -177,7 +179,8 @@ class MainThread:
 
         if isinstance(self.Aruco, MarkerDetection):
             _ = self.Aruco.plot_aruco(self.sb_params['ax'], self.sb_params['marker'])
-
+            # Update of legend
+            self.sb_params['set_legend'](self.Aruco.legend_elements)
         self.lock.acquire()
         self.projector.trigger()
         self.lock.release()
@@ -350,8 +353,13 @@ class MainThread:
                                 self.contours.show_widgets())
             rows = pn.Row(widgets, self.widget_thread_controller())
 
-        panel = pn.Column("## Plotting interaction widgets", rows)
+        panel1 = pn.Column("## Plotting interaction widgets", rows)
         self._update_widget_module_selector()
+
+        panel2 = self.projector.show_widgets_sidepanels()
+
+        panel = pn.Tabs(("Main frame controller", panel1),
+                        ("Side panel controller", panel2))
 
         return panel
 
