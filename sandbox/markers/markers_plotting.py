@@ -1,7 +1,9 @@
 from .aruco import ArucoMarkers
 import panel as pn
 import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
 import numpy
+import pandas as pd
 import weakref
 
 
@@ -9,7 +11,7 @@ class MarkerDetection:
     def __init__(self, sensor, **kwargs):
         self.sensor = sensor
         self.Aruco = ArucoMarkers(sensor=sensor, **kwargs)
-        self.df_aruco_position = None
+        self.df_aruco_position = pd.DataFrame()
         self.lines = None
         self.scat = None
         self._scat = None  # weak reference to a scat plot
@@ -144,13 +146,15 @@ class MarkerDetection:
         return ax
 
     @property
-    def legend_element(self):
-        """Usefull method to get the labels and handles of the """
-        if self.scat is not None:
-            elem = self.scat.legend_elements()
-        else:
-            elem = None
-        return elem
+    def legend_elements(self):
+        """Usefull method to get the labels and handles of the arucos in frame """
+        if len(self.df_aruco_position) > 0:
+            df = self.df_aruco_position.loc[self.df_aruco_position.is_inside_box, ("box_x", "box_y")]
+
+            legend_elements = [Line2D([0], [0], marker='o', color=self.aruco_color, label='id %s'% str(df.index[i]),
+                              markerfacecolor='none') for i in range(len(df))]
+
+            return legend_elements
 
     # Widgets for aruco plotting
 
