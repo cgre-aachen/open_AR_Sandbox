@@ -65,6 +65,7 @@ class MainThread:
         self.sb_params = {'frame': self.sensor.get_frame(),
                           'ax': self.projector.ax,
                           'set_colorbar': self.projector.set_colorbar,
+                          'set_legend': self.projector.set_legend,
                           'extent': self.sensor.extent,
                           'box_dimensions': self.sensor.physical_dimensions,
                           'marker': pd.DataFrame(),
@@ -178,7 +179,7 @@ class MainThread:
 
         if isinstance(self.Aruco, MarkerDetection):
             _ = self.Aruco.plot_aruco(self.sb_params['ax'], self.sb_params['marker'])
-
+            self.sb_params['set_legend'](*self.Aruco.scat.legend_elements())
         self.lock.acquire()
         self.projector.trigger()
         self.lock.release()

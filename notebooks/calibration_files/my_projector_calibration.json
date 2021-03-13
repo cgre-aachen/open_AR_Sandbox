@@ -1,2 +1,1 @@
-{"version": "2.0.p", "p_width": 1280, "p_height": 800, "p_frame_top": 0, "p_frame_left": 210, "p_frame_width": 941, "p_frame_height": 752}
-
+{"version": "2.2.p", "p_width": 1280, "p_height": 800, "p_frame_top": 30, "p_frame_left": 216, "p_frame_width": 930, "p_frame_height": 710, "col_top": 0, "col_left": 0, "col_width": 70, "col_height": 500, "pos_colorbar": "vertical", "leg_top": 0, "leg_left": 0, "leg_width": 175, "leg_height": 233}

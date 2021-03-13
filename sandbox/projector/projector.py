@@ -41,7 +41,6 @@ class Projector(object):
       color: #CCCCCC;
     '''
 
-    # F5FCFF
     def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800,
                  show_colorbar: bool = False, position_colorbar: str = "vertical",
                  show_legend: bool = False, show_hot: bool = False,
@@ -58,7 +57,7 @@ class Projector(object):
             show_hot:
             show_profile
         """
-        self.version = '2.1.p'
+        self.version = '2.2.p'
         self.ax = None
         self.figure = None
         self.json_filename = calibprojector
@@ -85,6 +84,11 @@ class Projector(object):
                                            else round(self.p_frame_width / self._ratio)
             self.col_height = self.p_frame_height if self.pos_colorbar == "vertical" \
                                            else round(self.p_frame_height / self._ratio)
+
+            self.leg_width = round(self.p_frame_width/4)
+            self.leg_height = round(self.p_frame_width/3)
+            self.leg_top = 0
+            self.leg_left = 0
         else:
             self.load_json(calibprojector)
 
@@ -187,17 +191,19 @@ class Projector(object):
                                            width= self.col_width,
                                            height= self.col_height,
                                            margin=[self.col_top, 0, 0, self.col_left],
-                                           dpi=self.dpi,
+                                           dpi=self.dpi*2,
                                            css_classes=['colorbar'],
                                            tight=True)
 
     def create_legend(self):
-        self.legend = pn.Column("### Legend",
-                                # add parameters from calibration for positioning
-                                width=100,
-                                height=100,
-                                margin=[0, 0, 0, 0],
-                                css_classes=['legend'])
+        empty_fig_bg_ld = Figure()
+        self.legend = pn.pane.Matplotlib(empty_fig_bg_ld,
+                                           width=self.leg_width,
+                                           height=self.leg_height,
+                                           margin=[self.leg_top, 0, 0, self.leg_left],
+                                           dpi=self.dpi*2,
+                                           css_classes=['legend'],
+                                           tight=True)
 
     def create_hot(self):
         self.hot = pn.Column("### Hot area",
@@ -215,16 +221,15 @@ class Projector(object):
                                  css_classes=['profile']
                                  )
 
-    def set_colorbar(self, vmin, vmax, cmap="viridis", norm=None, label=None):
+    def set_colorbar(self, vmin: float, vmax: float, cmap="viridis", norm=None, label: str = None):
         """
-
+        Create a colorbar and display the figure in the colorbar widget
         Args:
-            vmin:
-            vmax:
-            cmap:
-            norm:
-            label:
-
+            vmin: Minimun value of the colorbar
+            vmax: Maximum value of the colorbar
+            cmap: Colormap of the colorbar
+            norm: (optionl) Normalization, in case that not, this is internally managed
+            label: Text to display as label in the colorbar
         Returns:
 
         """
@@ -241,6 +246,28 @@ class Projector(object):
             cb1.ax.tick_params(labelsize=self._size_label_cbar)
             self.colorbar.object = cb
             self.colorbar.param.trigger("object")
+
+    def set_legend(self, handles=None, labels=None, *args):
+        """
+        Create a legend with the information of frame with the ax.get_legend_handles_labels().
+        External handles and labels can be used
+        Returns:
+
+        """
+        if self.legend is not None:
+            ld = Figure()
+            if handles is None and labels is None:
+                if args == ():
+                    ld.legend(*self.ax.get_legend_handles_labels())
+                else:
+                    ld.legend(*args)
+            else:
+                ld.legend(labels=labels,
+                          handles=handles
+                          )
+            self.legend.object = ld
+            self.legend.param.trigger("object")
+
 
     def write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
         """
@@ -338,7 +365,11 @@ class Projector(object):
                     'col_left': self.col_left,
                     'col_width': self.col_width,
                     'col_height': self.col_height,
-                    'self.pos_colorbar': self.pos_colorbar
+                    'pos_colorbar': self.pos_colorbar,
+                    'leg_top': self.leg_top,
+                    'leg_left': self.leg_left,
+                    'leg_width': self.leg_width,
+                    'leg_height': self.leg_height,
                     }
             json.dump(data, calibration_json)
         print('JSON configuration file saved:', str(file))
@@ -366,6 +397,11 @@ class Projector(object):
                 self.col_width = dict_data.get('col_width')
                 self.col_height = dict_data.get('col_height')
                 self.pos_colorbar = dict_data.get('pos_colorbar')
+                self.leg_top = dict_data.get('leg_top')
+                self.leg_left = dict_data.get('leg_left')
+                self.leg_width = dict_data.get('leg_width')
+                self.leg_height =dict_data.get('leg_height')
+
                 print("JSON configuration loaded for projector.")
             else:
                 print("JSON configuration incompatible." +
@@ -392,8 +428,13 @@ class Projector(object):
                           )
         return panel
 
-    def widgets_sidepanels(self):
-        self._create_widgets_sidepanels()
+    def show_widgets_sidepanels(self):
+        tabs = pn.Tabs(("Colorbar", self.show_widget_colorbar()),
+                       ("Legend", self.show_widget_legend()))
+        return tabs
+
+    def show_widget_colorbar(self):
+        self._create_widgets_colorbar()
         panel1 = pn.Column("### Colorbar",
                            self._widgets_show_colorbar,
                            self._widget_label,
@@ -403,9 +444,21 @@ class Projector(object):
                            self._widget_top_colorbar,
                            self._widget_left_colorbar,
                            self._widget_width_colorbar,
-                           self._widget_height_colorbar)
-        panel = pn.Row(panel1, panel2)
-        return panel
+                           self._widget_height_colorbar,
+                           self._widget_col_background)
+        return pn.Row(panel1, panel2)
+
+    def show_widget_legend(self):
+        self._create_widgets_legend()
+        panel3 = pn.Column("### Legend",
+                           self._widgets_show_legend,
+                           self._widget_refresh_leg)
+        panel4 = pn.Column(self._widget_top_legend,
+                           self._widget_left_legend,
+                           self._widget_width_legend,
+                           self._widget_height_legend,
+                           self._widget_leg_background)
+        return pn.Row(panel3, panel4)
 
     def _create_widgets(self):
         # projector widgets and links
@@ -442,7 +495,7 @@ class Projector(object):
 
         return True
 
-    def _create_widgets_sidepanels(self):
+    def _create_widgets_colorbar(self):
         self._widget_colorbar_ori = pn.widgets.Select(name='Orientation Colorbar',
                                                     options=["vertical", "horizontal"],
                                                    value=self.pos_colorbar)
@@ -485,15 +538,68 @@ class Projector(object):
         self._widget_refresh_col.param.watch(self._callback_refresh, 'clicks',
                                             onlychanged=False)
 
+        self._widget_col_background = pn.widgets.ColorPicker(name='Color background colorbar', value="#2896A5")
+        self._widget_col_background.param.watch(self._callback_col_background, 'value', onlychanged=False)
+
+    def _create_widgets_legend(self):
+        self._widgets_show_legend = pn.widgets.Checkbox(name='Show legend',
+                                                        value=self.enable_legend)
+        self._widgets_show_legend.param.watch(self._callback_enable_legend, 'value',
+                                                onlychanged=False)
+
+        self._widget_top_legend = pn.widgets.IntSlider(name='Top space',
+                                                        value=self.leg_top,
+                                                        start=0,
+                                                        end=self.p_height - 20)
+        self._widget_top_legend.param.watch(self._callback_top_legend, 'value', onlychanged=False)
+
+        self._widget_left_legend = pn.widgets.IntSlider(name='Left space',
+                                                         value=self.leg_left,
+                                                         start=0,
+                                                         end=self.p_width - 20)
+        self._widget_left_legend.param.watch(self._callback_left_legend, 'value', onlychanged=False)
+
+        self._widget_width_legend = pn.widgets.IntSlider(name='Width Legend',
+                                                          value=self.leg_width,
+                                                          start=1,
+                                                          end=self.p_width)
+        self._widget_width_legend.param.watch(self._callback_width_legend, 'value', onlychanged=False)
+
+        self._widget_height_legend = pn.widgets.IntSlider(name='Height Legend',
+                                                           value=self.leg_height,
+                                                           start=1,
+                                                           end=self.p_height)
+        self._widget_height_legend.param.watch(self._callback_height_legend, 'value', onlychanged=False)
+
+        self._widget_refresh_leg = pn.widgets.Button(name="Refresh legend",
+                                                    button_type="success")
+        self._widget_refresh_leg.param.watch(self._callback_refresh_leg, 'clicks',
+                                            onlychanged=False)
+
+        self._widget_leg_background = pn.widgets.ColorPicker(name='Color background colorbar', value="#16425B")
+        self._widget_leg_background.param.watch(self._callback_leg_background, 'value', onlychanged=False)
+
     def _callback_label(self, event):
         self._label = event.new if event.new != "" else None
 
     def _callback_refresh(self, event):
         self.set_colorbar(0, 1, label=self._label)
 
+    def _callback_refresh_leg(self, event):
+        self.set_legend()
+
     def _callback_enable_colorbar(self, event):
         self.enable_colorbar = event.new
         self.set_colorbar_widget()
+
+    def _callback_enable_legend(self, event):
+        self.enable_legend = event.new
+        if self.enable_legend:
+            self.create_legend()
+            self.sidebar.insert(1, self.legend)
+        else:
+            if self.legend is not None:
+                self.sidebar.remove(self.legend) if self.legend in self.sidebar else None
 
     def set_colorbar_widget(self):
         if self.colorbar is not None:
@@ -536,6 +642,26 @@ class Projector(object):
         self.colorbar.height = event.new
         self.colorbar.param.trigger('object')
 
+    def _callback_top_legend(self, event):
+        self.leg_top = event.new
+        self.legend.margin[0] = event.new
+        self.legend.param.trigger('object')
+
+    def _callback_left_legend(self, event):
+        self.leg_left = event.new
+        self.legend.margin[-1] = event.new
+        self.legend.param.trigger('object')
+
+    def _callback_width_legend(self, event):
+        self.leg_width = event.new
+        self.legend.width = event.new
+        self.legend.param.trigger('object')
+
+    def _callback_height_legend(self, event):
+        self.leg_height = event.new
+        self.legend.height = event.new
+        self.legend.param.trigger('object')
+
     def _callback_p_frame_top(self, target, event):
         self.p_frame_top = event.new
         m = target.margin
@@ -565,3 +691,9 @@ class Projector(object):
     def _callback_json_save(self, event):
         if self.json_filename is not None:
             self.save_json(file=self.json_filename)
+
+    def _callback_col_background(self, event):
+        self.colorbar.background = event.new
+
+    def _callback_leg_background(self, event):
+        self.legend.background = event.new

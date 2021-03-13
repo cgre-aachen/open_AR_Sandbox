@@ -143,6 +143,15 @@ class MarkerDetection:
 
         return ax
 
+    @property
+    def legend_element(self):
+        """Usefull method to get the labels and handles of the """
+        if self.scat is not None:
+            elem = self.scat.legend_elements()
+        else:
+            elem = None
+        return elem
+
     # Widgets for aruco plotting
 
     def widgets_aruco(self):
