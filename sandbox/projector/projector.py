@@ -43,8 +43,9 @@ class Projector(object):
 
     # F5FCFF
     def __init__(self, calibprojector: str = None, use_panel: bool = True, p_width=1280, p_height=800,
-                 show_colorbar: bool = False, show_legend: bool = False, show_hot: bool = False,
-                 show_profile: bool = False, position_colorbar: str = "vertical"):
+                 show_colorbar: bool = False, position_colorbar: str = "vertical",
+                 show_legend: bool = False, show_hot: bool = False,
+                 show_profile: bool = False, ):
         """
         Args:
             calibprojector:
@@ -52,24 +53,15 @@ class Projector(object):
             p_width: x native resolution of the projector
             p_height: y native resolution of the projector
             show_colorbar:
+            position_colorbar: "vertical" or "horizontal"
             show_legend:
             show_hot:
             show_profile
         """
-        self.version = '2.0.p'
+        self.version = '2.1.p'
         self.ax = None
         self.figure = None
         self.json_filename = calibprojector
-        
-        if calibprojector is None:
-            self.p_width = p_width
-            self.p_height = p_height
-            self.p_frame_top = 50
-            self.p_frame_left = 50
-            self.p_frame_width = 700
-            self.p_frame_height = 500
-        else:
-            self.load_json(calibprojector)
 
         # flags
         self.enable_legend = show_legend
@@ -78,8 +70,26 @@ class Projector(object):
         self.pos_colorbar = position_colorbar
         self._ratio = 10
         self.enable_profile = show_profile
-        self._dim_label_ax = [0, 0, 2, 0.1] if self.pos_colorbar == "horizontal" else [0, 0, 0.1, 2]
+
+        if calibprojector is None:
+            self.p_width = p_width
+            self.p_height = p_height
+            self.p_frame_top = 50
+            self.p_frame_left = 50
+            self.p_frame_width = 700
+            self.p_frame_height = 500
+            # Colorbar
+            self.col_top = 0
+            self.col_left = 0 if self.pos_colorbar == "vertical" else self.p_frame_left
+            self.col_width = self.p_frame_width if self.pos_colorbar == "horizontal" \
+                                           else round(self.p_frame_width / self._ratio)
+            self.col_height = self.p_frame_height if self.pos_colorbar == "vertical" \
+                                           else round(self.p_frame_height / self._ratio)
+        else:
+            self.load_json(calibprojector)
+
         self._size_label_cbar = 15
+        self._label = None
 
         # panel components (panes)
         self.panel = None
@@ -96,6 +106,10 @@ class Projector(object):
         self.create_panel()
         if use_panel is True:
             self.start_server()
+
+    @property
+    def _dim_label_ax(self):
+        return [0, 0, 2, 0.1] if self.pos_colorbar == "horizontal" else [0, 0, 0.1, 2]
 
     def create_panel(self):
         """ Initializes the matplotlib figure and empty axes according to projector calibration.
@@ -127,40 +141,16 @@ class Projector(object):
         plt.close(self.figure)  # close figure to prevent inline display
 
         if self.enable_colorbar:
-            empty_fig_bg_cb = Figure()
-            self.colorbar = pn.pane.Matplotlib(empty_fig_bg_cb,
-                                               width=self.p_frame_width if self.pos_colorbar == "horizontal"
-                                               else round(self.p_frame_width/self._ratio),
-                                               height=self.p_frame_height if self.pos_colorbar == "vertical"
-                                               else round(self.p_frame_height/self._ratio),
-                                               margin=[0,0,0,0],
-                                               dpi=self.dpi,
-                                               css_classes=['colorbar'],
-                                               tight=True)
+            self.create_colorbar()
 
         if self.enable_legend:
-            self.legend = pn.Column("### Legend",
-                                    # add parameters from calibration for positioning
-                                    width=100,
-                                    height=100,
-                                    margin=[0, 0, 0, 0],
-                                    css_classes=['legend'])
+            self.create_legend()
 
         if self.enable_hot:
-            self.hot = pn.Column("### Hot area",
-                                 width=100,
-                                 height=100,
-                                 margin=[0, 0, 0, 0],
-                                 css_classes=['hot']
-                                 )
+            self.create_hot()
 
         if self.enable_profile:
-            self.profile = pn.Column("### Profile",
-                                     width=100,
-                                     height=100,
-                                     margin=[0, 0, 0, 0],
-                                     css_classes=['profile']
-                                     )
+            self.create_profile()
 
         # Combine panel and deploy bokeh server
         if self.pos_colorbar == "vertical":
@@ -168,7 +158,8 @@ class Projector(object):
                                      margin=[self.p_frame_top, 0, 0, 0],
                                      )
 
-            self.panel = pn.Row(self.frame, self.sidebar,
+            self.panel = pn.Row(pn.Column(self.frame, None),
+                                self.sidebar,
                                 width=self.p_width,
                                 height=self.p_height,
                                 sizing_mode='fixed',
@@ -178,7 +169,6 @@ class Projector(object):
             self.sidebar = pn.Column(self.legend, self.hot, self.profile,
                                      margin=[self.p_frame_top, 0, 0, 0],
                                      )
-            self.colorbar.margin = [0, 0, 0, self.p_frame_left]
             self.panel = pn.Row(pn.Column(self.frame, self.colorbar),
                                 self.sidebar,
                                 width=self.p_width,
@@ -191,7 +181,41 @@ class Projector(object):
 
         return True
 
-    def set_colorbar(self, vmin, vmax, cmap, norm=None, label=None):
+    def create_colorbar(self):
+        empty_fig_bg_cb = Figure()
+        self.colorbar = pn.pane.Matplotlib(empty_fig_bg_cb,
+                                           width= self.col_width,
+                                           height= self.col_height,
+                                           margin=[self.col_top, 0, 0, self.col_left],
+                                           dpi=self.dpi,
+                                           css_classes=['colorbar'],
+                                           tight=True)
+
+    def create_legend(self):
+        self.legend = pn.Column("### Legend",
+                                # add parameters from calibration for positioning
+                                width=100,
+                                height=100,
+                                margin=[0, 0, 0, 0],
+                                css_classes=['legend'])
+
+    def create_hot(self):
+        self.hot = pn.Column("### Hot area",
+                             width=100,
+                             height=100,
+                             margin=[0, 0, 0, 0],
+                             css_classes=['hot']
+                             )
+
+    def create_profile(self):
+        self.profile = pn.Column("### Profile",
+                                 width=100,
+                                 height=100,
+                                 margin=[0, 0, 0, 0],
+                                 css_classes=['profile']
+                                 )
+
+    def set_colorbar(self, vmin, vmax, cmap="viridis", norm=None, label=None):
         """
 
         Args:
@@ -204,17 +228,19 @@ class Projector(object):
         Returns:
 
         """
-        if isinstance(cmap, str):
-            cmap = plt.get_cmap(cmap)
-        cb = Figure()
-        ax = Axes(cb, self._dim_label_ax)
-        cb.add_axes(ax)
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax) if norm is None else norm
-        cb1 = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=self.pos_colorbar)
-        cb1.set_label(label, size=self._size_label_cbar) if label is not None else None
-        cb1.ax.tick_params(labelsize=self._size_label_cbar)
-        self.colorbar.object = cb
-        self.colorbar.param.trigger("object")
+        if self.colorbar is not None:
+            if isinstance(cmap, str):
+                cmap = plt.get_cmap(cmap)
+            label = label if label is not None else self._label
+            cb = Figure()
+            ax = Axes(cb, self._dim_label_ax)
+            cb.add_axes(ax)
+            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax) if norm is None else norm
+            cb1 = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=self.pos_colorbar)
+            cb1.set_label(label, size=self._size_label_cbar) if label is not None else None
+            cb1.ax.tick_params(labelsize=self._size_label_cbar)
+            self.colorbar.object = cb
+            self.colorbar.param.trigger("object")
 
     def write_text(self, text: str = "cgre-aachen / open_AR_Sandbox"):
         """
@@ -307,7 +333,13 @@ class Projector(object):
                     'p_frame_top': self.p_frame_top,
                     'p_frame_left': self.p_frame_left,
                     'p_frame_width': self.p_frame_width,
-                    'p_frame_height': self.p_frame_height}
+                    'p_frame_height': self.p_frame_height,
+                    'col_top': self.col_top,
+                    'col_left': self.col_left,
+                    'col_width': self.col_width,
+                    'col_height': self.col_height,
+                    'self.pos_colorbar': self.pos_colorbar
+                    }
             json.dump(data, calibration_json)
         print('JSON configuration file saved:', str(file))
         return True
@@ -323,12 +355,17 @@ class Projector(object):
         """
         def json_load(dict_data):
             if dict_data['version'] == self.version:
-                self.p_width = dict_data['p_width']
-                self.p_height = dict_data['p_height']
-                self.p_frame_top = dict_data['p_frame_top']
-                self.p_frame_left = dict_data['p_frame_left']
-                self.p_frame_width = dict_data['p_frame_width']
-                self.p_frame_height = dict_data['p_frame_height']
+                self.p_width = dict_data.get('p_width')
+                self.p_height = dict_data.get('p_height')
+                self.p_frame_top = dict_data.get('p_frame_top')
+                self.p_frame_left = dict_data.get('p_frame_left')
+                self.p_frame_width = dict_data.get('p_frame_width')
+                self.p_frame_height = dict_data.get('p_frame_height')
+                self.col_top = dict_data.get('col_top')
+                self.col_left = dict_data.get('col_left')
+                self.col_width = dict_data.get('col_width')
+                self.col_height = dict_data.get('col_height')
+                self.pos_colorbar = dict_data.get('pos_colorbar')
                 print("JSON configuration loaded for projector.")
             else:
                 print("JSON configuration incompatible." +
@@ -353,6 +390,21 @@ class Projector(object):
                           self._widget_json_filename,
                           self._widget_json_save
                           )
+        return panel
+
+    def widgets_sidepanels(self):
+        self._create_widgets_sidepanels()
+        panel1 = pn.Column("### Colorbar",
+                           self._widgets_show_colorbar,
+                           self._widget_label,
+                           self._widget_refresh_col
+                          )
+        panel2 = pn.Column(self._widget_colorbar_ori,
+                           self._widget_top_colorbar,
+                           self._widget_left_colorbar,
+                           self._widget_width_colorbar,
+                           self._widget_height_colorbar)
+        panel = pn.Row(panel1, panel2)
         return panel
 
     def _create_widgets(self):
@@ -389,6 +441,100 @@ class Projector(object):
         self._widget_json_save.param.watch(self._callback_json_save, 'clicks', onlychanged=False)
 
         return True
+
+    def _create_widgets_sidepanels(self):
+        self._widget_colorbar_ori = pn.widgets.Select(name='Orientation Colorbar',
+                                                    options=["vertical", "horizontal"],
+                                                   value=self.pos_colorbar)
+        self._widget_colorbar_ori.param.watch(self._callback_colorbar_ori, 'value', onlychanged=False)
+
+        self._widgets_show_colorbar = pn.widgets.Checkbox(name='Show colorbar',
+                                                          value=self.enable_colorbar)
+        self._widgets_show_colorbar.param.watch(self._callback_enable_colorbar, 'value',
+                                                onlychanged=False)
+
+        self._widget_top_colorbar = pn.widgets.IntSlider(name='Top space',
+                                                        value=self.col_top,
+                                                        start=0,
+                                                        end=self.p_height - 20)
+        self._widget_top_colorbar.param.watch(self._callback_top_colorbar, 'value', onlychanged=False)
+
+        self._widget_left_colorbar = pn.widgets.IntSlider(name='Left space',
+                                                         value=self.col_left,
+                                                         start=0,
+                                                         end=self.p_width - 20)
+        self._widget_left_colorbar.param.watch(self._callback_left_colorbar, 'value', onlychanged=False)
+
+        self._widget_width_colorbar = pn.widgets.IntSlider(name='Width Colorbar',
+                                                          value=self.col_width,
+                                                          start=1,
+                                                          end=self.p_width)
+        self._widget_width_colorbar.param.watch(self._callback_width_colorbar, 'value', onlychanged=False)
+
+        self._widget_height_colorbar = pn.widgets.IntSlider(name='Height colorbar',
+                                                           value=self.col_height,
+                                                           start=1,
+                                                           end=self.p_height)
+        self._widget_height_colorbar.param.watch(self._callback_height_colorbar, 'value', onlychanged=False)
+
+        self._widget_label = pn.widgets.TextInput(name='Label of colorbar')
+        self._widget_label.param.watch(self._callback_label, 'value', onlychanged=False)
+
+        self._widget_refresh_col = pn.widgets.Button(name="Refresh label",
+                                                    button_type="success")
+        self._widget_refresh_col.param.watch(self._callback_refresh, 'clicks',
+                                            onlychanged=False)
+
+    def _callback_label(self, event):
+        self._label = event.new if event.new != "" else None
+
+    def _callback_refresh(self, event):
+        self.set_colorbar(0, 1, label=self._label)
+
+    def _callback_enable_colorbar(self, event):
+        self.enable_colorbar = event.new
+        self.set_colorbar_widget()
+
+    def set_colorbar_widget(self):
+        if self.colorbar is not None:
+            for pa in self.panel:
+                if self.colorbar in pa:
+                    pa.remove(self.colorbar)
+                    break
+        if self.enable_colorbar:
+            if self.pos_colorbar == "horizontal":
+                self.create_colorbar()
+                self.colorbar.margin = [0, 0, 0, self.p_frame_left]
+                self.panel[0].insert(1, self.colorbar)
+            elif self.pos_colorbar == "vertical":
+                self.create_colorbar()
+                self.sidebar.insert(0, self.colorbar)
+            self._widget_height_colorbar.value = self.col_height = self.p_frame_height if self.pos_colorbar == "vertical" \
+                else round(self.p_frame_height / self._ratio)
+            self._widget_width_colorbar.value = self.col_width = self.p_frame_width if self.pos_colorbar == "horizontal" \
+                                           else round(self.p_frame_width / self._ratio)
+            self._widget_left_colorbar.value = self.col_left = 0 if self.pos_colorbar == "vertical" else self.p_frame_left
+            self._widget_top_colorbar.value = self.col_top = 0
+
+    def _callback_colorbar_ori(self, event):
+        self.pos_colorbar = event.new
+        self.set_colorbar_widget()
+
+    def _callback_top_colorbar(self, event):
+        self.colorbar.margin[0] = event.new
+        self.colorbar.param.trigger('object')
+
+    def _callback_left_colorbar(self, event):
+        self.colorbar.margin[-1] = event.new
+        self.colorbar.param.trigger('object')
+
+    def _callback_width_colorbar(self, event):
+        self.colorbar.width = event.new
+        self.colorbar.param.trigger('object')
+
+    def _callback_height_colorbar(self, event):
+        self.colorbar.height = event.new
+        self.colorbar.param.trigger('object')
 
     def _callback_p_frame_top(self, target, event):
         self.p_frame_top = event.new
