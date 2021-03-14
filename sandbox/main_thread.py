@@ -9,12 +9,13 @@ import pandas as pd
 import traceback
 from datetime import datetime
 import skimage.transform
+import platform
+_platform = platform.system()
 
 dateTimeObj = datetime.now()
 
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
-from sandbox.sensor.kinectV2 import _platform
 from sandbox.markers import MarkerDetection
 
 
@@ -308,8 +309,9 @@ class MainThread:
 
     def run(self):
         if self.thread_status != 'running':
-            if _platform == "Linux" and self.sensor.s_name == "kinect_v2":
-                self.sensor.Sensor._run()
+            if _platform == "Linux":
+                if self.sensor.s_name == "kinect_v2" or self.sensor.s_name == "lidar":
+                    self.sensor.Sensor._run()
             self.thread_status = 'running'
             self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
             self.thread.start()
@@ -320,8 +322,9 @@ class MainThread:
 
     def stop(self):
         if self.thread_status is not 'stopped':
-            if _platform == "Linux" and self.sensor.s_name == "kinect_v2":
-                self.sensor.Sensor._stop()
+            if _platform == "Linux":
+                if self.sensor.s_name == "kinect_v2" or self.sensor.s_name == "lidar":
+                    self.sensor.Sensor._stop()
             self.thread_status = 'stopped'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
             print('Thread stopped.')

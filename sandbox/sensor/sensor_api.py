@@ -6,11 +6,6 @@ import scipy.ndimage
 from warnings import warn
 import json
 
-from .kinectV1 import KinectV1
-from .kinectV2 import KinectV2, _platform
-from .dummy import DummySensor
-
-
 # logging and exception handling
 verbose = False
 if verbose:
@@ -32,7 +27,7 @@ class Sensor:
         Sensor Api class to manage the different sensor for the frame adquisition
         Args:
             calibsensor: file path for the .json calibration file of the sensor
-            name: type of sensor to use. Current ['kinect_v1', 'kinect_v2', 'dummy']. Predefined is 'kinect_v2'
+            name: type of sensor to use. Current ['kinect_v1', 'kinect_v2', 'lidar', 'dummy']. Predefined is 'kinect_v2'
             crop_values: to crop the frame according to the calibration file
             clip_values: clip the values to the maximum and minimum extent
             gauss_filter: apply a gaussian filter to the data
@@ -60,12 +55,14 @@ class Sensor:
             self.load_json(calibsensor)
 
         if name == 'kinect_v1':
+            from .kinectV1 import KinectV1
             try:
                 import freenect
                 self.Sensor = KinectV1()
             except ImportError:
                 raise ImportError('Kinect v1 dependencies are not installed')
         elif name == 'kinect_v2':
+            from .kinectV2 import KinectV2, _platform
             try:
                 if _platform == 'Windows':
                     import pykinect2
@@ -74,9 +71,19 @@ class Sensor:
                 self.Sensor = KinectV2()
             except ImportError:
                 raise ImportError('Kinect v2 dependencies are not installed')
+        elif name == 'lidar':
+            from .lidar_l515 import LiDAR
+            try:
+                import pyrealsense2
+                self.Sensor = LiDAR()
+            except ImportError:
+                raise ImportError('LiDAR dependencies are not installed')
+
         elif name == 'dummy':
+            from .dummy import DummySensor
             self.Sensor = DummySensor(extent=self.extent, **kwargs)
         else:
+            from .dummy import DummySensor
             warn("Unrecognized sensor name. Activating dummy sensor")
             self.Sensor = DummySensor(extent=self.extent, **kwargs)
 

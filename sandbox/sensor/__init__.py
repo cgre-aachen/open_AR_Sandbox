@@ -1,4 +1,4 @@
-from .sensor_api import Sensor, DummySensor, KinectV1, KinectV2
+from .sensor_api import Sensor
 from .calibration_sensor import CalibSensor
 
 if __name__ == '__main__':
