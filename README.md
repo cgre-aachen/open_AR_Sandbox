@@ -24,11 +24,13 @@ Table of Contents
         * [Windows](README.md#for-windows)
             * [KinectV1 - Future](README.md#kinect-v1---future)
             * [KinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
-            * [LiDAR L515 - pyrealsense2](README.md#lidar-l515---pyrealsense2---win)
         * [Linux](README.md#for-linux)
             * [KinectV1 - libkinect](README.md#kinect-v1---libfreenect)
             * [KinectV2 - freenect2](README.md#kinect-v2---freenect2)
-            * [LiDAR L515 - pyrealsense2](README.md#lidar-l515---pyrealsense2---lin)
+   * [LiDAR L515 Installation](README.md#lidar-l515-installation)
+      * [Installing in Windows](README.md#installing-in-windows)
+      * [Installing in Linux](README.md#installing-in-linux)
+      * [Running with Python](README.md#running-with-python)
 * [Git LFS](README.md#git-lfs)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
@@ -201,22 +203,6 @@ required_size = 64 + sysinfo.platform_bits / 4
 assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
 
-#### LiDAR L515 - pyrealsense2 - Win
-
-First, go to the latest release page on [GitHub](https://github.com/IntelRealSense/librealsense/releases/latest) 
-and download and execute the file: 
-
-```Intel.RealSense.Viewer.exe```
-
-Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
-
-Now the Python wrapper can be easily installed via:
-
-```pip install pyrealsense2```
-
-If any problems with the installation reference to 
-[Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
-
 ### For Linux
 !!!Not stable!!!
 
@@ -327,7 +313,19 @@ replace the <...> with your specific path.
 sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/envs/sandbox-env/lib/
 ```
 
-#### LiDAR L515 - pyrealsense2 - Lin
+
+### LiDAR L515 Installation 
+
+#### Installing in Windows
+
+First, go to the latest release page on [GitHub](https://github.com/IntelRealSense/librealsense/releases/latest) 
+and download and execute the file: 
+
+```Intel.RealSense.Viewer.exe```
+
+Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
+
+#### Installing in Linux 
 
 Detailed installation steps can be found in the 
 [linux installation guide](https://github.com/IntelRealSense/librealsense/blob/development/doc/distribution_linux.md). 
@@ -352,13 +350,14 @@ In case the public key still cannot be retrieved, check and specify proxy settin
   
 Reconnect the Intel RealSense depth camera and run: `realsense-viewer` to verify the installation.
 
-Now the Python wrapper can be easily installed via:
+#### Running with python
+
+After the sensor is installed on your pltaform, the Python wrapper can be easily installed via:
 
 ```pip install pyrealsense2```
 
 If any problems with the installation reference to 
 [Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
-
 
 Git LFS
 -------
