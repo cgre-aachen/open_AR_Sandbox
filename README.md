@@ -17,7 +17,7 @@ Table of Contents
 --------
 * [Introduction](README.md#introduction)
 * [Features](README.md#features)
-* [Licens, use and attributions](README.md#license-use-and-attribution)
+* [License, use and attributions](README.md#license-use-and-attribution)
 * [Requirements](README.md#requirements)
 * [Installation](README.md#installation)
     * [Standard packages](README.md#standard-packages)
