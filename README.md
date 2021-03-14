@@ -17,12 +17,12 @@ Table of Contents
 --------
 * [Introduction](README.md#introduction)
 * [Features](README.md#features)
+* [Licens, use and attributions](README.md#license-use-and-attribution)
 * [Requirements](README.md#requirements)
 * [Installation](README.md#installation)
     * [Standard packages](README.md#standard-packages)
     * [Kinect Installation](README.md#kinect-installation)
         * [Windows](README.md#for-windows)
-            * [KinectV1 - Future](README.md#kinect-v1---future)
             * [KinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
         * [Linux](README.md#for-linux)
             * [KinectV1 - libkinect](README.md#kinect-v1---libfreenect)
@@ -37,7 +37,6 @@ Table of Contents
     * [Devito](README.md#devito)
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
-* [Getting Started](README.md#getting-started)
 * [Project Development](README.md#project-development)
 * [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
@@ -204,7 +203,6 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
 
 ### For Linux
-!!!Not stable!!!
 
 #### Kinect v1 - libfreenect
 
