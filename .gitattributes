@@ -1,5 +1,0 @@
-notebooks/tutorials/07_LandslideSimulation/saved_DEMs/*.npz filter=lfs diff=lfs merge=lfs -text
-notebooks/tutorials/07_LandslideSimulation/simulation_data/*.npz filter=lfs diff=lfs merge=lfs -text
-notebooks/tutorials/07_LandslideSimulation/saved_ReleaseAreas/*.npy filter=lfs diff=lfs merge=lfs -text
-notebooks/tutorials/06_LoadSaveTopoModule/saved_DEMs/*.npz filter=lfs diff=lfs merge=lfs -text
-tests/test_data/*.npz filter=lfs diff=lfs merge=lfs -text

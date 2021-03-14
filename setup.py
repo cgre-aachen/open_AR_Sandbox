@@ -9,6 +9,7 @@ setup(
     version=version,
     packages=find_packages(exclude=('test', 'docs')),
     include_package_data=True,
+    package_data={"sandbox": ["registry.txt"]},
     install_requires=[
         'matplotlib >= 3.2.1',
         'numpy',
@@ -21,6 +22,8 @@ setup(
         'jupyter',
         'cython',
         'seaborn',
+        'tqdm',
+        'pooch >=1.2.0'
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',

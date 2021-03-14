@@ -27,5 +27,33 @@ _test_data = {'topo': os.path.abspath(os.path.dirname(__file__) +
 _calibration_dir = os.path.abspath(os.path.dirname(__file__) + '/../notebooks/calibration_files/')+os.sep
 _package_dir = os.path.dirname(__file__)
 
+# Create folders if not existing
+# Topo folder
+if not os.path.isdir(_test_data.get("topo")):
+    os.mkdir(_test_data.get("topo"))
+
+# Landslides folders
+if not os.path.isdir(_test_data.get("landslide_topo")):
+    os.mkdir(_test_data.get("landslide_topo"))
+if not os.path.isdir(_test_data.get("landslide_release")):
+    os.mkdir(_test_data.get("landslide_release"))
+if not os.path.isdir(_test_data.get("landslide_simulation")):
+    os.mkdir(_test_data.get("landslide_simulation"))
+
+# Test folders
+if not os.path.isdir(_test_data.get("test")):
+    os.mkdir(_test_data.get("test"))
+    os.mkdir(_test_data.get("test")+"temp")
+
+# Landscape folders
+if not os.path.isdir(_test_data.get("landscape_generation")+"checkpoints"):
+    os.mkdir(_test_data.get("landscape_generation")+"checkpoints")
+if not os.path.isdir(_test_data.get("landscape_generation")+"results"):
+    os.mkdir(_test_data.get("landscape_generation")+"results")
+if not os.path.isdir(_test_data.get("landscape_generation")+"saved_DEMs"):
+    os.mkdir(_test_data.get("landscape_generation")+"saved_DEMs")
+    os.mkdir(_test_data.get("landscape_generation") + "saved_DEMs/test")
+
+
 if __name__ == '__main__':
     pass
