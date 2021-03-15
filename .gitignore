@@ -119,7 +119,6 @@ notebooks/tutorials/09_LandscapeGeneration/saved_DEMs/
 notebooks/tutorials/09_LandscapeGeneration/results/
 notebooks/tutorials/09_LandscapeGeneration/checkpoints/
 
+*.pickle
 # Gempy Data
-notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.pickle
-notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.npy
-notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/*.tif
+notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/

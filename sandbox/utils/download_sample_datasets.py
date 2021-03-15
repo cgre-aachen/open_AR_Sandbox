@@ -1,11 +1,12 @@
 # %%
+import os, sys
+sys.path.append('.')
 import pooch
-import os
 from sandbox import _test_data
 from warnings import warn
 from pooch import HTTPDownloader
-
 download = HTTPDownloader(progressbar=True)
+
 #
 # %%
 parent_url = "https://rwth-aachen.sciebo.de/s/oKxBxb1oGW2ZsoC?path=%2F"
@@ -100,6 +101,27 @@ landscape_data = ["latest_net_D.pth",
                   "test_opt.txt",
                   "train_opt.txt"]
 
+# Benisson model
+gempy_benisson_url = "https://rwth-aachen.sciebo.de/s/oKxBxb1oGW2ZsoC/download?path=%2FGempy%2FBenisson_model&files="
+gempy_benisson = ["Benisson_04_elev_contours.dbf",
+                  "Benisson_04_elev_contours.prj",
+                  "Benisson_04_elev_contours.shp",
+                  "Benisson_04_elev_contours.shx",
+                  "Benisson_Map_04.png",
+                  "extent.dbf",
+                  "extent.prj",
+                  "extent.shp",
+                  "extent.shx",
+                  "interfaces_point.dbf",
+                  "interfaces_point.prj",
+                  "interfaces_point.shp",
+                  "interfaces_point.shx",
+                  "orientation.dbf",
+                  "orientation.prj",
+                  "orientation.shp",
+                  "orientation.shx"
+                  ]
+
 
 def create_pooch(base_url, files, target):
     """
@@ -154,6 +176,13 @@ def download_landslides_data():
         pooch_landslides_sim.fetch(file, downloader=download)
 
 
+def download_benisson_model():
+    """Dowload data for construction of Benisson model with gempy"""
+    pooch_gempy = create_pooch(gempy_benisson_url, gempy_benisson, _test_data.get("gempy_data"))
+    for file in gempy_benisson:
+        pooch_gempy.fetch(file, downloader=download)
+
+
 def download_landscape_name(name_model: str):
     """Download an specific trained model"""
     if name_model not in landscape_models:
@@ -177,6 +206,7 @@ def download_landscape_all():
         download_landscape_name(name_model)
 
 
+#%%
 if __name__ == '__main__':
     if input("Do you want to download the Test data? (2 KB) [y/n]") == "y":
         download_test_data()
@@ -186,6 +216,9 @@ if __name__ == '__main__':
 
     if input("Do you want to download the Landslide data to the LandslideModule? (4 KB) [y/n]") == "y":
         download_landslides_data()
+
+    if input("Do you want to download the Gempy data for the Benisson Model? (1.2 MB) [y/n]") == "y":
+        download_benisson_model()
 
     if input("Do you want to download all the Trained models for the LandscapeGeneration module? (3 GB) [y/n]") == \
             "y":

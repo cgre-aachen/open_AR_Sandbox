@@ -10,5 +10,5 @@ jupyter
 cython
 seaborn
 tqdm
-pooch >=1.2.0
+pooch
 

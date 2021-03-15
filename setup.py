@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-version = '0.1'
+version = '1.0'
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -22,7 +22,7 @@ setup(
         'cython',
         'seaborn',
         'tqdm',
-        'pooch >=1.2.0'
+        'pooch'
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',
