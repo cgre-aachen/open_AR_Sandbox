@@ -80,14 +80,14 @@ landslides_results = ["Sim_Topo0_Rel01_results4sandbox.npz",
 
 landscape_models = ["Aletsch_1k",
                     "Aletsch_5k",
-                    "Aletsch_3k_lr0.002",
+                    "AletschWin_3k",
                     "AletschWin_10k",
                     "Allgaeu_5k",
                     "AllgaeuSum_10k",
                     "AlpsSum1_1k",
                     "AlpsSum1_5k",
                     "AlpsSum1_10k",
-                    "AlpsSum_3k_lr0.002",
+                    "AlpsSum_3k",
                     "BernSum_5k",
                     "BernSum_10k",
                     "BernWin_5k",
@@ -96,7 +96,7 @@ landscape_urls = ["https://rwth-aachen.sciebo.de/s/oKxBxb1oGW2ZsoC/download?path
                   + "%2F" + i + "&files=" for i in landscape_models]
 
 landscape_data = ["latest_net_D.pth",
-                  "latest_net_G.pth",
+                 # "latest_net_G.pth",
                   "loss_log.txt",
                   "test_opt.txt",
                   "train_opt.txt"]
