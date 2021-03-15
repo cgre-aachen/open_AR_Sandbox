@@ -9,4 +9,6 @@ pytest
 jupyter
 cython
 seaborn
+tqdm
+pooch
 
