@@ -110,6 +110,10 @@ venv.bak/
 tests/test_data/
 # SaveTopo folders
 notebooks/tutorials/06_LoadSaveTopoModule/saved_DEMs/
+# Landslide folders
+notebooks/tutorials/07_LandslideSimulation/saved_DEMs/
+notebooks/tutorials/07_LandslideSimulation/saved_ReleaseAreas/
+notebooks/tutorials/07_LandslideSimulation/simulation_data/
 # Landscape folders
 notebooks/tutorials/09_LandscapeGeneration/saved_DEMs/
 notebooks/tutorials/09_LandscapeGeneration/results/

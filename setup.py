@@ -9,7 +9,6 @@ setup(
     version=version,
     packages=find_packages(exclude=('test', 'docs')),
     include_package_data=True,
-    package_data={"sandbox": ["registry.txt"]},
     install_requires=[
         'matplotlib >= 3.2.1',
         'numpy',

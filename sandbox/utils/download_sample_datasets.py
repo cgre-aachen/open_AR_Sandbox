@@ -102,6 +102,15 @@ landscape_data = ["latest_net_D.pth",
 
 
 def create_pooch(base_url, files, target):
+    """
+    Create POOCH class to fetch files from a website
+    Args:
+        base_url: Base URL for the remote data source.
+        files: A record of the files that are managed by this Pooch.
+        target: The path to the local data storage folder
+    Returns:
+        POOCH class
+    """
     pc = pooch.create(base_url=base_url,
                       path=target,
                       registry={i: None for i in files})  # None because the Hash is always changing.. Sciebo problem?
@@ -109,18 +118,29 @@ def create_pooch(base_url, files, target):
 
 
 def download_test_data():
+    """
+    Download all data for testing
+    Returns:
+
+    """
     pooch_data = create_pooch(tests_url, tests, _test_data.get("test"))
     for file in tests:
         pooch_data.fetch(file, downloader=download)
 
 
 def download_topography_data():
+    """
+    Download all available DEMs to SaveTopoModule
+    Returns:
+
+    """
     pooch_topo = create_pooch(topomodule_url, topomodule_files, _test_data.get("topo"))
     for file in topomodule_files:
         pooch_topo.fetch(file, downloader=download)
 
 
 def download_landslides_data():
+    """Download all available to display the landslide simulations """
     pooch_landslides_dem = create_pooch(landslides_dems_url, landslides_dems, _test_data.get("landslide_topo"))
     pooch_landslides_area = create_pooch(landslides_areas_url, landslides_areas, _test_data.get("landslide_release"))
     pooch_landslides_sim = create_pooch(landslides_results_url, landslides_results,
@@ -135,6 +155,7 @@ def download_landslides_data():
 
 
 def download_landscape_name(name_model: str):
+    """Download an specific trained model"""
     if name_model not in landscape_models:
         return warn("\n Model with name '%s' not available for download. "
                     "\n Available models are %s" % (name_model, str(landscape_models)))
@@ -151,12 +172,29 @@ def download_landscape_name(name_model: str):
 
 
 def download_landscape_all():
+    """Download all trained models available"""
     for name_model in landscape_models:
         download_landscape_name(name_model)
 
 
 if __name__ == '__main__':
-    download_test_data()
-    download_topography_data()
-    download_landslides_data()
-    download_landscape_all()
+    if input("Do you want to download the Test data? (2 KB) [y/n]") == "y":
+        download_test_data()
+
+    if input("Do you want to download some DEMs to the SaveLoadModule? (14.5 MB) [y/n]") == "y":
+        download_topography_data()
+
+    if input("Do you want to download the Landslide data to the LandslideModule? (4 KB) [y/n]") == "y":
+        download_landslides_data()
+
+    if input("Do you want to download all the Trained models for the LandscapeGeneration module? (3 GB) [y/n]") == \
+            "y":
+        if input("Are you sure? All of them? It is 3 GB of data [y/n]") == "y":
+            download_landscape_all()
+    while True:
+        if input("Do you want to download an specific Trained model? [y/n]") == "y":
+            print("Available models: %s" % landscape_models)
+            model = input("Name of model to download:")
+            download_landscape_name(model)
+        else:
+            break

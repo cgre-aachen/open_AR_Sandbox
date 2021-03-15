@@ -31,7 +31,7 @@ Table of Contents
       * [Installing in Windows](README.md#installing-in-windows)
       * [Installing in Linux](README.md#installing-in-linux)
       * [Running with Python](README.md#running-with-python)
-* [Git LFS](README.md#git-lfs)
+* [Download sample data](README.md#download-sample-data)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
@@ -357,30 +357,22 @@ After the sensor is installed on your pltaform, the Python wrapper can be easily
 If any problems with the installation reference to 
 [Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
 
-Git LFS
+Download sample data
 -------
 
-To clone and use this repository, and specially have the landslides simulations and run the tests, you'll need Git Large
- File Storage (LFS).
+You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
+You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
+the the use of the Landscape generation module.
 
-Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
-explains how to set up Git LFS for LSST development.
-
-#### Windows
-1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
-2. Run the windows installer    
-3. Start a command prompt/or git for windows prompt and run `git lfs install`
-
-
-##### Linux
+In the terminal type:
 
 ```
-curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-sudo apt-get install git-lfs
-git lfs install
+python3 sandbox/utils/download_sample_datasets.py
 ```
 
-
+and follow the instruction on the terminal to download the specific files you need. We use 
+[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
+to their respective folders. Running this code a second time will not trigger a download since the file already exists.
 
 External Packages
 ---------
