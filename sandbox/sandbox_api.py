@@ -1,19 +1,9 @@
-# TODO: Load all the modules from here!!! Important for testing (?)
 import panel as pn
 import traceback
 from sandbox import _calibration_dir
 import platform
 _platform = platform.system()
 
-# logging and exception handling
-verbose = False
-if verbose:
-    import logging
-    logging.basicConfig(filename="main.log",
-                        filemode='w',
-                        level=logging.WARNING,
-                        format='%(asctime)s - %(levelname)s - %(message)s',
-                        )
 # Store the name of the sensor as a global variable, and the projector resolution
 # so it can be used and changed in the same session for all the functions
 name_sensor = "kinect_v2"

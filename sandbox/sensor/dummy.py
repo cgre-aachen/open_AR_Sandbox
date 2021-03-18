@@ -1,7 +1,8 @@
 import numpy
 from scipy.spatial.distance import cdist  # for DummySensor
 from scipy.interpolate import griddata  # for DummySensor
-
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 class DummySensor:
 
@@ -55,7 +56,7 @@ class DummySensor:
         self._pick_positions()
         self._pick_values()
         self._interpolate()
-        print("DummySensor initialized.")
+        logger.info("DummySensor initialized.")
 
     def get_frame(self):
         """

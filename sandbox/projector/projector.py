@@ -5,7 +5,8 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import json
-from sandbox import _calibration_dir
+from sandbox import _calibration_dir, set_logger
+logger = set_logger(__name__)
 
 
 class Projector(object):
@@ -306,7 +307,7 @@ class Projector(object):
         # Check for instances and close them?
         self.panel.show(threaded=False)  # , title="Sandbox frame!")#, port = 4242, use_reloader = False)
         # TODO: check how can check if the port exist/open and overwrite it
-        print('Projector initialized and server started.\n'
+        logger.info('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')
         return True
 
@@ -372,7 +373,7 @@ class Projector(object):
                     'leg_height': self.leg_height,
                     }
             json.dump(data, calibration_json)
-        print('JSON configuration file saved:', str(file))
+        logger.info('JSON configuration file saved: %s' % str(file))
         return True
 
     def load_json(self, file: str):
@@ -402,9 +403,9 @@ class Projector(object):
                 self.leg_width = dict_data.get('leg_width')
                 self.leg_height =dict_data.get('leg_height')
 
-                print("JSON configuration loaded for projector.")
+                logger.info("JSON configuration loaded for projector")
             else:
-                print("JSON configuration incompatible." +
+                logger.warning("JSON configuration incompatible." +
                       "\nPlease select a valid calibration file or start a new calibration!")
         if os.path.isfile(file):
             with open(file) as calibration_json:
