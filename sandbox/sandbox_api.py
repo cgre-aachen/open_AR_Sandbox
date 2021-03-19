@@ -117,8 +117,6 @@ class Sandbox:
                                                   kwargs_cmap=kwargs_cmap)
         self.lock = self.Main_Thread.lock
         logger.info('Sandbox server ready')
-        return True
-
 
     def _check_import(self,
                       gempy_module: bool = False,

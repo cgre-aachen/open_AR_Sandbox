@@ -3,7 +3,10 @@ import matplotlib.colors as mcolors
 import copy
 import panel as pn
 import weakref
+from sandbox import set_logger
+logger = set_logger(__name__)
 pn.extension()
+
 
 
 class CmapModule:
@@ -46,6 +49,7 @@ class CmapModule:
         self.azdeg = 315
         self.altdeg = 45
         self.ve = 0.25
+        logger.info("CmapModule loaded successfully")
 
     def update(self, sb_params: dict):
         active = sb_params.get('active_cmap')

@@ -7,14 +7,15 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import cm
 import panel as pn
-from warnings import warn
 from sandbox.modules.load_save_topography import LoadSaveTopoModule
 from .model import Model
 from .source import RickerSource, TimeAxis, Receiver
+from sandbox import set_logger
+logger = set_logger(__name__)
 try:
     from devito import TimeFunction, Eq, solve, Operator
 except ImportError:
-    warn("Devito not installed. SeismicModule will not work")
+    logger.warning("Devito not installed. SeismicModule will not work", exc_info=True)
 
 
 class SeismicModule(ModuleTemplate):
@@ -70,7 +71,7 @@ class SeismicModule(ModuleTemplate):
         self.figure.add_axes(self.axes)
         self.panel_figure = pn.pane.Matplotlib(self.figure, tight=True)
         plt.close(self.figure)  # close figure to prevent inline display
-        return print("SeismicModule loaded succesfully")
+        logger.info("SeismicModule loaded successfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -146,10 +147,11 @@ class SeismicModule(ModuleTemplate):
         if self.model is None:
             self.init_model(vmin=vmin, vmax=vmax, frame=self.frame, nbl=nbl, **kwargs)
         if len(self.src_coordinates) == 0:
-            return print("Put an aruco marker as a source or manually specify a source term")
+            logger.warning("Put an aruco marker as a source or manually specify a source term")
+            return
         self.insert_aruco_source()
         self.operator_and_solve()
-        return print("Simulation succesfull")
+        logger.info("Simulation succesfull")
 
     def init_model(self, vmin, vmax, frame=None, **kwargs):
         if frame is None:
@@ -164,7 +166,8 @@ class SeismicModule(ModuleTemplate):
 
     def insert_aruco_source(self):
         if self.model is None:
-            return print("Create the velocity model first")
+            logger.warning("Create the velocity model first")
+            return
 
         if len(self.xy_aruco) > 0:
             self.src_term = []
@@ -177,7 +180,8 @@ class SeismicModule(ModuleTemplate):
                                          show_wavelet=False, show_model=False)
                 self.inject_source(src)
         else:
-            return print("No arucos founded")
+            logger.warning("No arucos founded")
+            return
 
     def crop_frame(self, frame):
         return frame[self.Load_Area.box_origin[1]:self.Load_Area.box_origin[1] + self.Load_Area.box_height,
@@ -350,7 +354,7 @@ class SeismicModule(ModuleTemplate):
             self.src_term += src_term
 
         self.src_coordinates.append(source.coordinates.data)
-        print("Source registered")
+        logger.info("Source registered")
         return self.src_term
 
     def create_receivers(self, name: str = 'rec', n_receivers: int = 50, depth_receivers: int = 20,
@@ -392,7 +396,7 @@ class SeismicModule(ModuleTemplate):
     def wavefield(self, timeslice):
         """get rid of the sponge that attenuates the waves"""
         if timeslice >= self.time_range.num:
-            print('timeslice not valid for value %i, setting values of %i' % (timeslice, self.time_range.num-1))
+            logger.info('timeslice not valid for value %i, setting values of %i' % (timeslice, self.time_range.num-1))
             timeslice = self.time_range.num-1
 
         wf_data = self.u.data[timeslice, self.model.nbl:-self.model.nbl, self.model.nbl:-self.model.nbl]

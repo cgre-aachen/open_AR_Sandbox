@@ -8,6 +8,8 @@ from matplotlib.figure import Figure
 from .template import ModuleTemplate
 from .load_save_topography import LoadSaveTopoModule
 from sandbox import _test_data
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class LandslideSimulation(ModuleTemplate):
@@ -56,7 +58,7 @@ class LandslideSimulation(ModuleTemplate):
         self.ax2 = self.figure.add_subplot(212)
         self.plot_flow_frame = pn.pane.Matplotlib(self.figure, tight=False, height=500)
         plt.close(self.figure)  # close figure to prevent inline display
-        return print("LandslideSimulation loaded succesfully")
+        logger.info("LandslideSimulation loaded successfully")
         #self.widget_all = self.show_widgets()
 
     def update(self, sb_params: dict):
@@ -185,7 +187,7 @@ class LandslideSimulation(ModuleTemplate):
         self.velocity_flow = files['arr_0']
         self.height_flow = files['arr_1']
         self.counter = self.height_flow.shape[2] - 1
-        print('Load successful')
+        logger.info('Load successful')
 
     def load_release_area(self, data_path):
         """load all possible release areas from the same topography to show the simulation"""
@@ -202,7 +204,7 @@ class LandslideSimulation(ModuleTemplate):
                         self.release_id_all.append(temp[-1])
                         self.release_area_all.append(numpy.load(data_path+i))
                 except:
-                    print("file ", i, " is not compatible with the loading format")
+                    logger.warning("file %s is not compatible with the loading format" % i, exc_info=True)
 
     def show_box_release(self, ax, xy):
         """Show the options for painting release areas at origin xy """

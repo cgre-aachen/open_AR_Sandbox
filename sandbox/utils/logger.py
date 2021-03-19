@@ -6,12 +6,14 @@ from typing import Optional, Dict
 from colorama import Fore, Back, Style
 
 # Record the logger of all the packages for debugging and error handling
-logging.basicConfig(filename=_package_dir+"/../main.log",
-                    filemode='w',
-                    level=logging.INFO,
-                    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
-                    #datefmt='%Y/%m/%d %I:%M:%S %p'
-                    )
+verbose = False
+if verbose:
+    logging.basicConfig(filename=_package_dir+"/../main.log",
+                        filemode='w',
+                        level=logging.INFO,
+                        format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
+                        #datefmt='%Y/%m/%d %I:%M:%S %p'
+                        )
 
 class ColoredFormatter(logging.Formatter):
     """Colored log formatter."""
@@ -33,7 +35,7 @@ class ColoredFormatter(logging.Formatter):
 
 
 formatter = ColoredFormatter(
-    '{color}{name:5}: {levelname}{reset} | {message}',
+    '{color}{name:10}: {levelname}{reset} | {message}',
     style='{',
     # datefmt='%Y-%m-%d %H:%M:%S',
     colors={
@@ -50,7 +52,7 @@ logger = logging.getLogger("sandbox")
 logger.setLevel(logging.DEBUG)
 
 fh = logging.FileHandler(_package_dir+'.log', mode='w')
-frm = logging.Formatter('%(asctime)s | %(name)-12s | %(levelname)-8s | %(message)s')
+frm = logging.Formatter('%(asctime)s | %(name)-18s | %(levelname)-8s | %(message)s')
 fh.setFormatter(frm)
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)

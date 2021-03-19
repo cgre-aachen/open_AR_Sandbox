@@ -5,8 +5,9 @@ import scipy
 import random
 import seaborn as sns
 import panel as pn
-
 from .template import ModuleTemplate
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class SearchMethodsModule(ModuleTemplate):
@@ -90,7 +91,7 @@ class SearchMethodsModule(ModuleTemplate):
         self.frame_norm = None
 
         self._create_widgets()
-        return print("SearchMethodsModule loaded succesfully")
+        logger.info("SearchMethodsModule loaded successfully")
 
     def update(self, sb_params: dict):
         self.frame = sb_params.get('frame')

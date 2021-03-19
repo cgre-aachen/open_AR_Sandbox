@@ -3,9 +3,9 @@ import matplotlib
 from matplotlib.colors import LightSource
 import numpy
 import panel as pn
-
-
 from .template import ModuleTemplate
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class GradientModule(ModuleTemplate):
@@ -43,7 +43,7 @@ class GradientModule(ModuleTemplate):
         self.ve = 0.25
         self.set_lightsource()
 
-        return print("GradientModule loaded succesfully")
+        logger.info("GradientModule loaded successfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
