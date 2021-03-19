@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from tqdm.autonotebook import tqdm
 from sandbox.sensor.kinectV2 import KinectV2
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 #%%
 depth_params = None
@@ -21,19 +23,24 @@ depth = None
 x_correction = 0
 y_correction = 0
 #%%
+
+
 def set_correction(x, y):
     global x_correction, y_correction
     x_correction = x
     y_correction = y
 
+
 def set_device(kinect):
     global device
     device = kinect.device
+
 
 def set_device_params(kinect):
     global depth_params, color_params
     depth_params = kinect.device.ir_camera_params
     color_params = kinect.device.color_camera_params
+
 
 def start_mapping(kinect: KinectV2):
     """
@@ -54,10 +61,11 @@ def start_mapping(kinect: KinectV2):
 
     _ = depth_to_camera(undistorted_depth)
     df = create_CoordinateMap(depth.to_array())
-    print("CoordinateMap created")
+    logger.info("CoordinateMap created")
     if status == "running":
         kinect._run()
     return df
+
 
 def registration():
     """
@@ -82,6 +90,7 @@ def registration():
         rgb, depth, with_big_depth=True)
     return depth, rgb, undistorted_depth, registered_RGB, big_depth
 
+
 def distort(mx, my):
     """
     see http://en.wikipedia.org/wiki/Distortion_(optics) for description
@@ -96,6 +105,7 @@ def distort(mx, my):
     x = depth_params.fx * (dx * kr + depth_params.p2 * (r2 + 2 * dx2) + depth_params.p1 * dxdy2) + depth_params.cx;
     y = depth_params.fy * (dy * kr + depth_params.p1 * (r2 + 2 * dy2) + depth_params.p2 * dxdy2) + depth_params.cy;
     return x, y
+
 
 def depth_to_color(mx, my, z):
     """
@@ -140,10 +150,11 @@ def depth_to_color(mx, my, z):
 
     rx = (wx / (color_params.fx * color_q)) - (color_params.shift_m / color_params.shift_d)
     ry = (wy / color_q) + color_params.cy
-    #calculating x offset for rgb image based on depth value
+    # calculating x offset for rgb image based on depth value
     rx = (rx + (color_params.shift_m / z)) * color_params.fx + (color_params.cx+0.5)
 
     return rx, ry
+
 
 def depth_to_camera(depth=None):
     """
@@ -162,6 +173,7 @@ def depth_to_camera(depth=None):
     points = device.registration.get_points_xyz_array(undistorted=undistorted)
     dp_camera_x, dp_camera_y, dp_camera_z = points[..., 0], points[..., 1], points[..., 2]
     return dp_camera_x, dp_camera_y, dp_camera_z
+
 
 def create_CoordinateMap(depth):
     """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
@@ -246,10 +258,3 @@ def plot_all(df=None, index=7000):
         plt.plot(df_ind.Color_x, df_ind.Color_y, '*r')
         plt.colorbar()
         plt.show()
-#%%
-#kinect = KinectV2()
-#%%
-#df = start_mapping(kinect)
-#%%
-#plot_all(df, index = 7000)
-#%%

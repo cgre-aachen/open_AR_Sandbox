@@ -2,11 +2,14 @@ import numpy as np
 import pandas as pd
 from tqdm.autonotebook import tqdm
 from sandbox.sensor.kinectV2 import KinectV2
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 #%%
 device = None
 x_correction = 0
 y_correction = 0
+
 
 #%%
 def set_correction(x, y):
@@ -14,9 +17,11 @@ def set_correction(x, y):
     x_correction = x
     y_correction = y
 
+
 def set_device(kinect):
     global device
     device = kinect.device
+
 
 def start_mapping(kinect: KinectV2):
     """
@@ -29,15 +34,16 @@ def start_mapping(kinect: KinectV2):
     """
     set_device(kinect)
     df = create_CoordinateMap(kinect.get_frame())
-    print("CoordinateMap created")
+    logger.info("CoordinateMap created")
     return df
 
+
 def create_CoordinateMap(depth):
-    """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
-    camera space. This method requires the depth frame to assign a depth value to the color point.
+    """ Function to create a point to point map of the spatial/pixel equivalences between the depth space,
+    color space and camera space. This method requires the depth frame to assign a depth value to the color point.
     Returns:
-        CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space to camera space and
-        real world values of x,y and z in meters
+        CoordinateMap: DataFrame with the x,y,z values of the depth frame; x,y equivalence between the depth space
+        to camera space and real world values of x,y and z in meters
     """
     from pykinect2 import PyKinectV2
     height, width = depth.shape
@@ -69,7 +75,7 @@ def create_CoordinateMap(depth):
                 camera_x.append(cam.x)
                 camera_y.append(cam.y)
                 camera_z.append(cam.z)
-                ####TODO: constants addded since image is not exact when doing the transformation
+                # TODO: constants addded since image is not exact when doing the transformation
                 color_x.append(round(col.x) + x_correction)
                 color_y.append(round(col.y) + y_correction)
 
@@ -84,6 +90,3 @@ def create_CoordinateMap(depth):
                                   })
 
     return CoordinateMap
-
-
-

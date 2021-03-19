@@ -3,6 +3,8 @@ import pandas as pd
 from tqdm.autonotebook import tqdm
 import pyrealsense2 as rs
 from sandbox.sensor.lidar_l515 import LiDAR
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 x_correction = 0
 y_correction = 0
@@ -16,14 +18,17 @@ depth_to_color_extrin = None
 color_to_depth_extrin = None
 #%%
 
+
 def set_correction(x, y):
     global x_correction, y_correction
     x_correction = x
     y_correction = y
 
+
 def set_sensor(lidar):
     global sensor
     sensor = lidar
+
 
 def set_sensor_params(sensor):
     global depth_scale, depth_intrin, color_intrin, depth_to_color_extrin, color_to_depth_extrin
@@ -37,11 +42,12 @@ def set_sensor_params(sensor):
     color_to_depth_extrin = sensor.profile.get_stream(rs.stream.color).as_video_stream_profile().get_extrinsics_to(
         sensor.profile.get_stream(rs.stream.depth))
 
+
 def start_mapping(sensor: LiDAR):
     """
         Takes the LiDAR L515 sensor and create the map to convert color space to depth space
         Args:
-            kinect: Sensor
+            sensor: Sensor
 
         Returns:
             pd.Dataframe
@@ -49,8 +55,9 @@ def start_mapping(sensor: LiDAR):
     set_sensor(sensor)
     set_sensor_params(sensor)
     df = create_CoordinateMap(sensor.get_frame())
-    print("CoordinateMap created")
+    logger.info("CoordinateMap created")
     return df
+
 
 def project_color_to_depth(xy_pos):
     """
@@ -81,6 +88,7 @@ def project_color_to_depth(xy_pos):
                                                       xy_pos)
     return point
 
+
 def create_CoordinateMap(depth):
     """ Function to create a point to point map of the spatial/pixel equivalences between the depth space, color space and
     camera space. This method requires the depth frame to assign a depth value to the color point.
@@ -109,13 +117,13 @@ def create_CoordinateMap(depth):
     depth_z = []
     color_x = []
     color_y = []
-    #camera_x = [] # TODO: When are the camera values needed?
-    #camera_y = []
-    #camera_z = []
+    # camera_x = [] # TODO: When are the camera values needed?
+    # camera_y = []
+    # camera_z = []
     for i in tqdm(range(len(xy_points)), desc="Creating CoordinateMap"):
         xcol_point = xy_points[i, 0]
         ycol_point = xy_points[i, 1]
-        #if z_point != 0:  # values that do not have depth information cannot be projected to the color space
+        # if z_point != 0:  # values that do not have depth information cannot be projected to the color space
         point = rs.rs2_project_color_pixel_to_depth_pixel(depth_frame.get_data(),
                                                           depth_scale,
                                                           depth_min,
@@ -126,7 +134,7 @@ def create_CoordinateMap(depth):
                                                           color_to_depth_extrin,
                                                           [xcol_point, ycol_point])
         # If the points are inside the resolution of the depth frame
-        if point[0] > 1 and point[0] < 639 and point[1] > 1 and point[1] < 479:
+        if 1 < point[0] < 639 and 1 < point[1] < 479:
             point = list(map(round, point))
             z_point = depth[point[1], point[0]]
 
@@ -142,8 +150,8 @@ def create_CoordinateMap(depth):
                                   'Depth_Z(mm)': depth_z,
                                   'Color_x': color_x,
                                   'Color_y': color_y,
-                                  #'Camera_x(m)': camera_x,
-                                  #'Camera_y(m)': camera_y,
-                                  #'Camera_z(m)': camera_z
+                                  # 'Camera_x(m)': camera_x,
+                                  # 'Camera_y(m)': camera_y,
+                                  # 'Camera_z(m)': camera_z
                                   })
     return CoordinateMap
