@@ -1,11 +1,13 @@
 import numpy as np
 import threading
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 # %%
 try:
     import pyrealsense2 as rs
 except ImportError:
-    print('dependencies not found for LiDAR L515 to work. Check installation and try again')
+    logger.warning('dependencies not found for LiDAR L515 to work. Check installation and try again', exc_info=True)
 
 
 # %%
@@ -29,7 +31,7 @@ class LiDAR:
 
         self.depth = self.get_frame()
         self.color = self.get_color()
-        print("LiDAR initialized.")
+        logger.info("LiDAR initialized.")
 
     def _init_device(self):
         """
@@ -68,10 +70,10 @@ class LiDAR:
         self._depth = np.zeros((self.depth_height, self.depth_width))
         self._ir = np.zeros((self.depth_height, self.depth_width))
         self._run()
-        print("Searching first frame")
+        logger.info("Searching first frame")
         while True:
             if not np.all(self._depth == 0):
-                print("First frame found")
+                logger.info("First frame found")
                 break
 
     def _run(self):
@@ -82,9 +84,9 @@ class LiDAR:
             self._thread_status = 'running'
             self._thread = threading.Thread(target=self._update_frames, daemon=True, )
             self._thread.start()
-            print('Acquiring frames...')
+            logger.info('Acquiring frames...')
         else:
-            print('Already running.')
+            logger.info('Already running.')
 
     def _stop(self):
         """
@@ -93,9 +95,9 @@ class LiDAR:
         if self._thread_status is not 'stopped':
             self._thread_status = 'stopped'  # set flag to end thread loop
             self._thread.join()  # wait for the thread to finish
-            print('Stopping frame acquisition.')
+            logger.info('Stopping frame acquisition.')
         else:
-            print('thread was not running.')
+            logger.info('thread was not running.')
 
     def _update_frames(self):
         """

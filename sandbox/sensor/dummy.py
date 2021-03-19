@@ -4,6 +4,7 @@ from scipy.interpolate import griddata  # for DummySensor
 from sandbox import set_logger
 logger = set_logger(__name__)
 
+
 class DummySensor:
 
     def __init__(self, width=512, height=424, depth_limits=(0, 400), extent=None,

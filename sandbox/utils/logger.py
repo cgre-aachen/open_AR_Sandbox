@@ -33,7 +33,7 @@ class ColoredFormatter(logging.Formatter):
 
 
 formatter = ColoredFormatter(
-    '{color}{name:5}: {levelname:8}{reset} | {message}',
+    '{color}{name:5}: {levelname}{reset} | {message}',
     style='{',
     # datefmt='%Y-%m-%d %H:%M:%S',
     colors={
@@ -50,7 +50,7 @@ logger = logging.getLogger("sandbox")
 logger.setLevel(logging.DEBUG)
 
 fh = logging.FileHandler(_package_dir+'.log', mode='w')
-frm = logging.Formatter('%(asctime)s | %(name)-12s | %(levelname)s-8 | %(message)s')
+frm = logging.Formatter('%(asctime)s | %(name)-12s | %(levelname)-8s | %(message)s')
 fh.setFormatter(frm)
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
@@ -81,3 +81,5 @@ def set_logger(name, level = logging.DEBUG):
     log.setLevel(level)
     return log
 
+def set_level():
+    pass

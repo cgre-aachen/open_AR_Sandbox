@@ -17,6 +17,8 @@ dateTimeObj = datetime.now()
 from sandbox.projector import Projector, ContourLinesModule, CmapModule
 from sandbox.sensor import Sensor
 from sandbox.markers import MarkerDetection
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class MainThread:
@@ -168,6 +170,7 @@ class MainThread:
             self.lock.release()
         except Exception as e:
             traceback.print_exc()
+            logger.critical(e, exc_info=True)
             self._error_message = str(dateTimeObj) + str(type(e)) + str(e)
             self._widget_error_markdown.object = self._error_message
             self.lock.release()
@@ -202,39 +205,38 @@ class MainThread:
         """
         if frame is None and from_file is None:
             self._loaded_frame = False
-            print("No frame to load")
+            logger.info("No frame to load, resuming sandbox frame acquisition")
             return False
 
         if isinstance(from_file, str):
             try:
                 file = numpy.load(from_file)
-            except AttributeError:
-                print(from_file, " path not valid")
+            except Exception:
+                logger.error("%s as path not valid" % from_file, exc_info=True)
                 return False
             if from_file.split(".")[1] == "npy":
                 frame_new = self.normalize_topography(file, self.sensor.extent)
                 self._loaded_frame = True
                 self.previous_frame = frame_new
-                print("loaded .npy file")
+                logger.info("loaded .npy file")
                 return True
             elif from_file.split(".")[1] == "npz":
                 frame_new = file["arr_0"]
                 frame_new = frame_new - frame_new.min()
                 self._loaded_frame = True
                 self.previous_frame = frame_new
-                print("loaded .npz file")
+                logger.info("loaded .npz file")
                 return True
             else:
-                print(from_file, "format not recognized. Please pass a .npy or .npz file")
+                logger.error("%s format not recognized. Please pass a .npy or .npz file" % from_file)
                 return False
 
         if isinstance(frame, numpy.ndarray):
             self._loaded_frame = True
             self.previous_frame = frame
-            print("loaded")
+            logger.info("loaded")
             return True
-
-        print("Frame and path not valid:", frame, from_file)
+        logger.error("Frame and path not valid: Frame -> %s, Path -> %s" % (frame, from_file))
         return False
 
     @staticmethod
@@ -273,17 +275,17 @@ class MainThread:
         self._modules[name] = module
         self.lock.release()
         # self.modules.move_to_end(name, last=True)
-        print('module ' + name + ' added to modules')
+        logger.info('module ' + name + ' added to modules')
 
     def remove_module(self, name: str):
         """Remove a current module from the main thread"""
         if name in self.modules.keys():
             self.lock.acquire()
             self.modules.pop(name)
-            print('module ' + name + ' removed')
+            logger.info('module ' + name + ' removed')
             self.lock.release()
         else:
-            print('No module with name ' + name + ' was found')
+            logger.warning('No module with name ' + name + ' was found')
 
     def module_manager(self, active_modules: list = []):
         # add a module
@@ -315,10 +317,10 @@ class MainThread:
             self.thread_status = 'running'
             self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
             self.thread.start()
-            print('Thread started or resumed...')
+            logger.info('Thread started or resumed...')
 
         else:
-            print('Thread already running.')
+            logger.info('Thread already running.')
 
     def stop(self):
         if self.thread_status is not 'stopped':
@@ -327,23 +329,23 @@ class MainThread:
                     self.sensor.Sensor._stop()
             self.thread_status = 'stopped'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
-            print('Thread stopped.')
+            logger.info('Thread stopped.')
         else:
-            print('thread was not running.')
+            logger.info('thread was not running.')
 
     def pause(self):
         if self.thread_status == 'running':
             self.thread_status = 'paused'  # set flag to end thread loop
             self.thread.join()  # wait for the thread to finish
-            print('Thread paused.')
+            logger.info('Thread paused.')
         else:
-            print('There is no thread running.')
+            logger.info('There is no thread running.')
 
     def resume(self):
         if self.thread_status != 'stopped':
             self.run()
         else:
-            print('Thread already stopped.')
+            logger.info('Thread already stopped.')
 
     def widget_plot_module(self):
         if isinstance(self.Aruco, MarkerDetection):

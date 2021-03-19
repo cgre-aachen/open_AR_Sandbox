@@ -30,7 +30,7 @@ class CalibSensor:  # TODO: include automatic
 
         self._refresh_panel_frame()
 
-        #fig = plt.figure()
+        # fig = plt.figure()
         self.figure = Figure()
         self.ax_notebook_frame = plt.Axes(self.figure, [0., 0., 1., 1.])
         self.figure.add_axes(self.ax_notebook_frame)
@@ -39,7 +39,7 @@ class CalibSensor:  # TODO: include automatic
         plt.close()  # close figure to prevent inline display
 
         pn.state.add_periodic_callback(self.update_panel_frame, 5)
-        #self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
+        # self.projector.panel.add_periodic_callback(self.update_panel_frame, 5)
 
         self.frame_raw = self.sensor.get_raw_frame()
         self.ax_notebook_frame.imshow(self.frame_raw, vmin=self.sensor.s_min, vmax=self.sensor.s_max, cmap=self.cmap,
@@ -64,8 +64,8 @@ class CalibSensor:  # TODO: include automatic
     def update_panel_frame(self):
         frame = self.sensor.get_frame()
         self.fig_frame.set_data(frame)
-        #self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
-        #self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
+        # self.projector.ax.set_xlim(0, self.sensor.s_frame_width)
+        # self.projector.ax.set_ylim(0, self.sensor.s_frame_height)
         self.fig_frame.set_clim(vmin=self.sensor.s_min, vmax=self.sensor.s_max)
         self.projector.trigger()
 
@@ -102,8 +102,8 @@ class CalibSensor:  # TODO: include automatic
                                self._widget_s_right,
                                self._widget_s_bottom,
                                self._widget_s_left,
-                               #self._widget_s_enable_auto_cropping,
-                               #self._widget_s_automatic_cropping,
+                               # self._widget_s_enable_auto_cropping,
+                               # self._widget_s_automatic_cropping,
                                pn.layout.VSpacer(height=5),
                                '<b>Distance from sensor (mm)</b>',
                                self._widget_s_min,
@@ -173,12 +173,12 @@ class CalibSensor:  # TODO: include automatic
 
         # Auto cropping widgets:
 
-        #self._widget_s_enable_auto_cropping = pn.widgets.Checkbox(name='Enable Automatic Cropping', value=False)
-        #self._widget_s_enable_auto_cropping.param.watch(self._callback_enable_auto_cropping, 'value',
+        # self._widget_s_enable_auto_cropping = pn.widgets.Checkbox(name='Enable Automatic Cropping', value=False)
+        # self._widget_s_enable_auto_cropping.param.watch(self._callback_enable_auto_cropping, 'value',
         #                                                onlychanged=False)
 
-        #self._widget_s_automatic_cropping = pn.widgets.Button(name="Crop", button_type="success")
-        #self._widget_s_automatic_cropping.param.watch(self._callback_automatic_cropping, 'clicks',
+        # self._widget_s_automatic_cropping = pn.widgets.Button(name="Crop", button_type="success")
+        # self._widget_s_automatic_cropping.param.watch(self._callback_automatic_cropping, 'clicks',
         #                                              onlychanged=False)
 
         # box widgets:
@@ -233,7 +233,7 @@ class CalibSensor:  # TODO: include automatic
 
     def _callback_s_right(self, event):
         self.sensor.s_right = event.new
-        #self._refresh_panel_frame() #TODO: dirty workaround
+        # self._refresh_panel_frame() #TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_bottom(self, event):
@@ -242,17 +242,17 @@ class CalibSensor:  # TODO: include automatic
 
     def _callback_s_left(self, event):
         self.sensor.s_left = event.new
-        #self._refresh_panel_frame()  # TODO: dirty workaround
+        # self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_min(self, event):
         self.sensor.s_min = event.new
-        #self._refresh_panel_frame()  # TODO: dirty workaround
+        # self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_s_max(self, event):
         self.sensor.s_max = event.new
-        #self._refresh_panel_frame()  # TODO: dirty workaround
+        # self._refresh_panel_frame()  # TODO: dirty workaround
         self.update_notebook_frame()
 
     def _callback_refresh_frame(self, event):
@@ -281,6 +281,7 @@ class CalibSensor:  # TODO: include automatic
     def _callback_box_height(self, event):
         self.sensor.box_height = float(event.new)
 
+    # TODO: Make sense to enable this automatic calibration?
     """def _callback_enable_auto_calibration(self, event):
         self.automatic_calibration = event.new
         if self.automatic_calibration == True:
