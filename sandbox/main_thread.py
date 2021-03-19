@@ -76,6 +76,8 @@ class MainThread:
                           'norm': None,
                           'active_cmap': True,
                           'active_shading': True,
+                          'azimuth': 315,
+                          'altitude': 45,
                           'active_contours': True,
                           'same_frame': False,
                           'lock_thread': self.lock,

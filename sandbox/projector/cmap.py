@@ -59,6 +59,8 @@ class CmapModule:
         cmap = sb_params.get('cmap')
         norm = sb_params.get('norm')
         extent = sb_params.get('extent')
+        self.azdeg = sb_params.get('azimuth')
+        self.altdeg = sb_params.get('altitude')
         self.vmin = extent[-2]
         self.vmax = extent[-1]
         set_cbar = sb_params.get("set_colorbar")
