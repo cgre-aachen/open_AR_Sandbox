@@ -5,6 +5,8 @@ import numpy as np
 from skimage import measure
 from matplotlib.patches import Path, PathPatch
 from .template import ModuleTemplate
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class TopoModule(ModuleTemplate):
@@ -36,7 +38,7 @@ class TopoModule(ModuleTemplate):
         self.sea_level_polygon_line_thickness = 2.
         self.sea_level_polygon_line_color = "blue"
         self.sea_zorder = 1000
-        return print("TopoModule loaded succesfully")
+        logger.info("TopoModule loaded successfully")
 
     def update(self, sb_params: dict):
         """

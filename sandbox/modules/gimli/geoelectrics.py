@@ -7,6 +7,8 @@ import pygimli.meshtools as mt
 import pygimli.physics.ert as ert
 from pygimli.viewer.mpl.meshview import drawStreamLines, drawStreams
 from ..template import ModuleTemplate
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 import logging
 
@@ -65,7 +67,7 @@ class GeoelectricsModule(ModuleTemplate):
         self.panel_figure_sensitivity = pn.pane.Matplotlib(self.figure_sensitivity, tight=True)
         plt.close(self.figure_sensitivity)
 
-        return print("GeoelectricsModule loaded successfully")
+        logger.info("GeoelectricsModule loaded successfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -188,7 +190,7 @@ class GeoelectricsModule(ModuleTemplate):
         if isinstance(ids, dict):
             self.id = ids
         else:
-            print("Data type not accepted. Only accept dictionary as parameter")
+            logger.warning("Data type not accepted. Only accept dictionary as parameter")
 
     def set_aruco_electrodes(self, df):
         """
@@ -206,7 +208,7 @@ class GeoelectricsModule(ModuleTemplate):
                 markers[self.id[index], :] = df.loc[index]
             self.set_electrode_positions(markers)
         except:
-            print("index " + str(index) + "  not found in aruco markers inside box, check your markers again")
+            logger.warning("index " + str(index) + "  not found in aruco markers inside box, check your markers again")
 
     def update_resistivity(self, frame, extent, step):
         if self.mesh is None:
@@ -250,16 +252,16 @@ class GeoelectricsModule(ModuleTemplate):
 
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=self._figsize)
-        #plt.close(fig)
-        pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=True, label="Resistivity ($\Omega m$)",
+        # plt.close(fig)
+        pg.show(self.mesh_fine, self.data_fine, ax=ax1, colorBar=True, label=r"Resistivity ($\Omega m$)",
                 extent=self.extent[:4])
-        pg.show(self.mesh, self.data, ax=ax2, colorBar=True, label="Resistivity ($\Omega m$)",
+        pg.show(self.mesh, self.data, ax=ax2, colorBar=True, label=r"Resistivity ($\Omega m$)",
                 extent=self.extent[:4])
         ax1.set_title("Original resolution")
         ax2.set_title("Coarser resolution")
-        print("Original", self.mesh_fine)
-        print("Coarse", self.mesh)
-        print("Size reduction by %.2f%%" % float(100 - self.mesh.cellCount() / self.mesh_fine.cellCount() * 100))
+        logger.info("Original %s" % self.mesh_fine)
+        logger.info("Coarse %s" % self.mesh)
+        logger.info("Size reduction by %.2f%%" % float(100 - self.mesh.cellCount() / self.mesh_fine.cellCount() * 100))
         return fig
 
     def set_electrode_positions(self, markers=numpy.array(([20, 130],
@@ -370,7 +372,7 @@ class GeoelectricsModule(ModuleTemplate):
         fig, ax = plt.subplots()
         plt.close(fig)
         pg.show(self.mesh, self.data, ax=ax, colorBar=True, extent=self.extent[:4],
-                orientation="vertical", label="Resistivity ($\Omega m$)")
+                orientation="vertical", label=r"Resistivity ($\Omega m$)")
         if self.electrode is not None:
             ax.plot(self.electrode[0, 0], self.electrode[0, 1], "ro")  # Source
             ax.plot(self.electrode[1, 0], self.electrode[1, 1], "bo")  # Sink
@@ -518,15 +520,19 @@ class GeoelectricsModule(ModuleTemplate):
     def _callback_update_plots(self, event):
         self.lock.acquire()
         self._widget_markdown_progress.object = "Updating mesh plot..."
+        logger.info("Updating mesh plot...")
         self._widget_progress.value = 0
         self.update_panel_mesh()
         self._widget_markdown_progress.object = "Updating field plot..."
+        logger.info("Updating field plot...")
         self._widget_progress.value = 40
         self.update_panel_field()
         self._widget_markdown_progress.object = "Updating sensitivity plot..."
+        logger.info("Updating sensitivity plot...")
         self._widget_progress.value = 80
         self.update_panel_sensitivity()
         self._widget_markdown_progress.object = "Done"
+        logger.info("Done")
         self._widget_progress.value = 100
         self.lock.release()
 
@@ -551,6 +557,7 @@ class GeoelectricsModule(ModuleTemplate):
     def _callback_create_mesh(self, event):
         self.lock.acquire()
         self._widget_markdown_progress.object = "Creating mesh..."
+        logger.info("Creating mesh...")
         self._widget_progress.value = 0
         self.vmin = self._widget_vmin.value
         self.vmax = self._widget_vmax.value
@@ -558,6 +565,7 @@ class GeoelectricsModule(ModuleTemplate):
         self.create_mesh(frame=self.frame, step=self.step)
         self._widget_progress.value = 50
         self._widget_markdown_progress.object = "Updating plot..."
+        logger.info("Updating plot...")
         self.update_panel_mesh()
         self._widget_progress.value = 100
         s = """<p>Original %s </p> <p>Coarse %s </p> <p>Size reduction by %.2f%%</p>""" % \
@@ -565,12 +573,15 @@ class GeoelectricsModule(ModuleTemplate):
              str(self.mesh_fine),
              float(100 - self.mesh.cellCount() / self.mesh_fine.cellCount() * 100))
         self._widget_markdown_mesh.object = s
+        logger.info(s)
         self._widget_markdown_progress.object = "Mesh ready"
+        logger.info("Mesh ready")
         self.lock.release()
 
     def _callback_set_electrodes(self, event):
         self.lock.acquire()
         self._widget_markdown_progress.object = "Setting electrodes..."
+        logger.info("Setting electrodes...")
         self._widget_progress.value = 0
         a = self._widget_a.value
         b = self._widget_b.value
@@ -584,43 +595,55 @@ class GeoelectricsModule(ModuleTemplate):
         self._widget_progress.value = 20
         if self.electrode is not None:
             self._widget_markdown_electrodes.object = "Ready electrodes: " + str(self.id)
+            logger.info("Ready electrodes: " + str(self.id))
             self._widget_progress.value = 50
         else:
             self._widget_markdown_electrodes.object = "Error, check ids"
+            logger.info("Error, check ids")
             self._widget_markdown_progress.object = "Error setting electrodes..."
+            logger.info("Error setting electrodes...")
             self.lock.release()
             return
         self.create_data_containerERT()
         self._widget_progress.value = 80
         self._widget_markdown_progress.object = "Updating plot..."
+        logger.info("Updating plot...")
         self.update_panel_mesh()
         self._widget_progress.value = 100
         self._widget_markdown_progress.object = "Electrodes ready"
+        logger.info("Electrodes ready")
         self.lock.release()
 
     def _callback_simulate(self, event):
         self.lock.acquire()
         self._widget_progress.value = 0
         self._widget_markdown_progress.object = "Simulating..."
+        logger.info("Simulating...")
         self.calculate_current_flow()
         self._widget_progress.value = 80
         self._widget_markdown_progress.object = "Updating plot 1..."
+        logger.info("Updating plot 1...")
         self.update_panel_mesh()
         self._widget_progress.value = 90
         self._widget_markdown_progress.object = "Updating plot 2..."
+        logger.info("Updating plot 2...")
         self.update_panel_field()
         self._widget_progress.value = 100
-        self._widget_markdown_progress.object = "Simulation succesfull"
+        self._widget_markdown_progress.object = "Simulation successful"
+        logger.info("Simulation successful")
         self.lock.release()
 
     def _callback_sensitivity(self, event):
         self.lock.acquire()
         self._widget_progress.value = 0
         self._widget_markdown_progress.object = "Calculating sensitivity..."
+        logger.info("Calculating sensitivity...")
         self.calculate_sensitivity()
         self._widget_progress.value = 80
         self._widget_markdown_progress.object = "Updating plot..."
+        logger.info("Updating plot...")
         self.update_panel_sensitivity()
         self._widget_progress.value = 100
-        self._widget_markdown_progress.object = "Sensitivity succesfull"
+        self._widget_markdown_progress.object = "Sensitivity successful"
+        logger.info("Sensitivity successful")
         self.lock.release()

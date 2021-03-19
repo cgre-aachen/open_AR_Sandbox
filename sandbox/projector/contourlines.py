@@ -1,7 +1,8 @@
 import numpy
 import matplotlib
 import panel as pn
-
+from sandbox import set_logger
+logger = set_logger(__name__)
 pn.extension()
 
 
@@ -81,6 +82,7 @@ class ContourLinesModule:
 
         self.contours_step_minor = contours_step_minor
         self.contours_width_minor = contours_width_minor
+        logger.info("ContourLinesModule loaded successfully")
 
     def update(self, sb_params: dict):
         active = sb_params.get('active_contours')
@@ -123,7 +125,8 @@ class ContourLinesModule:
 
         return sb_params
 
-    def delete_contourns(self, ax):
+    @staticmethod
+    def delete_contourns(ax):
         [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
         [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
 
@@ -156,7 +159,7 @@ class ContourLinesModule:
                                     zorder=99
                                     )
 
-    def add_label_contours(self, ax, extent=None):
+    def add_label_contours(self, ax):
         self.label = ax.clabel(self.major,
                                inline=self.contours_label_inline,
                                fontsize=self.contours_label_fontsize,

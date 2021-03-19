@@ -5,6 +5,8 @@ from matplotlib.lines import Line2D
 import numpy
 import pandas as pd
 import weakref
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class MarkerDetection:
@@ -26,7 +28,7 @@ class MarkerDetection:
         self._dict_position = {}
         self._widget_position = {}
         self._depth_frame = numpy.ones((sensor.extent[1], sensor.extent[3]))
-        return print("Aruco detection ready")
+        logger.info("Aruco detection ready")
 
     def update(self):
         if self.Aruco.kinect == "dummy":
@@ -61,7 +63,7 @@ class MarkerDetection:
             if ids in self.dict_position.keys():
                 self.dict_position.pop(ids)
             else:
-                print("id: ", ids, " not found")
+                logger.info("id: ", ids, " not found")
         else:
             self._dict_position = {}
 

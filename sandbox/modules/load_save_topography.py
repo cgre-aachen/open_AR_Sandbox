@@ -9,6 +9,8 @@ import skimage.transform
 from .template import ModuleTemplate
 from sandbox import _test_data
 from matplotlib.figure import Figure
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 class LoadSaveTopoModule(ModuleTemplate):
@@ -24,6 +26,7 @@ class LoadSaveTopoModule(ModuleTemplate):
     height of each pixel relative to the vmin and vmax of the currently used calibration.
     use relative height with the gempy module to get the same geologic map with different calibration settings.
     """
+
     def __init__(self, extent: list = None, **kwargs):
         # call parents' class init, use greyscale colormap as standard and extreme color labeling
         pn.extension()
@@ -32,8 +35,9 @@ class LoadSaveTopoModule(ModuleTemplate):
             self.vmax = extent[5]
             self.extent = extent
         else:
-            self.extent=None
-        self.box_origin = [40, 40]  #location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+            self.extent = None
+        # location of bottom left corner of the box in the sandbox. values refer to pixels of the kinect sensor
+        self.box_origin = [40, 40]
         self.box_width = 200
         self.box_height = 150
         self.absolute_topo = None
@@ -79,7 +83,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.contours_on = False
         # create the widgets if used from another module
         _ = self.widgets_box()
-        return print("LoadSaveTopoModule loaded succesfully")
+        logger.info("LoadSaveTopoModule loaded successfully")
 
     def update(self, sb_params: dict):
         frame = sb_params.get('frame')
@@ -97,11 +101,11 @@ class LoadSaveTopoModule(ModuleTemplate):
 
     def delete_rectangles_ax(self, ax):
         [rec.remove() for rec in reversed(ax.patches) if isinstance(rec, matplotlib.patches.Rectangle)]
-        #ax.patches = []
+        # ax.patches = []
 
     def delete_im_ax(self, ax):
-        #[quad.remove() for quad in reversed(ax.collections) if isinstance(quad, matplotlib.collections.QuadMesh)]
-        #if self._dif is not None:
+        # [quad.remove() for quad in reversed(ax.collections) if isinstance(quad, matplotlib.collections.QuadMesh)]
+        # if self._dif is not None:
         #    self._dif.remove()
         #    self._dif = None
         if self._lod is not None:
@@ -147,12 +151,12 @@ class LoadSaveTopoModule(ModuleTemplate):
         Returns:
         """
 
-        if (x+width) >= self.extent[1]:
+        if (x + width) >= self.extent[1]:
             self.box_width = self.extent[1] - x
         else:
             self.box_width = width
 
-        if (y+height) >= self.extent[3]:
+        if (y + height) >= self.extent[3]:
             self.box_height = self.extent[3] - y
         else:
             self.box_height = height
@@ -170,10 +174,11 @@ class LoadSaveTopoModule(ModuleTemplate):
 
         """
         if self.release_area_origin is None:
-            self.release_area_origin = pd.DataFrame(columns=(('box_x','box_y')))
+            self.release_area_origin = pd.DataFrame(columns=('box_x', 'box_y'))
         if self.aruco_release_area_origin is None:
-            self.aruco_release_area_origin = pd.DataFrame(columns=(('box_x', 'box_y')))
-        self.release_area_origin = pd.concat((self.release_area_origin, self.aruco_release_area_origin)).drop_duplicates()
+            self.aruco_release_area_origin = pd.DataFrame(columns=('box_x', 'box_y'))
+        self.release_area_origin = pd.concat((self.release_area_origin,
+                                              self.aruco_release_area_origin)).drop_duplicates()
         if x is not None and y is not None:
             self.release_area_origin = self.release_area_origin.append({'box_x': x, 'box_y': y}, ignore_index=True)
 
@@ -190,16 +195,18 @@ class LoadSaveTopoModule(ModuleTemplate):
         if origin is not None:
             x_pos = origin.box_x
             y_pos = origin.box_y
-            x_origin = x_pos.values - width/2
-            y_origin = y_pos.values - height/2
-            self.release_area = numpy.array([[x_origin-self.box_origin[0], y_origin-self.box_origin[1]],
-                                             [x_origin - self.box_origin[0], y_origin+height-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin+height-self.box_origin[1]],
-                                             [x_origin+width - self.box_origin[0], y_origin-self.box_origin[1]]])
+            x_origin = x_pos.values - width / 2
+            y_origin = y_pos.values - height / 2
+            self.release_area = numpy.array([[x_origin - self.box_origin[0], y_origin - self.box_origin[1]],
+                                             [x_origin - self.box_origin[0], y_origin + height - self.box_origin[1]],
+                                             [x_origin + width - self.box_origin[0],
+                                              y_origin + height - self.box_origin[1]],
+                                             [x_origin + width - self.box_origin[0], y_origin - self.box_origin[1]]])
             for i in range(len(x_pos)):
                 self.showBox(ax, [x_origin[i], y_origin[i]], width, height)
 
-    def showBox(self, ax, origin: tuple, width: int, height: int):
+    @staticmethod
+    def showBox(ax, origin: tuple, width: int, height: int):
         """
         Draws a wide rectangle outline in the live view
         Args:
@@ -220,7 +227,8 @@ class LoadSaveTopoModule(ModuleTemplate):
         Args:
             frame: frame of the actual topography
         Returns:
-            absolute_topo, the cropped frame minus the mean value and relative_topo, the absolute topo normalized to the extent of the sandbox
+            absolute_topo, the cropped frame minus the mean value and relative_topo,
+            the absolute topo normalized to the extent of the sandbox
         """
         cropped_frame = frame[self.box_origin[1]:self.box_origin[1] + self.box_height,
                         self.box_origin[0]:self.box_origin[0] + self.box_width]
@@ -245,13 +253,12 @@ class LoadSaveTopoModule(ModuleTemplate):
         numpy.savez(filename,
                     self.absolute_topo,
                     self.relative_topo)
-        print('Save topo successful')
+        logger.info('Save topo successful')
 
     def save_release_area(self, filename="00_releaseArea.npy"):
         """Save the release areas as a .npy file """
-        numpy.save(filename,
-                    self.release_area)
-        print('Save area successful')
+        numpy.save(filename, self.release_area)
+        logger.info('Save area successful')
 
     def loadTopo(self, filename="00_savedTopography.npz"):
         """Load the absolute topography and relative topography from a .npz file.
@@ -261,7 +268,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         if filename.split(".")[-1] == "npz":
             self.absolute_topo = files['arr_0']
             self.relative_topo = files['arr_1']
-            print('Load sandbox topography successfully')
+            logger.info('Load sandbox topography successfully')
         elif filename.split(".")[-1] == "npy":
             target = [0, self.box_width, 0, self.box_height, self.extent[-2], self.extent[-1]]
             self.absolute_topo, self.relative_topo = self.normalize_topography(files, target)
@@ -277,20 +284,21 @@ class LoadSaveTopoModule(ModuleTemplate):
         """
         if self.is_loaded:
             shape_frame = self.getBoxShape()
-            #self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:shape_frame[0],
+            # self.loaded = self.modify_to_box_coordinates(self.absolute_topo[:shape_frame[0],
             #                                             :shape_frame[1]])
             self.loaded = self.absolute_topo[:shape_frame[0], :shape_frame[1]]
-            #if self._lod is None:
+            # if self._lod is None:
 
-            self._lod = ax.imshow(self.loaded, cmap='gist_earth', origin="lower", #TODO: data is inverted, need to fix this for all the landsladides topography data
-                                      zorder=2, extent=self.to_box_extent, aspect="auto")
-            #else:
-             #   self._lod.set_array(self.loaded[:-1,:-1].ravel())
+            self._lod = ax.imshow(self.loaded, cmap='gist_earth', origin="lower",
+                                  # TODO: data is inverted, need to fix this for all the landsladides topography data
+                                  zorder=2, extent=self.to_box_extent, aspect="auto")
+            # else:
+            # self._lod.set_array(self.loaded[:-1,:-1].ravel())
         else:
-          #  if self._lod is not None:
-           #     self._lod.remove()
-           #     self._lod = None
-            print("No Topography loaded, please load a Topography")
+            # if self._lod is not None:
+            # self._lod.remove()
+            # self._lod = None
+            logger.warning("No Topography loaded, please load a Topography")
 
     def showContourTopo(self, ax):
         """
@@ -310,18 +318,19 @@ class LoadSaveTopoModule(ModuleTemplate):
                                     colors="k"
                                     )
             self._label = ax.clabel(self._cont,
-                                   inline=True,
-                                   fontsize=15,
-                                   fmt='%3.0f')
+                                    inline=True,
+                                    fontsize=15,
+                                    fmt='%3.0f')
 
         else:
             self.delete_contourns(ax)
             self.deactivate_main_contour = False
-            print("No Topography loaded, please load a Topography to display contour lines")
+            logger.warning("No Topography loaded, please load a Topography to display contour lines")
 
     def delete_contourns(self, ax):
         if self.deactivate_main_contour:
-            [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
+            [coll.remove() for coll in reversed(ax.collections) if isinstance(coll,
+                                                                              matplotlib.collections.LineCollection)]
             [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
 
     @staticmethod
@@ -376,7 +385,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         bot = numpy.ones((self.box_origin[1], height))
         bot[bot == 1] = numpy.nan
         frame = numpy.insert(frame, 0, bot, axis=0)
-        #frame = numpy.ma.array(frame, mask=numpy.nan)
+        # frame = numpy.ma.array(frame, mask=numpy.nan)
         return frame
 
     def saveTopoVector(self):  # TODO:
@@ -397,8 +406,8 @@ class LoadSaveTopoModule(ModuleTemplate):
     def norm_difference(self):
         """Creates a custom made norm"""
         norm = matplotlib.colors.TwoSlopeNorm(vmin=self.absolute_topo.min(),
-                                                         vcenter=0,
-                                                         vmax=self.absolute_topo.max())
+                                              vcenter=0,
+                                              vmax=self.absolute_topo.max())
         return norm
 
     def getBoxShape(self):
@@ -414,20 +423,18 @@ class LoadSaveTopoModule(ModuleTemplate):
         current_absolute_topo, _ = self.getBoxFrame(self.frame)
         shape_frame = self.getBoxShape()
         diff = self.absolute_topo[:shape_frame[0],
-                                  :shape_frame[1]] - \
-               current_absolute_topo[:shape_frame[0],
-                                     :shape_frame[1]]
+                                  :shape_frame[1]] - current_absolute_topo[:shape_frame[0], :shape_frame[1]]
 
         # paste diff array at right location according to box coordinates
-        #difference = self.modify_to_box_coordinates(diff)
+        # difference = self.modify_to_box_coordinates(diff)
         return diff
 
     @property
     def to_box_extent(self):
         """When using imshow to plot data over the image. pass this as extent argumment to display the
         image in the correct area of the sandbox box-area"""
-        return (self.box_origin[0], self.box_width+self.box_origin[0],
-                self.box_origin[1], self.box_height+self.box_origin[1])
+        return (self.box_origin[0], self.box_width + self.box_origin[0],
+                self.box_origin[1], self.box_height + self.box_origin[1])
 
     def showDifference(self, ax):
         """
@@ -439,23 +446,23 @@ class LoadSaveTopoModule(ModuleTemplate):
         if self.is_loaded:
             difference = self.extractDifference()
             # plot
-           # if self._dif is None:
+            # if self._dif is None:
             self._lod = ax.imshow(difference,
-                                            cmap=self.cmap_difference,
-                                            alpha=self.transparency_difference,
-                                            norm=self.norm_difference,
-                                       origin = "lower",
-                                       zorder=1,
-                                   extent  =self.to_box_extent,
+                                  cmap=self.cmap_difference,
+                                  alpha=self.transparency_difference,
+                                  norm=self.norm_difference,
+                                  origin="lower",
+                                  zorder=1,
+                                  extent=self.to_box_extent,
                                   aspect="auto"
-                                       )
-            #else:
-             #   self._dif.set_array(difference[:-1, :-1].ravel())
+                                  )
+            # else:
+            #   self._dif.set_array(difference[:-1, :-1].ravel())
         else:
-            #if self._dif is not None:
+            # if self._dif is not None:
             #    self._dif.remove()
-             #   self._dif = None
-            print('No topography to show difference')
+            #   self._dif = None
+            logger.warning('No topography to show difference')
 
     def showGradDifference(self, ax):
         """
@@ -485,7 +492,7 @@ class LoadSaveTopoModule(ModuleTemplate):
             # if self._dif is not None:
             #    self._dif.remove()
             #   self._dif = None
-            print('No topography to show gradient difference')
+            logger.warning('No topography to show gradient difference')
 
     def extractGradDifference(self):
         """This will return a numpy array comparing the difference of second degree (gradients)
@@ -500,19 +507,16 @@ class LoadSaveTopoModule(ModuleTemplate):
         dxdy_lod = numpy.clip(dxdy_lod, -5, 5)
 
         shape_frame = self.getBoxShape()
-        gradDiff = dxdy_current[:shape_frame[0],
-                   :shape_frame[1]] - \
-               dxdy_lod[:shape_frame[0],
-               :shape_frame[1]]
+        gradDiff = dxdy_current[:shape_frame[0], :shape_frame[1]] - dxdy_lod[:shape_frame[0], :shape_frame[1]]
 
         # paste diff array at right location according to box coordinates
         # difference = self.modify_to_box_coordinates(diff)
-        return gradDiff*-1
+        return gradDiff * -1
 
     def snapshotFrame(self):
         """This will display the saved topography and display it in the panel bokeh"""
         self.ax.cla()
-        self.ax.imshow(self.absolute_topo, cmap='gist_earth', origin = "lower", aspect='auto')
+        self.ax.imshow(self.absolute_topo, cmap='gist_earth', origin="lower", aspect='auto')
         self.ax.axis('equal')
         self.ax.set_axis_off()
         self.ax.set_title('Loaded Topography')
@@ -526,7 +530,7 @@ class LoadSaveTopoModule(ModuleTemplate):
         if len(ids) > 0:
             self.file_id = ids[-1]
         else:
-            print("Unknown file id")
+            logger.warning("Unknown file id")
 
     def show_widgets(self):
         tabs = pn.Tabs(('Box widgets', self.widgets_box()),
@@ -705,8 +709,8 @@ class LoadSaveTopoModule(ModuleTemplate):
 
     def _callback_load(self, event):
         if self.data_path is not None:
-            #self.loadTopo(filename=self.npz_filename)
-            #self.snapshotFrame()
+            # self.loadTopo(filename=self.npz_filename)
+            # self.snapshotFrame()
             self._search_all_data(data_path=self.data_path)
             self._widget_available_topography.options = self.data_filenames
             self._widget_available_topography.sizing_mode = "scale_both"
@@ -739,10 +743,9 @@ class LoadSaveTopoModule(ModuleTemplate):
         self.extractTopo()
         self.snapshotFrame()
 
-
     def _callback_available_topography(self, event):
         if event.new is not None:
-            self.loadTopo(filename=self.data_path+event.new)
+            self.loadTopo(filename=self.data_path + event.new)
             self.snapshotFrame()
 
     def _callback_load_other(self, event):

@@ -9,13 +9,14 @@ from sandbox.modules import LoadSaveTopoModule
 from sandbox import _test_data
 import panel as pn
 import platform
-
+from sandbox import set_logger
+logger = set_logger(__name__)
 _platform = platform.system()
 
 try:
     import torch
 except ImportError as e:
-    traceback.print_exception(e)
+    logger.error(e, exc_info=True)
 
 
 class LandscapeGeneration(ModuleTemplate):
@@ -38,12 +39,13 @@ class LandscapeGeneration(ModuleTemplate):
         # self.run_cmd(self.package_dir)
         self.name_trained_models = self._search_all_possible_models()
         if len(self.name_trained_models) == 0:
-            warn("No trained models found. Please upload a model in the predefined folder and load the module again")
+            logger.warning("No trained models found. "
+                           "Please upload a model in the predefined folder and load the module again")
             self.name_model = "None"
         else:
             self.name_model = self.name_trained_models[0]
         # assert len(self.name_trained_models) > 0
-        return print("LandscapeGeneration loaded succesfully")
+        logger.info("LandscapeGeneration loaded successfully")
 
     def update(self, sb_params: dict):
         sb_params = self.LoadArea.update(sb_params)
@@ -74,7 +76,7 @@ class LandscapeGeneration(ModuleTemplate):
             self.read_result()
         self.last_modified = time.ctime(os.path.getmtime(result_file))
 
-        return print("model updated")
+        logger.info("model updated")
 
     def set_package_dir(self, package_dir):
         self.package_dir = package_dir
@@ -120,7 +122,7 @@ class LandscapeGeneration(ModuleTemplate):
         ax.set_axis_off()
         fig.savefig(pathname + name, bbox_inches='tight', pad_inches=0)
         plt.close()
-        print("saved succesfully in: " + pathname)
+        logger.info("saved succesfully in: " + pathname)
         self.lock.release()
         return fig
 
@@ -164,7 +166,7 @@ class LandscapeGeneration(ModuleTemplate):
             os.popen(to_string).read()
         else:
             os.popen(cmd_string).read()
-        print('Landscape generated')
+        logger.info('Landscape generated')
         return to_string
 
     def read_result(self, name: str = 'landscape_image.png',
@@ -185,11 +187,11 @@ class LandscapeGeneration(ModuleTemplate):
                 self.img = plt.imread(file)
                 if self.last_modified is None:
                     self.last_modified = time.ctime(os.path.getmtime(file))
-                print('Image loaded succesfully')
+                logger.info('Image loaded succesfully')
             except Exception as ex:
-                traceback.print_exception(ex)
+                logger.error(ex, exc_info=True)
         else:
-            print("No image found in %s" % result_dir)
+            logger.warning("No image found in %s" % result_dir)
 
     def image_landscape(self, ax):
         """
@@ -208,7 +210,7 @@ class LandscapeGeneration(ModuleTemplate):
             else:
                 self._img.set_data(self.img)
         else:
-            print("No DEM image to show")
+            logger.warning("No DEM image to show")
 
     def _search_all_possible_models(self):
         self.name_trained_models = os.listdir(_test_data["landscape_generation"] + "checkpoints")

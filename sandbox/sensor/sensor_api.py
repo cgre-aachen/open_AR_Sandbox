@@ -1,20 +1,11 @@
 import os
-import logging
 import numpy
 import scipy
 import scipy.ndimage
 from warnings import warn
 import json
-
-# logging and exception handling
-verbose = False
-if verbose:
-    logging.basicConfig(filename="main.log",
-                        filemode='w',
-                        level=logging.WARNING,
-                        format='%(asctime)s - %(levelname)s - %(message)s',
-                        )
-
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 class Sensor:
     """
@@ -60,6 +51,7 @@ class Sensor:
                 import freenect
                 self.Sensor = KinectV1()
             except ImportError:
+                logger.warning('Kinect v1 dependencies are not installed', exc_info=True)
                 raise ImportError('Kinect v1 dependencies are not installed')
         elif name == 'kinect_v2':
             from .kinectV2 import KinectV2, _platform
@@ -70,6 +62,7 @@ class Sensor:
                     import freenect2
                 self.Sensor = KinectV2()
             except ImportError:
+                logger.warning('Kinect v2 dependencies are not installed', exc_info=True)
                 raise ImportError('Kinect v2 dependencies are not installed')
         elif name == 'lidar':
             from .lidar_l515 import LiDAR
@@ -77,6 +70,7 @@ class Sensor:
                 import pyrealsense2
                 self.Sensor = LiDAR()
             except ImportError:
+                logger.warning('LiDAR dependencies are not installed', exc_info=True)
                 raise ImportError('LiDAR dependencies are not installed')
 
         elif name == 'dummy':
@@ -84,7 +78,7 @@ class Sensor:
             self.Sensor = DummySensor(extent=self.extent, **kwargs)
         else:
             from .dummy import DummySensor
-            warn("Unrecognized sensor name. Activating dummy sensor")
+            logger.warning("Unrecognized sensor name. Activating dummy sensor")
             self.Sensor = DummySensor(extent=self.extent, **kwargs)
 
         # filter parameters
@@ -162,10 +156,10 @@ class Sensor:
                 self.s_height = dict_data["s_frame_height"] + dict_data['s_top'] + dict_data['s_bottom']
                 self.box_width = dict_data['box_width']
                 self.box_height = dict_data['box_height']
-                print("JSON configuration loaded for sensor.")
+                logger.info("JSON configuration loaded for sensor.")
             else:
-                print("JSON configuration incompatible."
-                      "\nPlease select a valid calibration file or start a new calibration!")
+                logger.warning("JSON configuration incompatible."
+                               "\nPlease select a valid calibration file or start a new calibration!")
 
         if os.path.isfile(file):
             with open(file) as calibration_json:
@@ -199,7 +193,7 @@ class Sensor:
                     "box_width": self.box_width,
                     "box_height": self.box_height}
             json.dump(data, calibration_json)
-        print('JSON configuration file saved:', str(file))
+        logger.info('JSON configuration file saved: %s' % str(file))
 
     def crop_frame(self, frame: numpy.ndarray) -> numpy.ndarray:
         """ Crops the data frame according to the horizontal margins set up in the calibration

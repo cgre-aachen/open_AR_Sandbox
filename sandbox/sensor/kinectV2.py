@@ -1,6 +1,8 @@
 import numpy
 import platform
 import threading
+from sandbox import set_logger
+logger = set_logger(__name__)
 _platform = platform.system()
 try:
     if _platform == 'Windows':
@@ -9,7 +11,7 @@ try:
     elif _platform == 'Linux':
         from freenect2 import Device, FrameType
 except ImportError:
-    print('dependencies not found for KinectV2 to work. Check installation and try again')
+    logger.warning('dependencies not found for KinectV2 to work. Check installation and try again', exc_info=True)
 
 
 class KinectV2:
@@ -31,7 +33,7 @@ class KinectV2:
 
         self.depth = self.get_frame()
         self.color = self.get_color()
-        print("KinectV2 initialized.")
+        logger.info("KinectV2 initialized.")
 
     def _init_device(self):
         """
@@ -55,14 +57,14 @@ class KinectV2:
             self._depth = numpy.zeros((self.depth_height, self.depth_width))
             self._ir = numpy.zeros((self.depth_height, self.depth_width))
             self._run()
-            print("Searching first frame")
+            logger.info("Searching first frame")
             while True:
                 if not numpy.all(self._depth == 0):
-                    print("First frame found")
+                    logger.info("First frame found")
                     break
 
         else:
-            print(_platform)
+            logger.error(_platform + "not implemented")
             raise NotImplementedError
 
     def _run(self):
@@ -73,9 +75,9 @@ class KinectV2:
             self._thread_status = 'running'
             self._thread = threading.Thread(target=self._open_kinect_frame_stream, daemon=True, )
             self._thread.start()
-            print('Acquiring frames...')
+            logger.info('Acquiring frames...')
         else:
-            print('Already running.')
+            logger.info('Already running.')
 
     def _stop(self):
         """
@@ -84,9 +86,9 @@ class KinectV2:
         if self._thread_status is not 'stopped':
             self._thread_status = 'stopped'  # set flag to end thread loop
             self._thread.join()  # wait for the thread to finish
-            print('Stopping frame acquisition.')
+            logger.info('Stopping frame acquisition.')
         else:
-            print('thread was not running.')
+            logger.info('thread was not running.')
 
     def _open_kinect_frame_stream(self):
         """

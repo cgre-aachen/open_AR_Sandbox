@@ -60,11 +60,17 @@ if not os.path.isdir(_test_data.get("landscape_generation")+"saved_DEMs"):
 if not os.path.isdir(_test_data.get("gempy_data")):
     os.mkdir(_test_data.get("gempy_data"))
 
+# logging and exception handling
+from sandbox.utils.logger import set_logger
+
+
 # download sample files. If already downloaded they are ignored
 from sandbox.utils.download_sample_datasets import (download_test_data,
                                                     download_topography_data,
                                                     download_landscape_name,
-                                                    download_landscape_all)
+                                                    download_landscape_all,
+                                                    download_landslides_data,
+                                                    download_benisson_model)
 
 
 if __name__ == '__main__':

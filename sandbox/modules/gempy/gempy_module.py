@@ -1,4 +1,3 @@
-from warnings import warn
 import matplotlib.pyplot as plt
 import numpy
 import panel as pn
@@ -7,8 +6,10 @@ from sandbox.modules.template import ModuleTemplate
 from sandbox.modules.gempy.utils import get_scale, Grid
 from sandbox.modules.gempy.plot import plot_gempy
 from sandbox.modules.gempy.example_models import create_model_dict, all_models
-
+from sandbox import set_logger
 import pandas as pd
+
+logger = set_logger(__name__)
 # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -18,7 +19,7 @@ try:
     from gempy.core.grid_modules.topography import Topography
     from gempy.core.grid_modules import section_utils
 except ImportError:
-    warn('gempy package not found, GempyModule will not work')
+    logger.warning('gempy package not found, GempyModule will not work', exc_info=True)
 
 
 class GemPyModule(ModuleTemplate):
@@ -55,7 +56,7 @@ class GemPyModule(ModuleTemplate):
         try:
             self._model_extent = self.geo_model._grid.regular_grid.extent
         except:
-            print('Geo model not valid')
+            logger.error('Geo model not valid')
             raise AttributeError
         self._sensor_extent = extent
         self._box_dimensions = box
@@ -138,6 +139,7 @@ class GemPyModule(ModuleTemplate):
 
         dummy_frame = numpy.ones((self._sensor_extent[3], self._sensor_extent[1])) * 1000
         self.setup(dummy_frame)
+        logger.info("GemPyModule loaded successfully")
 
     def setup(self, frame):
         self.frame = frame
@@ -225,7 +227,7 @@ class GemPyModule(ModuleTemplate):
         self.remove_section_dict('Model: ' + self.geo_model.meta.project_name)
         self.geo_model = geo_model
         self.setup(self.frame)
-        print("New gempy model loaded")
+        logger.info("New gempy model loaded")
         return True
 
     @property
@@ -323,7 +325,7 @@ class GemPyModule(ModuleTemplate):
             _ = self.geo_model.set_section_grid(self.model_sections_dict)
             _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         else:
-            print("No key found with name ", name, " in section_dict")
+            logger.warning("No key found with name %s in section_dict" % name)
 
     def _get_aruco_section_dict(self, df):
         """Obtain the position of the aruco markers (must be 2 aruco markers)
@@ -367,7 +369,8 @@ class GemPyModule(ModuleTemplate):
             self.panel_plot_2d.object = self.im_plot_2d.fig
             self.panel_plot_2d.param.trigger('object')
             return self.im_plot_2d.fig
-        else: print("no key in section_dict have the name: ", name)
+        else:
+            logger.warning("no key in section_dict have the name: %s" %name)
 
     def show_actual_model(self):
         """Show a cross_section of the actual gempy model"""
@@ -413,7 +416,7 @@ class GemPyModule(ModuleTemplate):
             _ = self.geo_model.set_section_grid(self.model_sections_dict)
             _ = gempy.compute_model(self.geo_model, compute_mesh=False)
         else:
-            print("No key found with name ", name, " in borehole_dict")
+            logger.warning("No key found with name %s in borehole_dict" % name)
 
     def set_borehole_dict(self, xy, name):
         """

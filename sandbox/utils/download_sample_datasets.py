@@ -2,10 +2,10 @@
 import os, sys
 sys.path.append('.')
 import pooch
-from sandbox import _test_data
-from warnings import warn
+from sandbox import _test_data, set_logger
 from pooch import HTTPDownloader
 download = HTTPDownloader(progressbar=True)
+logger = set_logger(__name__)
 
 #
 # %%
@@ -96,7 +96,7 @@ landscape_urls = ["https://rwth-aachen.sciebo.de/s/oKxBxb1oGW2ZsoC/download?path
                   + "%2F" + i + "&files=" for i in landscape_models]
 
 landscape_data = ["latest_net_D.pth",
-                 # "latest_net_G.pth",
+                  "latest_net_G.pth",
                   "loss_log.txt",
                   "test_opt.txt",
                   "train_opt.txt"]
@@ -136,6 +136,7 @@ def create_pooch(base_url, files, target):
     pc = pooch.create(base_url=base_url,
                       path=target,
                       registry={i: None for i in files})  # None because the Hash is always changing.. Sciebo problem?
+    logger.info("Pooch created for url: %s" % base_url)
     return pc
 
 
@@ -145,9 +146,13 @@ def download_test_data():
     Returns:
 
     """
-    pooch_data = create_pooch(tests_url, tests, _test_data.get("test"))
-    for file in tests:
-        pooch_data.fetch(file, downloader=download)
+    try:
+        pooch_data = create_pooch(tests_url, tests, _test_data.get("test"))
+        for file in tests:
+            pooch_data.fetch(file, downloader=download)
+        logger.info("Data for testing downloaded")
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
 
 def download_topography_data():
@@ -156,49 +161,64 @@ def download_topography_data():
     Returns:
 
     """
-    pooch_topo = create_pooch(topomodule_url, topomodule_files, _test_data.get("topo"))
-    for file in topomodule_files:
-        pooch_topo.fetch(file, downloader=download)
-
+    try:
+        pooch_topo = create_pooch(topomodule_url, topomodule_files, _test_data.get("topo"))
+        for file in topomodule_files:
+            pooch_topo.fetch(file, downloader=download)
+        logger.info("Data for topography downloaded")
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
 def download_landslides_data():
     """Download all available to display the landslide simulations """
-    pooch_landslides_dem = create_pooch(landslides_dems_url, landslides_dems, _test_data.get("landslide_topo"))
-    pooch_landslides_area = create_pooch(landslides_areas_url, landslides_areas, _test_data.get("landslide_release"))
-    pooch_landslides_sim = create_pooch(landslides_results_url, landslides_results,
-                                        _test_data.get("landslide_simulation"))
+    try:
+        pooch_landslides_dem = create_pooch(landslides_dems_url, landslides_dems, _test_data.get("landslide_topo"))
+        pooch_landslides_area = create_pooch(landslides_areas_url, landslides_areas, _test_data.get("landslide_release"))
+        pooch_landslides_sim = create_pooch(landslides_results_url, landslides_results,
+                                            _test_data.get("landslide_simulation"))
 
-    for file in landslides_dems:
-        pooch_landslides_dem.fetch(file, downloader=download)
-    for file in landslides_areas:
-        pooch_landslides_area.fetch(file, downloader=download)
-    for file in landslides_results:
-        pooch_landslides_sim.fetch(file, downloader=download)
+        for file in landslides_dems:
+            pooch_landslides_dem.fetch(file, downloader=download)
+        for file in landslides_areas:
+            pooch_landslides_area.fetch(file, downloader=download)
+        for file in landslides_results:
+            pooch_landslides_sim.fetch(file, downloader=download)
+        logger.info("Data for landslides downloaded")
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
 
 def download_benisson_model():
     """Dowload data for construction of Benisson model with gempy"""
-    pooch_gempy = create_pooch(gempy_benisson_url, gempy_benisson, _test_data.get("gempy_data"))
-    for file in gempy_benisson:
-        pooch_gempy.fetch(file, downloader=download)
-
+    try:
+        pooch_gempy = create_pooch(gempy_benisson_url, gempy_benisson, _test_data.get("gempy_data"))
+        for file in gempy_benisson:
+            pooch_gempy.fetch(file, downloader=download)
+        logger.info("Data for benisson model downloaded")
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
 def download_landscape_name(name_model: str):
     """Download an specific trained model"""
-    if name_model not in landscape_models:
-        return warn("\n Model with name '%s' not available for download. "
-                    "\n Available models are %s" % (name_model, str(landscape_models)))
+    try:
+        if name_model not in landscape_models:
+            logger.warning("\n Model with name '%s' not available for download. "
+                            "\n Available models are %s" % (name_model, str(landscape_models)))
+            return False
 
-    loc_dir = _test_data.get("landscape_generation") + "checkpoints" + os.sep + name_model
-    if not os.path.isdir(loc_dir):
-        os.mkdir(loc_dir)
+        loc_dir = _test_data.get("landscape_generation") + "checkpoints" + os.sep + name_model
+        if not os.path.isdir(loc_dir):
+            os.mkdir(loc_dir)
 
-    pos = [i for i in range(len(landscape_models)) if name_model == landscape_models[i]][0]
-    pooch_landscape = create_pooch(landscape_urls[pos], landscape_data, loc_dir)
+        pos = [i for i in range(len(landscape_models)) if name_model == landscape_models[i]][0]
+        pooch_landscape = create_pooch(landscape_urls[pos], landscape_data, loc_dir)
 
-    for file in landscape_data:
-        pooch_landscape.fetch(file, downloader=download)
+        for file in landscape_data:
+            pooch_landscape.fetch(file, downloader=download)
+        logger.info("Model %s downloaded for landscape generation" % name_model)
 
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
 def download_landscape_all():
     """Download all trained models available"""

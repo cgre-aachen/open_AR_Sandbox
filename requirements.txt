@@ -11,4 +11,4 @@ cython
 seaborn
 tqdm
 pooch
-
+colorama

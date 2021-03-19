@@ -4,6 +4,8 @@ import numpy
 from scipy.spatial.distance import cdist
 from .dummy_aruco import dummy_markers_in_frame
 import pandas as pd
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 pd.options.mode.chained_assignment = None
 # default='warn' # TODO: SettingWithCopyWarning appears when using LoadTopoModule with arucos
@@ -11,11 +13,10 @@ pd.options.mode.chained_assignment = None
 try:
     import cv2
     from cv2 import aruco
-
     CV2_IMPORT = True
 except ImportError:
     CV2_IMPORT = False
-    warn('opencv is not installed. Object detection will not work')
+    logger.warning('opencv is not installed. Object detection will not work', exc_info=True)
 
 
 class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
@@ -36,25 +37,28 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         if sensor is not None:
             if hasattr(sensor.Sensor, "name"):
                 name = sensor.Sensor.name
-                if  name == "dummy":
+                if name == "dummy":
                     self.kinect = "dummy"
-                    print("Using dummy arucos. Create your own aruco positions using .set_aruco_position() function")
+                    logger.info("Using dummy arucos. "
+                                "Create your own aruco positions using .set_aruco_position() function")
                 elif name == "kinect_v2":
                     self.kinect = sensor.Sensor
                     self.calib = sensor
-                    print("KinectV2 loaded")
+                    logger.info("KinectV2 loaded")
                 elif name == "lidar":
                     self.kinect = sensor.Sensor
                     self.calib = sensor
-                    print("LiDAR loaded")
+                    logger.info("LiDAR loaded")
                 else:
                     self.kinect = "dummy"
-                    print(name, " not recognized as supported sensor for aruco detection. Using dummy arucos")
+                    logger.warning("%s not recognized as supported sensor for aruco detection. "
+                                "Using dummy arucos" % name)
             else:
                 if sensor == "dummy":
-                    print("Using dummy arucos. Create your own aruco positions using .set_aruco_position() function")
+                    logger.info("Using dummy arucos. "
+                                "Create your own aruco positions using .set_aruco_position() function")
                 else:
-                    warn("No sensor loaded. Detection will only work in color image. Using dummy arucos")
+                    logger.warning("No sensor loaded. Detection will only work in color image. Using dummy arucos")
                 self.kinect = "dummy"
 
         self.ir_markers = None
@@ -103,13 +107,13 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         init_correction_x = 20
         init_correction_y = -80
         self.set_xy_correction(init_correction_x, init_correction_y)
-        return print('Aruco module loaded')
+        logger.info('Aruco module loaded')
 
     def set_xy_correction(self, x: int, y: int):
         self.CoordinateMap = pd.DataFrame()
         if self.kinect == "dummy":
             self.CoordinateMap = None
-            print('using dummy aruco module')
+            logger.info('using dummy aruco module')
             return
         if self.kinect.name == "kinect_v2":
             import platform
@@ -131,7 +135,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
                 while len(self.CoordinateMap) < 5:
                     self.CoordinateMap = start_mapping(self.kinect)
             else:
-                print(_platform, " not supported")
+                logger.warning("%s not supported" % _platform)
         elif self.kinect.name == "lidar":
             from sandbox.markers.lidar_aruco import start_mapping, set_correction
             self._correction_x = x
@@ -140,7 +144,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             while len(self.CoordinateMap) < 5:
                 self.CoordinateMap = start_mapping(self.kinect)
         else:
-            print(self.kinect.name, "Not supported for aruco detection")
+            logger.warning("%s Not supported for aruco detection" % self.kinect.name)
 
     def aruco_detect(self, image):
         """ Function to detect an aruco marker in a color image
@@ -460,7 +464,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             plt.plot(self.rgb_markers["Corners_RGB_x"], self.rgb_markers["Corners_RGB_y"], "or")
             plt.show()
         else:
-            print('Select Type of projection -> IR, RGB or Projector')
+            logger.warning('Select Type of projection -> IR, RGB or Projector')
 
     def convert_color_to_depth(self, ids, map, strg=None, data=None):
         """ Function to search in the previously created CoordinateMap - "create_CoordinateMap()" - the position of any
@@ -567,15 +571,15 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         aruco_dict = aruco.Dictionary_get(self.aruco_dict)
         board = aruco.CharucoBoard_create(7, 5, 1, .8, aruco_dict)
         images = []
-        print('Start moving randomly the aruco board')
+        logger.info('Start moving randomly the aruco board')
         n = 400  # number of frames
         for i in range(n):
             frame = self.kinect.get_color()
             images.append(frame)
-        print("Stop moving the board")
+        logger.info("Stop moving the board")
         img_frame = numpy.array(images)[0::5]
 
-        print("Calculating Aruco location of ", img_frame.shape[0], "images")
+        logger.info("Calculating Aruco location of %s images" % str(img_frame.shape[0]))
         allCorners = []
         allIds = []
         decimator = 0
@@ -594,9 +598,9 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
 
             decimator += 1
         imsize = gray.shape
-        print("Finish")
+        logger.info("Finish")
 
-        print("Calculating camera parameters")
+        logger.info("Calculating camera parameters")
         cameraMatrixInit = numpy.array([[2000., 0., imsize[0] / 2.],
                                         [0., 2000., imsize[1] / 2.],
                                         [0., 0., 1.]])
@@ -615,7 +619,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
                 criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9)
             )
 
-        print("Finish")
+        logger.info("Finish")
 
         self.calib.camera_mtx = mtx.tolist()
         self.calib.camera_dist = dist.tolist()

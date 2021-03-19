@@ -1,19 +1,10 @@
-# TODO: Load all the modules from here!!! Important for testing (?)
 import panel as pn
 import traceback
-from sandbox import _calibration_dir
+from sandbox import _calibration_dir, set_logger
 import platform
+logger = set_logger(__name__)
 _platform = platform.system()
 
-# logging and exception handling
-verbose = False
-if verbose:
-    import logging
-    logging.basicConfig(filename="main.log",
-                        filemode='w',
-                        level=logging.WARNING,
-                        format='%(asctime)s - %(levelname)s - %(message)s',
-                        )
 # Store the name of the sensor as a global variable, and the projector resolution
 # so it can be used and changed in the same session for all the functions
 name_sensor = "kinect_v2"
@@ -125,8 +116,7 @@ class Sandbox:
         self.Main_Thread = self.start_main_thread(kwargs_contourlines=kwargs_contourlines,
                                                   kwargs_cmap=kwargs_cmap)
         self.lock = self.Main_Thread.lock
-
-        return print('Sandbox server ready')
+        logger.info('Sandbox server ready')
 
     def _check_import(self,
                       gempy_module: bool = False,
@@ -140,7 +130,7 @@ class Sandbox:
                 self._gempy_import = True
                 del gempy
             except Exception as e:
-                pass
+                logger.warning(e, exc_info=True)
 
         if _platform == "Linux":
             if devito_module:
@@ -149,7 +139,7 @@ class Sandbox:
                     self._devito_import = True
                     del devito
                 except Exception as e:
-                    pass
+                    logger.warning(e, exc_info=True)
             else:
                 _devito_import = False
 
@@ -159,14 +149,14 @@ class Sandbox:
                 self._pygimli_import = True
                 del pygimli
             except Exception as e:
-                pass
+                logger.warning(e, exc_info=True)
         if torch_module:
             try:  # Importing pytorch for LandscapeGeneration
                 import torch
                 self._torch_import = True
                 del torch
             except Exception as e:
-                pass
+                logger.warning(e, exc_info=True)
 
     def load_modules(self,
                      gempy_module: bool = False,
@@ -221,17 +211,17 @@ class Sandbox:
                 new_tab = pn.Tabs((module_name, self.Modules[module_name].show_widgets()),
                                   ('Main Thread Controller', self.Main_Thread.widget_plot_module()))
                 new_tab.show()
-            except Exception:
-                traceback.print_exc()
+            except Exception as e:
+                logger.error(e, exc_info=True)
         else:
-            print('No module to add with name: ', module_name)
+            logger.warning('No module to add with name: %s' % module_name)
 
     def remove_from_main_thread(self, module_name: str = None):
         if module_name is not None:
             if module_name in self.Modules:
                 self.Main_Thread.remove_module(module_name)
             else:
-                print('No module to remove with name: ', module_name)
+                logger.warning('No module to remove with name: %s' % module_name)
         else:
             # TODO: Is this the best way to delete the modules except the colormap and the contourlines?
             #all = self.Main_Thread.modules.keys()
