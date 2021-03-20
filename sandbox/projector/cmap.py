@@ -46,10 +46,8 @@ class CmapModule:
         # Relief shading
         self.relief_shading = True
         self.light_source = LightSource()
+        self._light_simulation = False
 
-        #self.azdeg = self.light_source.azimuth
-        #self.altdeg = self.light_source.altitude
-        #self.ve = self.light_source.ve
         logger.info("CmapModule loaded successfully")
 
     def update(self, sb_params: dict):
@@ -69,8 +67,8 @@ class CmapModule:
             if len(data.shape) > 2:  # 3 Then is an image already
                 active_shade = False
             else:
-                # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
-                ls = mcolors.LightSource(azdeg=self.light_source.azimuth - 180, altdeg=self.light_source.altitude)
+                # Note: (Not really) 180 degrees are subtracted because visualization in Sandbox is upside-down
+                ls = mcolors.LightSource(azdeg=self.light_source.azimuth, altdeg=self.light_source.altitude)
                 data = ls.shade(data, cmap=self.cmap, vert_exag=self.light_source.ve, blend_mode='overlay')
 
         if active and self.active:
@@ -256,6 +254,11 @@ class CmapModule:
                                                         start=0, end=59, width_policy='min')
         self._widget_second_pick.param.watch(self._callback_second_pick, 'value', onlychanged=False)
 
+        self._widget_days_simulation = pn.widgets.Checkbox(name='Start day simulation increasing by hour',
+                                                 value=self.light_source.simulation)
+        self._widget_days_simulation.param.watch(self._callback_day_simulation, 'value',
+                                                onlychanged=False)
+
         widgets = pn.WidgetBox(self._widget_manual,
                                self._widget_azdeg,
                                self._widget_altdeg,
@@ -272,8 +275,15 @@ class CmapModule:
                                 self._widget_markdown_lat_long,
                                 self._widget_markdown_city)
 
+        widget3 = pn.WidgetBox(self._widget_days_simulation,
+                               # self._widget_markdown_date,
+                               # self._widget_sun,
+                               # self._widget_markdown_lat_long,
+                               )
+
         tab = pn.Tabs(("Manual", widgets),
-                      ("Geo-location", widgets2))
+                      ("Geo-location", widgets2),
+                      ("Day simulation", widget3))
 
         panel = pn.Column("<b> Lightsource </b> ", self._widget_relief_shading, tab)
         return panel
@@ -289,6 +299,10 @@ class CmapModule:
                                                                             self.light_source.longitude_deg)
         self._widget_markdown_date.object = self.light_source.date.ctime()
         self._widget_markdown_city.object = self.light_source.full_address
+
+    def _callback_day_simulation(self, event):
+        self.light_source.simulation = event.new
+        self._light_simulation = event.new
 
     def _callback_hour_pick(self, event):
         self.light_source.date = self.light_source.date.replace(hour=event.new)

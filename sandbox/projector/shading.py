@@ -25,9 +25,11 @@ class LightSource:
         self.date = date
         self.address = 'RWTH Aachen, Germany'
         self.manual = False
+        self.simulation = False
         self._altitude = 45
         self._azimuth = 315
         self._ve = 0.25
+        self._add_time = 1  # add 1 hour when simulation
         self.full_address = 'RWTH Aachen, Germany'
         logger.info("LightSource set to address %s at datetime %s" % (self.address, self.date.ctime()))
 
@@ -45,16 +47,21 @@ class LightSource:
         """ Get the altitude of the sun position based on the latitude, longitude and date"""
         if self.manual:
             return self._altitude
-        else:
-            return get_altitude(self.latitude_deg, self.longitude_deg, self.date)
+        if self.simulation:
+            self.add_time()
+        return get_altitude(self.latitude_deg, self.longitude_deg, self.date)
 
     @property
     def azimuth(self):
         """ Get the azimuth of the sun position based on the latitude, longitude and date"""
         if self.manual:
             return self._azimuth
-        else:
-            return get_azimuth(self.latitude_deg, self.longitude_deg, self.date)
+        if self.simulation:
+            self.add_time()
+        return get_azimuth(self.latitude_deg, self.longitude_deg, self.date)
+
+    def add_time(self):
+        self.date = self.date + datetime.timedelta(hours=self._add_time)
 
     @property
     def ve(self):
