@@ -3,10 +3,10 @@ import matplotlib.colors as mcolors
 import copy
 import panel as pn
 import weakref
+from sandbox.projector.shading import LightSource
 from sandbox import set_logger
 logger = set_logger(__name__)
 pn.extension()
-
 
 
 class CmapModule:
@@ -45,10 +45,9 @@ class CmapModule:
 
         # Relief shading
         self.relief_shading = True
+        self.light_source = LightSource()
+        self._light_simulation = False
 
-        self.azdeg = 315
-        self.altdeg = 45
-        self.ve = 0.25
         logger.info("CmapModule loaded successfully")
 
     def update(self, sb_params: dict):
@@ -68,9 +67,9 @@ class CmapModule:
             if len(data.shape) > 2:  # 3 Then is an image already
                 active_shade = False
             else:
-                # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
-                ls = mcolors.LightSource(azdeg=self.azdeg - 180, altdeg=self.altdeg)
-                data = ls.shade(data, cmap=self.cmap, vert_exag=self.ve, blend_mode='overlay')
+                # Note: (Not really) 180 degrees are subtracted because visualization in Sandbox is upside-down
+                ls = mcolors.LightSource(azdeg=self.light_source.azimuth, altdeg=self.light_source.altitude)
+                data = ls.shade(data, cmap=self.cmap, vert_exag=self.light_source.ve, blend_mode='overlay')
 
         if active and self.active:
             if self._col is not None and self._col() not in ax.images:
@@ -205,29 +204,129 @@ class CmapModule:
         self._widget_relief_shading.param.watch(self._callback_relief_shading, 'value',
                                                 onlychanged=False)
         self._widget_azdeg = pn.widgets.FloatSlider(name='Azimuth',
-                                                    value=self.azdeg,
+                                                    value=self.light_source.azimuth,
                                                     start=0.0,
                                                     end=360.0)
         self._widget_azdeg.param.watch(self._callback_lightsource_azdeg, 'value')
 
         self._widget_altdeg = pn.widgets.FloatSlider(name='Altitude',
-                                                     value=self.altdeg,
+                                                     value=self.light_source.altitude,
                                                      start=0.0,
                                                      end=90.0)
         self._widget_altdeg.param.watch(self._callback_lightsource_altdeg, 'value')
 
-        self._widget_ve = pn.widgets.Spinner(name="Vertical Exageration", value=self.ve,
+        self._widget_ve = pn.widgets.Spinner(name="Vertical Exageration", value=self.light_source.ve,
                                              step=0.01)
         self._widget_ve.param.watch(self._callback_ve, 'value', onlychanged=False)
+        self._widget_manual = pn.widgets.Checkbox(name='Manual configuration',
+                                                 value=self.light_source.manual)
+        self._widget_manual.param.watch(self._callback_manual, 'value',
+                                                onlychanged=False)
 
-        widgets = pn.WidgetBox(self._widget_relief_shading,
+        self._widget_address = pn.widgets.TextInput(name='Enter address (e.g. City, Country)',
+                                                    value=self.light_source.address)
+        self._widget_address.param.watch(self._callback_address, 'value', onlychanged=False)
+
+        self._widget_markdown_city = pn.pane.Markdown(self.light_source.full_address, sizing_mode='scale_width')
+        self._widget_markdown_date = pn.pane.Markdown(self.light_source.date.ctime(), sizing_mode='scale_width')
+        self._widget_sun = pn.pane.Markdown("<p>Azimuth: %.4f </p>"\
+                                            "<p>Altitude: %.4f </p>" % (self.light_source.azimuth,
+                                                                        self.light_source.altitude),
+                                            sizing_mode='scale_width')
+        self._widget_markdown_lat_long = pn.pane.Markdown("<p>Latitude: %.4f </p>"\
+                                                          "<p>Longitude: %.4f </p>" % (self.light_source.latitude_deg,
+                                                                                       self.light_source.longitude_deg),
+                                                          sizing_mode='scale_width')
+
+        # self._widget_date_pick = pn.widgets.DatetimeInput(name='Select date', value=self.light_source.date)
+        self._widget_date_pick = pn.widgets.DatePicker(name='Select date (UTC +0)', value=self.light_source.date.date())
+        self._widget_date_pick.param.watch(self._callback_date_pick, 'value', onlychanged=False)
+
+        self._widget_hour_pick = pn.widgets.IntSlider(name="Hour", value=self.light_source.date.hour,
+                                                      start=0, end=23, width_policy='min')
+        self._widget_hour_pick.param.watch(self._callback_hour_pick, 'value', onlychanged=False)
+
+        self._widget_minute_pick = pn.widgets.IntSlider(name="Minute", value=self.light_source.date.minute,
+                                                        start=0, end=59, width_policy='min')
+        self._widget_minute_pick.param.watch(self._callback_minute_pick, 'value', onlychanged=False)
+
+        self._widget_second_pick = pn.widgets.IntSlider(name="Second", value=self.light_source.date.second,
+                                                        start=0, end=59, width_policy='min')
+        self._widget_second_pick.param.watch(self._callback_second_pick, 'value', onlychanged=False)
+
+        self._widget_days_simulation = pn.widgets.Checkbox(name='Start day simulation increasing by hour',
+                                                 value=self.light_source.simulation)
+        self._widget_days_simulation.param.watch(self._callback_day_simulation, 'value',
+                                                onlychanged=False)
+
+        widgets = pn.WidgetBox(self._widget_manual,
                                self._widget_azdeg,
                                self._widget_altdeg,
                                self._widget_ve
                                )
+        widgets2 = pn.WidgetBox(self._widget_address,
+                                self._widget_date_pick,
+                                pn.Row(self._widget_hour_pick,
+                                       self._widget_minute_pick,
+                                       self._widget_second_pick,
+                                       width_policy='min'),
+                                self._widget_markdown_date,
+                                self._widget_sun,
+                                self._widget_markdown_lat_long,
+                                self._widget_markdown_city)
 
-        panel = pn.Column("<b> Lightsource </b> ", widgets)
+        widget3 = pn.WidgetBox(self._widget_days_simulation,
+                               # self._widget_markdown_date,
+                               # self._widget_sun,
+                               # self._widget_markdown_lat_long,
+                               )
+
+        tab = pn.Tabs(("Manual", widgets),
+                      ("Geo-location", widgets2),
+                      ("Day simulation", widget3))
+
+        panel = pn.Column("<b> Lightsource </b> ", self._widget_relief_shading, tab)
         return panel
+
+    def _trigger_info(self):
+        self.light_source.manual = False
+        self._widget_manual.value = False
+        self._widget_sun.object = "<p>Azimuth: %.4f </p>" \
+                                  "<p>Altitude: %.4f </p>" % (self.light_source.azimuth,
+                                                              self.light_source.altitude)
+        self._widget_markdown_lat_long.object = "<p>Latitude: %.4f</p>" \
+                                                "<p>Longitude: %.4f</p>" % (self.light_source.latitude_deg,
+                                                                            self.light_source.longitude_deg)
+        self._widget_markdown_date.object = self.light_source.date.ctime()
+        self._widget_markdown_city.object = self.light_source.full_address
+
+    def _callback_day_simulation(self, event):
+        self.light_source.simulation = event.new
+        self._light_simulation = event.new
+
+    def _callback_hour_pick(self, event):
+        self.light_source.date = self.light_source.date.replace(hour=event.new)
+        self._trigger_info()
+
+    def _callback_minute_pick(self, event):
+        self.light_source.date = self.light_source.date.replace(minute=event.new)
+        self._trigger_info()
+
+    def _callback_second_pick(self, event):
+        self.light_source.date = self.light_source.date.replace(second=event.new)
+        self._trigger_info()
+
+    def _callback_date_pick(self, event):
+        self.light_source.set_datetime(date=event.new)
+        self._trigger_info()
+
+    def _callback_address(self, event):
+        self.light_source.set_address(event.new)
+        self.light_source.set_latitude_longitude()
+        self._trigger_info()
+
+
+    def _callback_manual(self, event): self.light_source.manual = event.new
 
     def _callback_plot_colormap(self, event): self.active = event.new
 
@@ -235,8 +334,8 @@ class CmapModule:
 
     def _callback_relief_shading(self, event): self.relief_shading = event.new
 
-    def _callback_ve(self, event): self.ve = event.new
+    def _callback_ve(self, event): self.light_source.set_ve(event.new)
 
-    def _callback_lightsource_altdeg(self, event): self.altdeg = event.new
+    def _callback_lightsource_altdeg(self, event): self.light_source.set_altitude(event.new)
 
-    def _callback_lightsource_azdeg(self, event): self.azdeg = event.new
+    def _callback_lightsource_azdeg(self, event): self.light_source.set_azimuth(event.new)
