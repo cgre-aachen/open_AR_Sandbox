@@ -1,4 +1,3 @@
-from warnings import warn
 import collections
 import numpy
 import threading
@@ -176,7 +175,8 @@ class MainThread:
             self.lock.release()
             self.thread_status = 'stopped'
             self.projector.write_text("Ups... Something went wrong. The Thread is paused..."
-                                      "\n Check 'self._error_message' to see what happened")
+                                      "\n Check 'self._error_message' to see what happened"
+                                      "\n or open the 'sandbox.log' file for a detailed description")
 
         self.sb_params['ax'].set_xlim(xmin=self.sb_params.get('extent')[0], xmax=self.sb_params.get('extent')[1])
         self.sb_params['ax'].set_ylim(ymin=self.sb_params.get('extent')[2], ymax=self.sb_params.get('extent')[3])
