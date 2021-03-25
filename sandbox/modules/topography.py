@@ -15,7 +15,7 @@ class TopoModule(ModuleTemplate):
     Module for simple Topography visualization without computing a geological model
     """
 
-    def __init__(self, *args, extent: list = None, **kwargs):
+    def __init__(self, extent: list = None, **kwargs):
         pn.extension()
         self.max_height = 800
         self.center = 0
@@ -42,6 +42,9 @@ class TopoModule(ModuleTemplate):
         self.sea_level_polygon_line_color = mcolors.to_hex("blue")
         self.sea_zorder = 1000
         self.sea_fill = True
+
+        self._marker_contour_val = None
+        self.side_flooding = False
         logger.info("TopoModule loaded successfully")
 
     def update(self, sb_params: dict):
@@ -58,6 +61,12 @@ class TopoModule(ModuleTemplate):
         frame, extent = self.normalize_topography(frame, extent,
                                                   min_height=self.min_height,
                                                   max_height=self.max_height)
+        marker = sb_params.get('marker')
+        if len(marker) > 0:
+            self._marker_contour_val = marker.loc[marker.is_inside_box, ('box_x', 'box_y')].values[0]
+        else:
+            self._marker_contour_val = None
+
         self.extent = extent
         self.plot(frame, ax, extent)
         sb_params['frame'] = frame
@@ -80,11 +89,14 @@ class TopoModule(ModuleTemplate):
             #if self._center != self.center:
             # TODO: Avoid unnecessary calculation of new paths
             try:
-                self.path = self.create_paths(frame, self.center)
+                if self.side_flooding and self._marker_contour_val is not None:
+                    self.path, self.center = self.find_single_path(frame, self._marker_contour_val)
+                else:
+                    self.path = self.create_paths(frame, self.center)
             except Exception as e:
                 logger.error(e, exc_info=True)
 
-            if self.sea:
+            if self.sea and self.path is not None:
                 self.set_texture(self.path)
                 if self.col is None:
                     self.col = ax.imshow(self.texture, origin='lower', aspect='auto', zorder=self.sea_zorder+1,
@@ -95,7 +107,7 @@ class TopoModule(ModuleTemplate):
             else:
                 self._delete_image()
 
-            if self.sea_contour:
+            if self.sea_contour and self.path is not None:
                 # Add contour polygon of sea level
                 self.sea_level_patch = PathPatch(self.path,
                                                  alpha=self.sea_level_polygon_alpha,
@@ -237,6 +249,35 @@ class TopoModule(ModuleTemplate):
         path = Path(contour_comb, codes)
         return path
 
+    @staticmethod
+    def find_single_path(frame: tuple, point: tuple):
+        """
+        From a frame, find the point that contains the point and start changing the contour val excluding isolated
+        contours
+        Args:
+            frame: frame of sandbox
+            point: Aruco point coordinate (x, y)
+        Returns:
+            path:
+            contour_val:
+        """
+        # create padding
+        contour_val = frame[int(point[1]), int(point[0])]  # To be sure that there will be a contour in that point
+        frame_padded = np.pad(frame, pad_width=1, mode='constant', constant_values=np.max(frame) + 1)
+        contours = measure.find_contours(frame_padded.T, contour_val)
+        # Look 5 pixels in the surrounding (2 each side) if a path contains any of those points
+        surrounding_points = [(point[0]-2 + i, point[1]-2 + j) for i in range(5) for j in range(5)]
+        for con in contours:
+            codes = [Path.LINETO for _ in range(len(con))]
+            codes[0] = Path.MOVETO
+            codes[-1] = Path.CLOSEPOLY
+            path = Path(con, codes)
+
+            if True in path.contains_points(surrounding_points):
+                return path, contour_val
+        logger.warning("No path includes the point %s" % point)
+        return None, None
+
     def show_widgets(self):
         self._create_widgets()
         panel = pn.Column("### Widgets for Topography normalization",
@@ -251,7 +292,9 @@ class TopoModule(ModuleTemplate):
                                            self._widget_transparency,
                                            self._widget_color
                                            )
-                                 )
+                                 ),
+                          " #### Use aruco marker for local filling",
+                          self._widget_aruco
                           )
         return panel
 
@@ -268,7 +311,7 @@ class TopoModule(ModuleTemplate):
                                                       start=self.min_height,
                                                       end=self.max_height,
                                                       step=5,
-                                                      value=self.center)
+                                                      value=self.center,)
         self._widget_sea_level.param.watch(self._callback_sea_level, 'value',
                                            onlychanged=False)
 
@@ -301,6 +344,13 @@ class TopoModule(ModuleTemplate):
 
         self._widget_animation = pn.widgets.Checkbox(name='Animate wave movement', value=self.animate)
         self._widget_animation.param.watch(self._callback_animation, 'value', onlychanged=False)
+
+        self._widget_aruco = pn.widgets.Checkbox(name='Local level', value=self.side_flooding)
+        self._widget_aruco.param.watch(self._callback_aruco, 'value', onlychanged=False)
+
+    def _callback_aruco(self, event):
+        self.side_flooding = event.new
+        self._widget_sea_level.disabled = event.new
 
     def _callback_fill(self, event): self.sea_fill = event.new
 
