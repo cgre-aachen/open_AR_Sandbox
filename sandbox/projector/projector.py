@@ -281,7 +281,7 @@ class Projector(object):
         self.ax.texts = []
         x = (self.ax.get_xlim()[1] - self.ax.get_xlim()[0])/2
         y = (self.ax.get_ylim()[1] - self.ax.get_ylim()[0])/2
-        self.ax.annotate(text, (x, y), zorder=1000, xycoords="data", fontsize=18, ha='center',
+        self.ax.annotate(text, (x, y), zorder=1000000, xycoords="data", fontsize=18, ha='center',
                          va='top', wrap=True)
         self.trigger()
 

@@ -12,3 +12,4 @@ seaborn
 tqdm
 pooch
 colorama
+pysolar

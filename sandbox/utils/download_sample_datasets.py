@@ -228,13 +228,13 @@ def download_landscape_all():
 
 #%%
 if __name__ == '__main__':
-    if input("Do you want to download the Test data? (2 KB) [y/n]") == "y":
+    if input("Do you want to download the Test data? (25.4 MB) [y/n]") == "y":
         download_test_data()
 
-    if input("Do you want to download some DEMs to the SaveLoadModule? (14.5 MB) [y/n]") == "y":
+    if input("Do you want to download some DEMs to the SaveLoadModule? (24 MB) [y/n]") == "y":
         download_topography_data()
 
-    if input("Do you want to download the Landslide data to the LandslideModule? (4 KB) [y/n]") == "y":
+    if input("Do you want to download the Landslide data to the LandslideModule? (114 MB) [y/n]") == "y":
         download_landslides_data()
 
     if input("Do you want to download the Gempy data for the Benisson Model? (1.2 MB) [y/n]") == "y":

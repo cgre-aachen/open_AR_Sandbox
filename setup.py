@@ -23,7 +23,8 @@ setup(
         'seaborn',
         'tqdm',
         'pooch',
-        'colorama'
+        'colorama',
+        'pysolar'
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',
