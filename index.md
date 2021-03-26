@@ -301,16 +301,18 @@ export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig
 (`libfreenect2.2.s0...`) from the `freenect2/lib` folder into the 
 `lib` folder of your environment. Ej:
  * if you are using an anaconda environment, open the folder:
+  
 ```
 <your_path>/anaconda3/envs/<sandbox-env>/lib
 ```
+
 * And in this folder paste the previous copied files (3 files!!!). Keep in mind that you need to 
 replace the <...> with your specific path.
 * If you dont want the manual work then run directly (remember to change the paths according to your needs):
+
 ```
 sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/envs/sandbox-env/lib/
 ```
-
 
 ### LiDAR L515 Installation 
 
