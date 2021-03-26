@@ -17,23 +17,26 @@ Table of Contents
 --------
 * [Introduction](README.md#introduction)
 * [Features](README.md#features)
+* [License, use and attributions](README.md#license-use-and-attribution)
 * [Requirements](README.md#requirements)
 * [Installation](README.md#installation)
     * [Standard packages](README.md#standard-packages)
     * [Kinect Installation](README.md#kinect-installation)
         * [Windows](README.md#for-windows)
-            * [KinectV1 - Future](README.md#kinect-v1---future)
-            * [kinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
+            * [KinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
         * [Linux](README.md#for-linux)
             * [KinectV1 - libkinect](README.md#kinect-v1---libfreenect)
-            * [kinectV2 - freenect2](README.md#kinect-v2---freenect2)
-* [Git LFS](README.md#git-lfs)
+            * [KinectV2 - freenect2](README.md#kinect-v2---freenect2)
+   * [LiDAR L515 Installation](README.md#lidar-l515-installation)
+      * [Installing in Windows](README.md#installing-in-windows)
+      * [Installing in Linux](README.md#installing-in-linux)
+      * [Running with Python](README.md#running-with-python)
+* [Download sample data](README.md#download-sample-data)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
-* [Getting Started](README.md#getting-started)
 * [Project Development](README.md#project-development)
 * [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
@@ -200,7 +203,6 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
 
 ### For Linux
-!!!Not stable!!!
 
 #### Kinect v1 - libfreenect
 
@@ -310,30 +312,67 @@ sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/
 ```
 
 
-Git LFS
+### LiDAR L515 Installation 
+
+#### Installing in Windows
+
+First, go to the latest release page on [GitHub](https://github.com/IntelRealSense/librealsense/releases/latest) 
+and download and execute the file: 
+
+```Intel.RealSense.Viewer.exe```
+
+Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
+
+#### Installing in Linux 
+
+Detailed installation steps can be found in the 
+[linux installation guide](https://github.com/IntelRealSense/librealsense/blob/development/doc/distribution_linux.md). 
+The steps are as follows:
+
+- Register the server's public key:  
+`sudo apt-key adv --keyserver keys.gnupg.net --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE`
+In case the public key still cannot be retrieved, check and specify proxy settings: `export http_proxy="http://<proxy>:<port>"`  
+, and rerun the command. See additional methods in the following [link](https://unix.stackexchange.com/questions/361213/unable-to-add-gpg-key-with-apt-key-behind-a-proxy).  
+
+- Add the server to the list of repositories:  
+  Ubuntu 16 LTS:  
+`sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo xenial main" -u`  
+  Ubuntu 18 LTS:  
+`sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo bionic main" -u`  
+  Ubuntu 20 LTS:  
+`sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo focal main" -u`
+
+- Install the libraries:  
+  `sudo apt-get install librealsense2-dkms`  
+  `sudo apt-get install librealsense2-utils`  
+  
+Reconnect the Intel RealSense depth camera and run: `realsense-viewer` to verify the installation.
+
+#### Running with python
+
+After the sensor is installed on your pltaform, the Python wrapper can be easily installed via:
+
+```pip install pyrealsense2```
+
+If any problems with the installation reference to 
+[Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
+
+Download sample data
 -------
 
-To clone and use this repository, and specially have the landslides simulations and run the tests, you'll need Git Large
- File Storage (LFS).
+You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
+You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
+the the use of the Landscape generation module.
 
-Our [Developer Guide](https://developer.lsst.io/tools/git_lfs.html)
-explains how to set up Git LFS for LSST development.
-
-#### Windows
-1. Download the windows installer from [here](https://github.com/git-lfs/git-lfs/releases)
-2. Run the windows installer    
-3. Start a command prompt/or git for windows prompt and run `git lfs install`
-
-
-##### Linux
+In the terminal type:
 
 ```
-curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-sudo apt-get install git-lfs
-git lfs install
+python3 sandbox/utils/download_sample_datasets.py
 ```
 
-
+and follow the instruction on the terminal to download the specific files you need. We use 
+[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
+to their respective folders. Running this code a second time will not trigger a download since the file already exists.
 
 External Packages
 ---------
@@ -427,5 +466,3 @@ hardware, pre-installed software, and set-up and maintenance, please contact
 [Terranigma Solutions GmbH](https://www.terranigma-solutions.com/services).
 
 
-
- 
