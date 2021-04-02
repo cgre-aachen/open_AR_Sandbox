@@ -199,6 +199,7 @@ class GemPyModule(ModuleTemplate):
         sb_params['frame'] = scale_frame
         sb_params['cmap'] = cmap
         sb_params['marker'] = self.modelspace_arucos
+        # This because we are currently plotting our own cmap and shading
         sb_params['active_cmap'] = False
         sb_params['active_shading'] = False
         sb_params['extent'] = self._model_extent
