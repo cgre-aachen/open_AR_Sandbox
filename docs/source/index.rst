@@ -21,12 +21,3 @@ Welcome to open_AR_Sandbox's documentation!
    getting_started/external packages
    getting_started/project development
    getting_started/interest
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
