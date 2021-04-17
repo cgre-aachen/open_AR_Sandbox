@@ -6,7 +6,8 @@
 About
 =====
 
-Welcome to the open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
+Welcome to the `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ repository. If you do not know what
+this is all about, have a look at this video:
 
 ⚠️Warning! It is unfortunate that we have to state this here, but:
 
@@ -20,7 +21,7 @@ Augmented Reality - Geology Sandbox 2
 .. raw:: html
 
     <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
-        <iframe src="https//www.youtube.com/watch?v=oE3Atw-YvSA" frameborder="0" allowfullscreen style="position: absolute;
+        <iframe src="https://www.youtube.com/watch?v=oE3Atw-YvSA" frameborder="0" allowfullscreen style="position: absolute;
          top: 0; left: 0; width: 100%; height: 90%; margin-bottom: 2em;"></iframe>
     </div>
 
@@ -97,11 +98,11 @@ topography and outcrop can be explored in a playful and comprehensible way.
 +----------------------+----------------------------------------+
 | Documentation        | |documentation|                        |
 +----------------------+----------------------------------------+
-| Github Workflow      | |github_workflow|                      |
+| GitHub workflow      | |github_workflow|                      |
 +----------------------+----------------------------------------+
-| Issue Tracking       | |open_issues| |closed_issues|          |
+| Issue tracking       | |open_issues| |closed_issues|          |
 +----------------------+----------------------------------------+
-| Pull Requests        | |pull_requests| |closed_pull_requests| |
+| Pull requests        | |pull_requests| |closed_pull_requests| |
 +----------------------+----------------------------------------+
 
 

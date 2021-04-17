@@ -6,9 +6,10 @@
 Download sample data
 ====================
 
-You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. You will need to do
-this if you want to run the tests, use the landslides simulations and/or get the trained models for the the use of the
-Landscape generation module.
+You have the option to download some publicly shared files from our
+`open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ shared folder. You will need to do this if you want
+to run the tests, use the landslides simulations and/or get the trained models for the the use of the Landscape
+generation module.
 
 In the terminal type::
 

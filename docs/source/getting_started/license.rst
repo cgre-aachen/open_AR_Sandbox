@@ -6,9 +6,9 @@
 License, use and attributions
 =============================
 
-Feel free to download and use the open_AR_Sandbox software! We do not provide any warranty and any guarantee for the
-use. We also do not provide professional support, but we aim to answer questions posted as Issues on the github page as
-quickly as possible.
+Feel free to download and use the `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ software! We do
+not provide any warranty and any guarantee for the use. We also do not provide professional support, but we aim to
+answer questions posted as Issues on the GitHub page as quickly as possible.
 
 Open_AR_Sandbox is published under an `GNU Lesser General Public License v3.0 <https://www.gnu.org/licenses/lgpl-3.0.de.html>`_, which means that you are free to use it,
 if you do not do any modifications, in a wide variety of ways (even commercially). However, if you plan to modify and

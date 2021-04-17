@@ -6,14 +6,15 @@
 Installation
 ============
 
-First of all you will need a healthy Python 3 environment. We recommend using Anaconda. In addition to some standard
-Python packages, you will need a specific setup dependent on the Kinect version you are using. In the following we
-provide detailed installation instructions.
+First of all you will need a healthy `Python 3 <https://www.python.org/>`_ environment. We recommend using
+`Anaconda <https://www.anaconda.com/>`_. In addition to some standard `Python 3 <https://www.python.org/>`_ packages,
+you will need a specific setup dependent on the Kinect version you are using. In the following we provide detailed
+installation instructions.
 
 open_AR_Sandbox package
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Download or clone this repository open_AR_Sandbox from github.
+Download or clone this repository `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ from GitHub.
 
 First: Clone the repository::
 
@@ -47,19 +48,19 @@ Kinect
 For Windows
 ^^^^^^^^^^^
 
-- Kinect V1 - Future
-There is still no support for kinect V1...
+- Kinect v1 - Future
+There is still no support for Kinect v1!
 
-- Kinect V2 - PyKinect2 (tested on Windows 10)
-Install the current Kinect SDK including drivers. You can use the software bundle to test the connection to
-your kinect, before you continue.
+- Kinect v2 - PyKinect2 (tested on Windows 10)
+Install the current Kinect SDK including drivers. You can use the software bundle to test the connection to your kinect,
+before you continue.
 
 To make Python and the Kinect SDK communicate, install the related PyKinect2 wrappers which can be easily installed
 via::
 
    pip install pykinect2
 
-Unfortunately, the configuration of pyKinect2 needs to be adjusted to work on a 64 bit System. Therefore, edit the
+Unfortunately, the configuration of PyKinect2 needs to be adjusted to work on a 64 bit System. Therefore, edit the
 Lib/site-packages/pykinect2/PyKinectV2.py file, go to line 2216 and comment it::
 
    # assert sizeof(tagSTATSTG) == 72, sizeof(tagSTATSTG)
@@ -74,14 +75,14 @@ Add the following lines below::
 For Linux
 ^^^^^^^^^
 
-- Kinect V1 - libfreenect
+- Kinect v1 - libfreenect
 To make open_AR_Sandbox talk to the first generation kinect you will need the Libfreenect Drivers with Python Wrappers.
 The installation is kind of straight forward for Linux and MacOS but challenging for Microsoft (in fact: if you pull it
 off, let us know how you did it!) The steps can be summarized as follows (refer to any problems regarding installation
 in to link) To build libfreenect, you'll need
 
-- libusb >= 1.0.18 (Windows needs >= 1.0.22)
-- CMake >= 3.12.4 (you can visit this page for detailed instructions for the installation)
+-> libusb >= 1.0.18 (Windows needs >= 1.0.22)
+-> CMake >= 3.12.4 (you can visit this page for detailed instructions for the installation)
 
 Once these are installed we can follow the next commands::
 
@@ -102,7 +103,7 @@ Once these are installed we can follow the next commands::
    python demo_cv2_async.py
 
 
-- Kinect V2 - freenect2 or pylibfreenect2
+- Kinect v2 - freenect2 or pylibfreenect2
 
 For this we are going to use a python interface for the library libfreenect2 called freenect2.
 

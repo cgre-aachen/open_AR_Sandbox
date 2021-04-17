@@ -9,8 +9,9 @@ External packages
 GemPy
 ~~~~~
 
-To use implicit geological models inside the sandbox, go to GemPy, clone or download the repository and follow the
-GemPy Installation instructions. With GemPy installed you can follow the tutorial GempyModule::
+To use implicit geological models inside the sandbox, go to `GemPy <https://www.gempy.org/>`_, clone or download the
+repository and follow the `GemPy <https://www.gempy.org/>`_ Installation instructions. With
+`GemPy <https://www.gempy.org/>`_ installed you can follow the tutorial GempyModule::
 
    pip install gempy
 
@@ -23,18 +24,19 @@ If using windows you will need to install Theano separately as instructed in her
 Devito
 ~~~~~~
 
-This package uses the power of Devito to run wave proppagation simmulations. More about this can be found in
-notebooks/tutorials/10_SeismicModule/. Follow the Devito installation instructions. This module so far have only support
-in Linux::
+This package uses the power of `Devito <https://www.devitoproject.org/>`_ to run wave proppagation simmulations. More
+about this can be found in notebooks/tutorials/10_SeismicModule/. Follow the `Devito <https://www.devitoproject.org/>`_
+installation instructions. This module so far have only support in Linux::
 
    pip install --user git+https://github.com/devitocodes/devito.git
 
 PyGimli
 ~~~~~~~
 
-This library is a powerful tool for Geophysical inversion and Modelling. Some examples can be found in
-notebooks/tutorials/11_Geophysics/. PyGimli can be installed following the installation intructions here. We recomend
-creating a new environment where PyGimli is already installed and over that one install the sandbox dependencies::
+This library is a powerful tool for geophysical inversion and modelling. Some examples can be found in
+notebooks/tutorials/11_Geophysics/. `PyGimli <https://www.pygimli.org/>`_ can be installed following the installation
+intructions here. We recomend creating a new environment where `PyGimli <https://www.pygimli.org/>`_ is already
+installed and over that one install the sandbox dependencies::
 
    conda create -n sandbox-env -c gimli -c conda-forge pygimli=1.1.0
 
