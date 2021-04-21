@@ -150,7 +150,7 @@ git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
 ```
 2. Create a new anaconda environment
 ```
-conda create -n sandbox-env python=3.7
+conda create -n sandbox-env python
 ```
 3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
 environment before starting anything
