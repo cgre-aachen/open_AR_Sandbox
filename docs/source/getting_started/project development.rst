@@ -8,7 +8,7 @@ Project development
 
 `Open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ is being developed at the
 `Department for Computational Geoscience and Reservoir Engineering (CGRE) <https://www.cgre.rwth-aachen.de/go/id/qoyf/>`_
-department at `RWTH Aachen University <https://www.rwth-aachen.de/cms/~a/root/?lidx=1>`_.
+at the `RWTH Aachen University <https://www.rwth-aachen.de/cms/~a/root/?lidx=1>`_.
 
 .. image:: https://img.shields.io/github/contributors/cgre-aachen/open_AR_Sandbox.svg?logo=python&logoColor=white
    :target: https://github.com/cgre-aachen/open_AR_Sandbox/graphs/contributors/
