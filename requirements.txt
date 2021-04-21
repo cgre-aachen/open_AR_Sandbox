@@ -14,3 +14,7 @@ pooch
 colorama
 pysolar
 sphinx
+nbsphinx
+sphinx-rtd-theme
+sphinx-markdown-tables
+sphinx-copybutton
