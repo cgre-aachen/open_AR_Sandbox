@@ -46,7 +46,7 @@ extensions = ['nbsphinx',
 
 github_url = 'https://github.com/cgre-aachen/open_AR_Sandbox'
 
-html_context = {'source_url_prefix': "https://github.com/cgre-aachen/open_AR_Sandbox",
+html_context = {#'source_url_prefix': "https://github.com/cgre-aachen/open_AR_Sandbox",
                 'display_github': True, # Add 'Edit on Github' link instead of 'View page source'
                 #'last_updated': True,
                 #'commit': False,

@@ -46,10 +46,11 @@ However, most of these common AR Sandboxes are limited to the visualization of t
 as well as water simulations on the digital terrain surface. The potential for AR Sandboxes for geoscience education,
 and especially for teaching structural geology, remains largely untapped.
 
-For this reason, we have developed open_AR_Sandbox, an augmented reality sandbox designed specifically for the use in
-geoscience education. In addition to the visualization of topography it can display geologic subsurface information such
-as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures,
-topography and outcrop can be explored in a playful and comprehensible way.
+For this reason, we have developed `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_, an augmented
+reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of
+topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and
+interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful
+and comprehensible way.
 
 .. |contributors| image:: https://img.shields.io/github/contributors/cgre-aachen/open_AR_Sandbox.svg?logo=python&logoColor=white
    :target: https://github.com/cgre-aachen/open_AR_Sandbox/graphs/contributors/

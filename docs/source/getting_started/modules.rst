@@ -6,8 +6,8 @@
 Modules
 =======
 
-The open_AR_Sandbox as well as `GemPy <https://www.gempy.org/>`_ are under continuous development and including more
-modules for major outreach.
+The `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ as well as `GemPy <https://www.gempy.org/>`_ are
+under continuous development and including more modules for major outreach.
 
 Implemented modules
 ~~~~~~~~~~~~~~~~~~~

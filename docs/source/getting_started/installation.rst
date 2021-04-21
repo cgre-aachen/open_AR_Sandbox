@@ -76,10 +76,10 @@ For Linux
 ^^^^^^^^^
 
 - Kinect v1 - libfreenect
-To make open_AR_Sandbox talk to the first generation kinect you will need the Libfreenect Drivers with Python Wrappers.
-The installation is kind of straight forward for Linux and MacOS but challenging for Microsoft (in fact: if you pull it
-off, let us know how you did it!) The steps can be summarized as follows (refer to any problems regarding installation
-in to link) To build libfreenect, you'll need
+To make `open_AR_Sandbox <https://github.com/cgre-aachen/open_AR_Sandbox>`_ talk to the first generation kinect you will
+need the Libfreenect Drivers with Python Wrappers. The installation is kind of straight forward for Linux and MacOS but
+challenging for Microsoft (in fact: if you pull it off, let us know how you did it!) The steps can be summarized as
+follows (refer to any problems regarding installation in to link) To build libfreenect, you'll need
 
 -> libusb >= 1.0.18 (Windows needs >= 1.0.22)
 -> CMake >= 3.12.4 (you can visit this page for detailed instructions for the installation)
