@@ -24,7 +24,8 @@ setup(
         'tqdm',
         'pooch',
         'colorama',
-        'pysolar'
+        'pysolar',
+	   'sphinx',
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',

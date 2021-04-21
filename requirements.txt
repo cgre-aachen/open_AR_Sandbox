@@ -13,3 +13,4 @@ tqdm
 pooch
 colorama
 pysolar
+sphinx
