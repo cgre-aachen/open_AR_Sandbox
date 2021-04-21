@@ -25,7 +25,12 @@ setup(
         'pooch',
         'colorama',
         'pysolar',
-	   'sphinx',
+    	'sphinx',
+    	'nbsphinx',
+   	'sphinx-rtd-theme',
+   	'sphinx-markdown-tables',
+   	'sphinx-copybutton',
+
     ],
     url='https://github.com/cgre-aachen/open_AR_Sandbox',
     license='LGPL v3',
