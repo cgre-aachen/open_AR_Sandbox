@@ -1,6 +1,6 @@
 # open_AR_Sandbox
 
-* Check the complete and up-to-date documentation [here](https://open-ar-sandbox.readthedocs.io/en/latest/)
+* Check the complete and up-to-date documentation on [read the docs](https://open-ar-sandbox.readthedocs.io/en/latest/)
 
 Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
 
