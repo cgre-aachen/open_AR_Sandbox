@@ -1,4 +1,7 @@
 # open_AR_Sandbox
+
+* Check the complete and up-to-date documentation [here](https://open-ar-sandbox.readthedocs.io/en/latest/)
+
 Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
 
 :warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
