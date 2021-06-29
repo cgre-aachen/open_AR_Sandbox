@@ -24,6 +24,7 @@ Table of Contents
 * [Requirements](README.md#requirements)
 * [Installation](README.md#installation)
     * [Standard packages](README.md#standard-packages)
+    * [Download sample data](README.md#download-sample-data)
     * [Kinect Installation](README.md#kinect-installation)
         * [Windows](README.md#for-windows)
             * [KinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
@@ -34,7 +35,6 @@ Table of Contents
       * [Installing in Windows](README.md#installing-in-windows)
       * [Installing in Linux](README.md#installing-in-linux)
       * [Running with Python](README.md#running-with-python)
-* [Download sample data](README.md#download-sample-data)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
@@ -169,6 +169,23 @@ To install all the standard packages please use the  `requirements.txt` file:
 You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
 `pip install -e . `
+
+### Download sample data
+
+You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
+You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
+the the use of the Landscape generation module.
+
+In the terminal type:
+
+```
+python3 sandbox/utils/download_sample_datasets.py
+```
+
+and follow the instruction on the terminal to download the specific files you need. We use 
+[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
+to their respective folders. Running this code a second time will not trigger a download since the file already exists.
+
 
 ### Kinect Installation 
  
@@ -360,22 +377,6 @@ After the sensor is installed on your pltaform, the Python wrapper can be easily
 If any problems with the installation reference to 
 [Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
 
-Download sample data
--------
-
-You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
-You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
-the the use of the Landscape generation module.
-
-In the terminal type:
-
-```
-python3 sandbox/utils/download_sample_datasets.py
-```
-
-and follow the instruction on the terminal to download the specific files you need. We use 
-[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
-to their respective folders. Running this code a second time will not trigger a download since the file already exists.
 
 External Packages
 ---------

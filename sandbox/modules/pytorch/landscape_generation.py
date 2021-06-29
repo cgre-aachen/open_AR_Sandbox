@@ -214,7 +214,7 @@ class LandscapeGeneration(ModuleTemplate):
 
     def _search_all_possible_models(self):
         self.name_trained_models = os.listdir(_test_data["landscape_generation"] + "checkpoints")
-        self.name_trained_models.remove(".txt")
+        # self.name_trained_models.remove(".txt")
         return self.name_trained_models
 
     def show_widgets(self):
