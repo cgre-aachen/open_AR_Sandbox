@@ -1,4 +1,4 @@
-# open_AR_Sandbox
+# open-AR-Sandbox
 
 * Check the complete and up-to-date documentation on [read the docs](https://open-ar-sandbox.readthedocs.io/en/latest/)
 
