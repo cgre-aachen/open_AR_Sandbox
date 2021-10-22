@@ -2,7 +2,7 @@
 
 * Check the complete and up-to-date documentation on [read the docs](https://open-ar-sandbox.readthedocs.io/en/latest/)
 
-Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
+Welcome to the# Open AR-Sandbox repository. If you do not know what this is all about, have a look at this video:
 
 :warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
 own work is serious **scientific fraud**! And if you develop content further, then please push these developments
@@ -11,7 +11,7 @@ For more details, please consult the information below and the license.
 
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
 
-[![What is AR-Sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
+[![What is an AR-sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
 
 ![Python 3](https://img.shields.io/badge/Python-3-blue.svg)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
@@ -46,17 +46,17 @@ Table of Contents
 
 Introduction
 -----------
-Augmented Reality Sandboxes are a great tool for science outreach and teaching due to their intuitive and interaction-enhancing operation. Recently AR Sandboxes are becoming increasingly popular as interactive exhibition pieces, teaching aids and toys.
+Augmented Reality Sandboxes (AR-sandboxes) are a great tool for science outreach and teaching due to their intuitive and interaction-enhancing operation. Recently AR Sandboxes are becoming increasingly popular as interactive exhibition pieces, teaching aids and toys.
 
-AR Sandboxes consist of a box of sand that can be freely sculpted by hand. The topography of the sand is constantly scanned with a depth camera and a computed image is projected back onto the sand surface, augmenting the sandbox with digital information.
+AR-sandboxes consist of a box of sand that can be freely sculpted by hand. The topography of the sand is constantly scanned with a depth camera and a computed image is projected back onto the sand surface, augmenting the sandbox with digital information.
 
-However, most of these common AR Sandboxes are limited to the visualization of topography with contour lines and colors, as well as water simulations on the digital terrain surface. The potential for AR Sandboxes for geoscience education , and especially for teaching struc- tural geology, remains largely untapped.
+However, most of these common AR Sandboxes are limited to the visualization of topography with contour lines and colors, as well as water simulations on the digital terrain surface. The potential for AR Sandboxes for geoscience education , and especially for teaching strutural geology, remains largely untapped.
 
-For this reason, we have developed open-AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
+For this reason, we have developed Open AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
 
 Features
 -------
-* compatible with most AR Sandbox builds
+* compatible with most AR-sandbox builds
 * subroutine for calibration and alignment of depth image, sand surface and projection 
 * versatile model creation with the powerful GemPy library
 * open-source under LGPL v3.0 license
@@ -79,7 +79,7 @@ Some of the modules already implemented include:
 Check the video below for some of the features in action:
 [![Open AR Sandbox Features](https://img.youtube.com/vi/t0fyPVMIH4g/0.jpg)](https://www.youtube.com/watch?v=t0fyPVMIH4g)
 
-The open_AR_Sandbox as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
+The Open AR-Sandbox software as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
 
 * More Tutorials, examples, Tests and Documentation to help you develop your own modules
 * GemPy optimization for (much!) higher framerates
@@ -91,12 +91,12 @@ The open_AR_Sandbox as well as GemPy are under continuous development and includ
 License, use and attribution
 ----------------------------
 
-Feel free to download and use the Open_AR_Sandbox software! We do not provide any
+Feel free to download and use the Open AR-Sandbox software! We do not provide any
 warranty and any guarantee for the use. We also do not provide professional
 support, but we aim to answer questions posted as Issues on the github page as
 quickly as possible.
 
-Open_AR_Sandbox is published under an **GNU Lesser General Public License v3.0**, which
+Open AR-Sandbox is published under an **GNU Lesser General Public License v3.0**, which
 means that you are
 free to use it, if you do not do any modifications, in a wide variety of ways
 (even commercially). However, if you plan to _modify and redistribute_ the
@@ -115,7 +115,7 @@ These are the main conditions for using this library:
 
 For more details on the licsense, please see provided license file.
 
-If you use Open-AR-Sandbox in a scientific abstract or publication, please
+If you use Open AR-Sandbox in a scientific abstract or publication, please
 include appropriate recognition of the original work. For the time being,
 please cite:
 
@@ -172,7 +172,7 @@ You can also have a local installation of the sandbox by using the File "setup.p
 
 ### Download sample data
 
-You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
+You have the option to download some publicly shared files from our Open AR-Sandbox project shared folder. 
 You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
 the the use of the Landscape generation module.
 
@@ -226,7 +226,7 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 
 #### Kinect v1 - libfreenect
 
-To make open_AR_Sandbox talk to the first generation kinect you will need the
+To make Open AR-Sandbox talk to the first generation kinect you will need the
 [Libfreenect Drivers](https://github.com/OpenKinect/libfreenect) with
 [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). 
 The installation is kind of straight forward for Linux and MacOS but 
@@ -341,7 +341,7 @@ and download and execute the file:
 
 ```Intel.RealSense.Viewer.exe```
 
-Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
+Follow the instructions for the installation and update the firmware of your sensor.  You should be able to use and see the depth and RGB image.
 
 #### Installing in Linux 
 
@@ -445,7 +445,7 @@ Get in contact with us to provide you with the train model for this module.
 Project Development
 -------------------
 
-Open-AR-Sandbox is developed at the research unit [Computational Geoscience
+Open AR-Sandbox is developed at the research unit [Computational Geoscience
 and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aachen University, Germany.
 
 [![CGRE](https://www.cgre.rwth-aachen.de/global/show_picture.asp?id=aaaaaaaaabaxmhn)](https://www.cgre.rwth-aachen.de/)
