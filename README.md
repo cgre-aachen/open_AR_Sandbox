@@ -180,7 +180,7 @@ pip install -e .
 
 You have the option to download some publicly shared files from our Open AR-Sandbox project shared folder. 
 You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
-the the use of the Landscape generation module.
+the use of the Landscape generation module.
 
 In the terminal type:
 
@@ -192,6 +192,7 @@ and follow the instruction on the terminal to download the specific files you ne
 [Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
 to their respective folders. Running this code a second time will not trigger a download since the file already exists.
 
+You can also follow the Jupyter Notebook ['Download_datasets.ipynb'](notebooks/tutorials/) and follow the commands. 
 
 ### Kinect Installation 
  
@@ -415,7 +416,7 @@ This library is a powerful tool for Geophysical inversion and Modelling. Some ex
 [PyGimli](https://www.pygimli.org/) can be installed following the installation intructions 
 [here](https://www.pygimli.org/installation.html)
 
-We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox 
+We recommend creating a new environment where PyGimli is already installed and over that one install the sandbox 
 dependencies.
 ```
 conda create -n sandbox-env -c gimli -c conda-forge pygimli=1.1.0
