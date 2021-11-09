@@ -147,9 +147,11 @@ specific setup dependent on the Kinect version you are using. In the following w
 instructions.\
 Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
-1. First clone the repository:
+1. First clone the repository and enter the project folder:
 ```
 git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
+
+cd open_AR_Sandbox
 ```
 2. Create a new anaconda environment
 ```
@@ -164,11 +166,15 @@ conda activate sandbox-env
 
 To install all the standard packages please use the  `requirements.txt` file:
 
-```pip install -r requirements.txt```
+```
+pip install -r requirements.txt
+```
 
-You can also have a local installation of the sandbox by using the File "setup.py" by doing:
+[RECOMMENDED] You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
-`pip install -e . `
+```
+pip install -e . 
+```
 
 ### Download sample data
 
