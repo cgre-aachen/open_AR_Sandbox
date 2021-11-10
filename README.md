@@ -147,7 +147,7 @@ specific setup dependent on the Kinect version you are using. In the following w
 instructions.\
 Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
-1. First clone the repository and enter the project folder:
+1. First clone the repository:
 ```
 git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
 ```
