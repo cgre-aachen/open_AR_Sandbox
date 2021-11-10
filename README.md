@@ -155,7 +155,7 @@ cd open_AR_Sandbox
 ```
 2. Create a new anaconda environment
 ```
-conda create -n sandbox-env python
+conda create -n sandbox-env python=3.7
 ```
 3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
 environment before starting anything
