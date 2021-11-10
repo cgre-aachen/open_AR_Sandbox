@@ -150,14 +150,16 @@ Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-
 1. First clone the repository and enter the project folder:
 ```
 git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
-
+```
+2. Enter the new downloaded project folder:
+```
 cd open_AR_Sandbox
 ```
-2. Create a new anaconda environment
+3. Create a new anaconda environment
 ```
 conda create -n sandbox-env python=3.7
 ```
-3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
+4. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
 environment before starting anything
 ```
 conda activate sandbox-env
