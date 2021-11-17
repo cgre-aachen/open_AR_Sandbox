@@ -187,7 +187,7 @@ the use of the Landscape generation module.
 In the terminal type:
 
 ```
-python3 sandbox/utils/download_sample_datasets.py
+python sandbox/utils/download_sample_datasets.py
 ```
 
 and follow the instruction on the terminal to download the specific files you need. We use 
