@@ -231,6 +231,11 @@ required_size = 64 + sysinfo.platform_bits / 4
 assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
 
+go to line 2866 and comment it out:
+```python
+# from comtypes import _check_version; _check_version('')
+```
+
 ### For Linux
 
 #### Kinect v1 - libfreenect
