@@ -1,3 +1,5 @@
+import asyncio
+
 import collections
 import numpy
 import threading
@@ -305,9 +307,11 @@ class MainThread:
             self._widget_module_selector.value = list(self.modules.keys())
             self._widget_module_selector.options = list(self._modules.keys())
 
-    def thread_loop(self):
+
+    async def thread_loop(self):
         while self.thread_status == 'running':
             self.update()
+            await asyncio.sleep(0.1)
 
     def run(self):
         if self.thread_status != 'running':
@@ -315,8 +319,9 @@ class MainThread:
                 if self.sensor.s_name == "kinect_v2" or self.sensor.s_name == "lidar":
                     self.sensor.Sensor._run()
             self.thread_status = 'running'
-            self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
-            self.thread.start()
+            asyncio.create_task(self.thread_loop())
+            #self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
+            #self.thread.start()
             logger.info('Thread started or resumed...')
 
         else:
