@@ -1,7 +1,7 @@
 import numpy
 import platform
 import threading
-#import os
+import os
 from sandbox import set_logger
 logger = set_logger(__name__)
 _platform = platform.system()
@@ -10,9 +10,9 @@ try:
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform == 'Linux':
-        #os.environ["LIBFREENECT_LOG_LEVEL"] = "ERROR"
-        from freenect2 import Device, FrameType, LogLevel
-        LogLevel.set_global_log_level(LogLevel.Error)
+        os.environ["LIBFREENECT2_LOGGER_LEVEL"] = "ERROR"
+        from freenect2 import Device, FrameType
+
 
 
 except ImportError:
