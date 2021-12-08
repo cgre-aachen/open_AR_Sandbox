@@ -403,6 +403,15 @@ conda install mingw libpython m2w64-toolchain
 conda install theano
 pip install theano --force-reinstall
 ```
+
+Optional: 
+Gempy will print some output each time a frame is calculated, which can fill up the console. to supress this, go to your gempy installation and comment out line 381 in ```
+gempy/core/model.py```
+
+```
+# print(f'Active grids: {self._grid.grid_types[self._grid.active_grids]}')
+```
+
 ### Devito
 
 This package uses the power of [Devito](https://github.com/devitocodes/devito) to run wave proppagation simmulations.
