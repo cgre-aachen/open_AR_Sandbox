@@ -127,8 +127,8 @@ class ContourLinesModule:
 
     @staticmethod
     def delete_contourns(ax):
-        [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
-        [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
+        [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.PathCollection)]
+        [text.remove() for text in reversed(ax.texts) if isinstance(text, matplotlib.text.Text)]
 
     def plot_contour_lines(self, frame, ax):
         self.add_major_contours(frame, ax)
