@@ -1,4 +1,4 @@
-matplotlib>=3.2.1
+matplotlib>=3.5
 numpy
 pandas
 panel>=0.10.2

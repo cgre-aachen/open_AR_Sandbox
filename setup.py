@@ -10,7 +10,7 @@ setup(
     packages=find_packages(exclude=('test', 'docs')),
     include_package_data=True,
     install_requires=[
-        'matplotlib >= 3.2.1',
+        'matplotlib >= 3.5',
         'numpy',
         'pandas',
         'panel >= 0.10.2',
