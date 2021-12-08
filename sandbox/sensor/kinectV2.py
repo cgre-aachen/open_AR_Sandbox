@@ -1,7 +1,7 @@
 import numpy
 import platform
 import threading
-import os
+#import os
 from sandbox import set_logger
 logger = set_logger(__name__)
 _platform = platform.system()
@@ -10,8 +10,11 @@ try:
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
     elif _platform == 'Linux':
-        os.environ["LIBFREENECT_LOG_LEVEL"] = "ERROR"
-        from freenect2 import Device, FrameType
+        #os.environ["LIBFREENECT_LOG_LEVEL"] = "ERROR"
+        from freenect2 import Device, FrameType, LogLevel
+        LogLevel.set_global_log_level(LogLevel.Error)
+
+
 except ImportError:
     logger.warning('dependencies not found for KinectV2 to work. Check installation and try again', exc_info=True)
 
