@@ -82,7 +82,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         self._threshold = 10.0
 
         # Pose Estimation
-        self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575],  # Hardcoded distorion parameter
+        self.mtx = numpy.array([[1977.4905366892494, 0.0, 547.6845435554575],  # Hardcoded distortion parameters
                                 [0.0, 2098.757943278828, 962.426967248953],
                                 [0.0, 0.0, 1.0]])
         self.dist = numpy.array([[-0.1521704243263453],  # Hard-coded distortion parameters
