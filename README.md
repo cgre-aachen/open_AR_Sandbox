@@ -157,7 +157,7 @@ cd open_AR_Sandbox
 ```
 3. Create a new anaconda environment
 ```
-conda create -n sandbox-env python=3.7
+conda create -n sandbox-env python=3.8
 ```
 4. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
 environment before starting anything
@@ -176,6 +176,12 @@ pip install -r requirements.txt
 
 ```
 pip install -e . 
+```
+
+[ALTERNATIVELY] You can use our `sandbox-environment.yml` file to instantly install all the dependencies with the 
+extensions. Beware that you  still need to install the kinect sensors by yourself according to your operative system.
+```
+conda env create -f sandbox-environment.yml
 ```
 
 ### Download sample data
