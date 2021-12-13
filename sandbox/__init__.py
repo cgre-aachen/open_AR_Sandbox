@@ -24,6 +24,9 @@ _test_data = {'topo': os.path.abspath(os.path.dirname(__file__) +
               'gempy_data': os.path.abspath(os.path.dirname(__file__) +
                                             '/../notebooks/tutorials/04_GempyModule/Model_Construction/'
                                             'Bennisson_model/data/')+os.sep,
+              'gempy_example_data': os.path.abspath(os.path.dirname(__file__) +
+                                            '/../notebooks/tutorials/04_GempyModule/Example_Models/'
+                                            'data_examples/')+os.sep,
               'test': os.path.abspath(os.path.dirname(__file__) + '/../tests/test_data/')+os.sep,
               'landscape_generation': os.path.abspath(os.path.dirname(__file__) +
                                                       '/../notebooks/tutorials/09_LandscapeGeneration/')+os.sep
@@ -59,6 +62,9 @@ if not os.path.isdir(_test_data.get("landscape_generation")+"saved_DEMs"):
 # Gempy folders
 if not os.path.isdir(_test_data.get("gempy_data")):
     os.mkdir(_test_data.get("gempy_data"))
+
+if not os.path.isdir(_test_data.get("gempy_example_data")):
+    os.mkdir(_test_data.get("gempy_example_data"))
 
 # logging and exception handling
 from sandbox.utils.logger import set_logger
