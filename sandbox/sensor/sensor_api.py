@@ -13,7 +13,8 @@ class Sensor:
     """
     def __init__(self, calibsensor: str = None, name: str = 'kinect_v2', crop_values: bool = True,
                  clip_values: bool = True, gauss_filter: bool = True,
-                 n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True, **kwargs):
+                 n_frames: int = 3, gauss_sigma: int = 3, invert: bool = True,
+                 check_change_frame: bool = False, **kwargs):
         """
         Sensor Api class to manage the different sensor for the frame adquisition
         Args:
@@ -26,7 +27,9 @@ class Sensor:
             gauss_sigma: How strong the filter is
             inverted: The data is measured from the sensor outwards. \
                         This will normalize the data according to the maximun value of the sensor
+            check_change_frame: Compare with the previous raw frame obtained and update only the values that changed
             **kwargs:
+                kwargs for dummy sensor
         """
         self.json_filename = calibsensor
         self.version = '2.1.s'
@@ -86,6 +89,7 @@ class Sensor:
         self.n_frames = n_frames
         self.sigma_gauss = gauss_sigma
         self.invert = invert
+        self.check_change_frame = check_change_frame
 
         self.s_name = self.Sensor.name
         self.s_width = self.Sensor.depth_width
@@ -93,9 +97,12 @@ class Sensor:
         self.depth = None
         self.crop = crop_values
         self.clip = clip_values
-        self.get_frame()
+        self._previous_frame = self.get_frame()
+        self._rtol = 0.07
+        self._atol = 0.001
 
-    def get_raw_frame(self, gauss_filter: bool = True) -> numpy.ndarray:
+
+    def get_raw_frame(self) -> numpy.ndarray:
         """Grab a new height numpy array
 
         With the Dummy sensor it will sample noise
@@ -107,13 +114,7 @@ class Sensor:
         # calculate mean values ignoring zeros by masking them
         depth_array_masked = numpy.ma.masked_where(depth_array == 0, depth_array)  # needed for V2?
         depth = numpy.ma.mean(depth_array_masked, axis=2)
-        if gauss_filter:
-            # apply gaussian filter
-            depth = scipy.ndimage.filters.gaussian_filter(depth, self.sigma_gauss)
-        else:
-            depth = depth.data
-
-        return depth
+        return depth.data
 
     def get_inverted_frame(self, frame):
         """
@@ -217,34 +218,33 @@ class Sensor:
             crop = frame[self.s_bottom:-self.s_top, self.s_left:-self.s_right]
         return crop
 
-    def depth_mask(self, frame: numpy.ndarray) -> numpy.ndarray:
-        """ Creates a boolean mask with True for all values within the set sensor range and False for every pixel
-        above and below. If you also want to use clipping, make sure to use the mask before.
-        """
-        # TODO: depth mask is masking everything. returning empty
-        mask = numpy.ma.getmask(numpy.ma.masked_outside(frame, self.s_min, self.s_max))
-        return mask
-
     def clip_frame(self, frame: numpy.ndarray) -> numpy.ndarray:
         """ Clips all values outside of the sensor range to the set s_min and s_max values.
-        If you want to create a mask make sure to call depth_mask before performing the clip.
-        ???"""
+        """
 
         clip = numpy.clip(frame, self.s_min-1, self.s_max+1)
         return clip
 
     def get_frame(self) -> numpy.ndarray:
-        frame = self.get_raw_frame(self.filter)
+        frame = self.get_raw_frame()#self.filter, self.check_change_frame)
         if self.Sensor.name == "dummy":
             self.depth = frame
             return self.depth
+
         if self.crop:
             frame = self.crop_frame(frame)
         if self.clip:
-            # frame = self.depth_mask(frame) #TODO: When is this needed?
             frame = self.clip_frame(frame)
         if self.invert:
             frame = self.get_inverted_frame(frame)
+        if self.check_change_frame:
+            cl = numpy.isclose(self._previous_frame, frame, atol=self._atol, rtol=self._rtol, equal_nan=True)
+            self._previous_frame[numpy.logical_not(cl)] = frame[numpy.logical_not(cl)]
+            frame = self._previous_frame
+        if self.filter:
+            # apply gaussian filter
+            frame = scipy.ndimage.filters.gaussian_filter(frame, self.sigma_gauss)
+
         self.depth = frame
         return self.depth
 
