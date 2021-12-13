@@ -105,7 +105,7 @@ class Projector(object):
         self.colorbar = None
         self.sidebar = None
         # This is to solve issue #3. Give 0.01 ms to each Text from ax.arists to be plotted
-        self._target_time = 0.01
+        self._target_time = 0.00
         self._paused_time = None
 
         self.create_panel()
