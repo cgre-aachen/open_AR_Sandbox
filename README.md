@@ -181,7 +181,7 @@ pip install -e .
 [ALTERNATIVELY] You can use our `sandbox-environment.yml` file to instantly install all the dependencies with the 
 extensions. Beware that you  still need to install the kinect sensors by yourself according to your operative system.
 ```
-conda env create -f sandbox-environment.yml
+conda env create -f sandbox_environment.yml
 ```
 
 ### Download sample data
