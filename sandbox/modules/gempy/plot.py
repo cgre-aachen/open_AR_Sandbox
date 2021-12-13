@@ -235,7 +235,7 @@ def delete_ax(ax):
         hill = None
     [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
     [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
-    [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
+    [text.remove() for text in reversed(ax.texts) if isinstance(text, matplotlib.text.Text)]
     return ax
 
 def _plot_gempy(ax, geo_model):

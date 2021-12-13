@@ -1,3 +1,5 @@
+import asyncio
+
 import collections
 import numpy
 import threading
@@ -56,6 +58,7 @@ class MainThread:
         self.lock = threading.Lock()
         self.thread = None
         self.thread_status = 'stopped'  # status: 'stopped', 'running', 'paused'
+        self.main_task = None
 
         # connect to ArucoMarker class
         # if CV2_IMPORT is True:
@@ -305,9 +308,11 @@ class MainThread:
             self._widget_module_selector.value = list(self.modules.keys())
             self._widget_module_selector.options = list(self._modules.keys())
 
-    def thread_loop(self):
+
+    async def thread_loop(self):
         while self.thread_status == 'running':
             self.update()
+            await asyncio.sleep(0.1) #give other threads a chance to run
 
     def run(self):
         if self.thread_status != 'running':
@@ -315,8 +320,9 @@ class MainThread:
                 if self.sensor.s_name == "kinect_v2" or self.sensor.s_name == "lidar":
                     self.sensor.Sensor._run()
             self.thread_status = 'running'
-            self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
-            self.thread.start()
+            self.main_task = asyncio.create_task(self.thread_loop())
+            #self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
+            #self.thread.start()
             logger.info('Thread started or resumed...')
 
         else:
@@ -328,7 +334,8 @@ class MainThread:
                 if self.sensor.s_name == "kinect_v2" or self.sensor.s_name == "lidar":
                     self.sensor.Sensor._stop()
             self.thread_status = 'stopped'  # set flag to end thread loop
-            self.thread.join()  # wait for the thread to finish
+            #self.thread.join()  # wait for the thread to finish
+            self.main_task.cancel()
             logger.info('Thread stopped.')
         else:
             logger.info('thread was not running.')
@@ -336,7 +343,8 @@ class MainThread:
     def pause(self):
         if self.thread_status == 'running':
             self.thread_status = 'paused'  # set flag to end thread loop
-            self.thread.join()  # wait for the thread to finish
+            #self.thread.join()  # wait for the thread to finish
+            self.main_task.cancel()
             logger.info('Thread paused.')
         else:
             logger.info('There is no thread running.')
