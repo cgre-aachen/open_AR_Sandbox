@@ -122,6 +122,27 @@ gempy_benisson = ["Benisson_04_elev_contours.dbf",
                   "orientation.shx"
                   ]
 
+gempy_example_models_url = "https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/data/input_data/jan_models/"
+gempy_example_models = ["model1_orientations.csv",
+                        "model1_surface_points.csv",
+                        "model2_orientations.csv",
+                        "model2_surface_points.csv",
+                        "model3_orientations.csv",
+                        "model3_surface_points.csv",
+                        "model4_orientations.csv",
+                        "model4_surface_points.csv",
+                        "model5_orientations.csv",
+                        "model5_surface_points.csv",
+                        "model6_orientations.csv",
+                        "model6_surface_points.csv",
+                        "model7_orientations.csv",
+                        "model7_surface_points.csv"
+                        ]
+gempy_example_models_url2 = "https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/data/input_data/lisa_models/"
+gempy_example_models2 = ["foliations7.csv",
+                         "interfaces7.csv",
+                         ]
+
 
 def create_pooch(base_url, files, target):
     """
@@ -198,6 +219,19 @@ def download_benisson_model():
     except Exception as e:
         logger.error(e, exc_info=True)
 
+def download_example_gempy_model():
+    """Dowload data for construction of example models with gempy"""
+    try:
+        pooch_gempy_example = create_pooch(gempy_example_models_url, gempy_example_models, _test_data.get("gempy_example_data"))
+        pooch_gempy_example2 = create_pooch(gempy_example_models_url2, gempy_example_models2, _test_data.get("gempy_example_data"))
+        for file in gempy_example_models:
+            pooch_gempy_example.fetch(file, downloader=download)
+        for file in gempy_example_models2:
+            pooch_gempy_example2.fetch(file, downloader=download)
+        logger.info("Data for gempy example models downloaded")
+    except Exception as e:
+        logger.error(e, exc_info=True)
+
 def download_landscape_name(name_model: str):
     """Download an specific trained model"""
     try:
@@ -228,6 +262,9 @@ def download_landscape_all():
 
 #%%
 if __name__ == '__main__':
+    if input("Do you want to download the genpy data for the example models? (12 kB) [y/n]") == "y":
+        download_example_gempy_model()
+
     if input("Do you want to download the Test data? (25.4 MB) [y/n]") == "y":
         download_test_data()
 

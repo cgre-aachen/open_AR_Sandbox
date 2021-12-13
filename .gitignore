@@ -122,3 +122,4 @@ notebooks/tutorials/09_LandscapeGeneration/checkpoints/
 # Gempy Data
 .pickle
 notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/
+notebooks/tutorials/04_GempyModule/Example_Models/data_examples/
