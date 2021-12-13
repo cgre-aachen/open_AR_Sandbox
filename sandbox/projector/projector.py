@@ -325,9 +325,10 @@ class Projector(object):
         """
         To to be sure that panel have enough time to display the figure he want. Solves issue #3
         """
-        ctext = [isinstance(text, matplotlib.text.Text) for text in self.ax.artists]
-        if True in ctext:
-            sec = len(ctext)*self._target_time  # Give 0.005 ms to each Text from contours to be plotted
+        ctext = [isinstance(text, matplotlib.text.Text) for text in self.ax.texts]
+        coll = [isinstance(coll, matplotlib.collections.PathCollection) for coll in self.ax.collections]
+        if True in ctext or True in coll:
+            sec = (len(coll)+len(ctext))*self._target_time  # Give 0.005 ms to each Text from contours to be plotted
             self._paused_time = sec
             plt.pause(sec)
         else:
