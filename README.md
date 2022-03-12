@@ -113,7 +113,7 @@ Directly in BibTeX-format:
     url = {https://doi.org/10.1130/GES02455.1},
     eprint = {https://pubs.geoscienceworld.org/gsa/geosphere/article-pdf/doi/10.1130/GES02455.1/5541527/ges02455.pdf},
 }
-
+```
 
 
 Feel free to download and use the Open AR-Sandbox software! We do not provide any
