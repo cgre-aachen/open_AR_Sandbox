@@ -273,7 +273,7 @@ class PynoddyModule(ModuleTemplate):
             from matplotlib.colors import LightSource
             # Note: 180 degrees are subtracted because visualization in Sandbox is upside-down
             ls = LightSource(azdeg=azdeg - 180, altdeg=altdeg)
-            # TODO: Is is better to use ls.hillshade or ls.shade??
+            # TODO: Is it better to use ls.hillshade or ls.shade??
             hillshade_topography = ls.hillshade(topo)
             # vert_exag=0.3,
             # blend_mode='overlay')

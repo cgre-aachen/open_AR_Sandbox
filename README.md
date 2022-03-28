@@ -35,6 +35,7 @@ Table of Contents
     * [Devito](README.md#devito)
     * [PyGimli](README.md#pygimli)
     * [PyTorch](README.md#pytorch)
+    * [Pynoddy](README.md#pynoddy)
 * [Project Development](README.md#project-development)
 * [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
@@ -76,6 +77,7 @@ Some of the modules already implemented include:
 * [LandscapeModule](notebooks/tutorials/09_LandscapeGeneration): Landscape generations using machine learning codes powered by [CycleGAN](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) 
 * [SeismicModule](notebooks/tutorials/10_SeismicModule): module for seismic wave modelling in the sandbox. This uses the power of [Devito](https://github.com/devitocodes/devito)
 * [GeoelectricsModule](notebooks/tutorials/11_GeoelectricsModule): module for visualization of geoelectrical fields using aruco markers as electrodes. This use power of [PyGimli](https://www.pygimli.org/)
+* [PynoddyModule](notebooks/tutorials/12_PynoddyModule): module for to visualize kinematic geological modelling simulations. This module is powered by [Pynoddy](https://github.com/cgre-aachen/pynoddy)
 
 Check the video below for some of the features in action:
 [![Open AR Sandbox Features](https://img.youtube.com/vi/t0fyPVMIH4g/0.jpg)](https://www.youtube.com/watch?v=t0fyPVMIH4g)
@@ -487,6 +489,10 @@ Once this is installed, copy the trained model in `/notebooks/tutorials/09_Lands
 and then follow the notebook.
 Get in contact with us to provide you with the train model for this module. 
 
+### Pynoddy
+
+To use [Pynoddy](https://github.com/cgre-aachen/pynoddy), please follow the installation instructions. 
+We recommend installing Noddy from source files.  
 
 Project Development
 -------------------
