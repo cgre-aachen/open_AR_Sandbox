@@ -1,4 +1,4 @@
-matplotlib>=3.2.1
+matplotlib>=3.5
 numpy
 pandas
 panel>=0.10.2
@@ -13,3 +13,8 @@ tqdm
 pooch
 colorama
 pysolar
+sphinx
+nbsphinx
+sphinx-rtd-theme
+sphinx-markdown-tables
+sphinx-copybutton

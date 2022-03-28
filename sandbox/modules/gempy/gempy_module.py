@@ -524,7 +524,11 @@ class GemPyModule(ModuleTemplate):
         """
         self._get_polygon_data()
         if background:
-            p = pv.BackgroundPlotter(**kwargs)
+            try:
+                p = pv.BackgroundPlotter(**kwargs)
+            except pv.QtDeprecationError:
+                from pyvistaqt import BackgroundPlotter
+                p = BackgroundPlotter(**kwargs)
         else:
             p = pv.Plotter(notebook=notebook, **kwargs)
         for i in range(len(self.borehole_tube)):

@@ -1,5 +1,6 @@
 import os
 import gempy as gp
+from sandbox import _test_data
 
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN"
 all_models = ['Horizontal_layers',
@@ -8,9 +9,11 @@ all_models = ['Horizontal_layers',
               'Pinchout',
               'Fault',
               'Unconformity']
-data_path = 'https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/'
-path_to_data = data_path + "/data/input_data/jan_models/"
+# Not used since some devices are made to be used offline
+# data_path = 'https://raw.githubusercontent.com/cgre-aachen/gempy_data/master/'
+# path_to_data = data_path + "/data/input_data/jan_models/"
 
+path_to_data = _test_data.get('gempy_example_data')
 
 def create_model_dict(model_name: list = all_models, **kwargs):
     """

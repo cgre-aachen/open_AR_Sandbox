@@ -1,14 +1,12 @@
-# open_AR_Sandbox
-Welcome to the Open_AR_Sandbox repository. If you do not know what this is all about, have a look at this video:
+# Open AR-Sandbox
 
-:warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
-own work is serious **scientific fraud**! And if you develop content further, then please push these developments
-back to this repostory - in the very interest of scientific development (and also a requirement of the license).
-For more details, please consult the information below and the license.
+* Check the complete and up-to-date documentation on [read the docs](https://open-ar-sandbox.readthedocs.io/en/latest/)
+
+Welcome to the# Open AR-Sandbox repository. If you do not know what this is all about, have a look at this video:
 
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
 
-[![What is AR-Sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
+[![What is an AR-sandbox?](https://img.youtube.com/vi/RIvYO1lx6vs/0.jpg)](https://www.youtube.com/watch?v=RIvYO1lx6vs)
 
 ![Python 3](https://img.shields.io/badge/Python-3-blue.svg)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
@@ -21,6 +19,7 @@ Table of Contents
 * [Requirements](README.md#requirements)
 * [Installation](README.md#installation)
     * [Standard packages](README.md#standard-packages)
+    * [Download sample data](README.md#download-sample-data)
     * [Kinect Installation](README.md#kinect-installation)
         * [Windows](README.md#for-windows)
             * [KinectV2 - PyKinect2](README.md#kinect-v2---pykinect2)
@@ -31,7 +30,6 @@ Table of Contents
       * [Installing in Windows](README.md#installing-in-windows)
       * [Installing in Linux](README.md#installing-in-linux)
       * [Running with Python](README.md#running-with-python)
-* [Download sample data](README.md#download-sample-data)
 * [External packages](README.md#external-packages)
     * [Gempy](README.md#gempy)
     * [Devito](README.md#devito)
@@ -41,19 +39,25 @@ Table of Contents
 * [Interested in obtaining a fully operational system?](README.md#obtaining-a-full-system)
     
 
+:warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
+own work is serious **scientific fraud**! And if you develop content further, then please push these developments
+back to this repostory - in the very interest of scientific development (and also a requirement of the license).
+For more details, please consult the information below and the license.
+
+
 Introduction
 -----------
-Augmented Reality Sandboxes are a great tool for science outreach and teaching due to their intuitive and interaction-enhancing operation. Recently AR Sandboxes are becoming increasingly popular as interactive exhibition pieces, teaching aids and toys.
+Augmented Reality Sandboxes (AR-sandboxes) are a great tool for science outreach and teaching due to their intuitive and interaction-enhancing operation. Recently AR Sandboxes are becoming increasingly popular as interactive exhibition pieces, teaching aids and toys.
 
-AR Sandboxes consist of a box of sand that can be freely sculpted by hand. The topography of the sand is constantly scanned with a depth camera and a computed image is projected back onto the sand surface, augmenting the sandbox with digital information.
+AR-sandboxes consist of a box of sand that can be freely sculpted by hand. The topography of the sand is constantly scanned with a depth camera and a computed image is projected back onto the sand surface, augmenting the sandbox with digital information.
 
-However, most of these common AR Sandboxes are limited to the visualization of topography with contour lines and colors, as well as water simulations on the digital terrain surface. The potential for AR Sandboxes for geoscience education , and especially for teaching struc- tural geology, remains largely untapped.
+However, most of these common AR Sandboxes are limited to the visualization of topography with contour lines and colors, as well as water simulations on the digital terrain surface. The potential for AR Sandboxes for geoscience education , and especially for teaching strutural geology, remains largely untapped.
 
-For this reason, we have developed open-AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
+For this reason, we have developed Open AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
 
 Features
 -------
-* compatible with most AR Sandbox builds
+* compatible with most AR-sandbox builds
 * subroutine for calibration and alignment of depth image, sand surface and projection 
 * versatile model creation with the powerful GemPy library
 * open-source under LGPL v3.0 license
@@ -76,7 +80,7 @@ Some of the modules already implemented include:
 Check the video below for some of the features in action:
 [![Open AR Sandbox Features](https://img.youtube.com/vi/t0fyPVMIH4g/0.jpg)](https://www.youtube.com/watch?v=t0fyPVMIH4g)
 
-The open_AR_Sandbox as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
+The Open AR-Sandbox software as well as GemPy are under continuous development and including more modules for major outreach. Some of the features we are currently working on include: 
 
 * More Tutorials, examples, Tests and Documentation to help you develop your own modules
 * GemPy optimization for (much!) higher framerates
@@ -88,12 +92,36 @@ The open_AR_Sandbox as well as GemPy are under continuous development and includ
 License, use and attribution
 ----------------------------
 
-Feel free to download and use the Open_AR_Sandbox software! We do not provide any
+
+If you use Open AR-Sandbox in a scientific abstract or publication, please
+include appropriate recognition of the original work. For the time being,
+please cite our [publication](https://pubs.geoscienceworld.org/gsa/geosphere/article/doi/10.1130/GES02455.1/611689/Open-AR-Sandbox-A-haptic-interface-for-geoscience) in the journal Geosphere:
+
+Florian Wellmann, Simon Virgo, Daniel Escallon, Miguel de la Varga, Alexander Jüstel, Florian M. Wagner, Julia Kowalski, Hu Zhao, Robin Fehling, Qian Chen; Open AR-Sandbox: A haptic interface for geoscience education and outreach. Geosphere 2022; doi: https://doi.org/10.1130/GES02455.1
+
+Directly in BibTeX-format:
+
+```
+@article{10.1130/GES02455.1,
+    author = {Wellmann, Florian and Virgo, Simon and Escallon, Daniel and de la Varga, Miguel and Jüstel, Alexander and Wagner, Florian M. and Kowalski, Julia and Zhao, Hu and Fehling, Robin and Chen, Qian},
+    title = "{Open AR-Sandbox: A haptic interface for geoscience education and outreach}",
+    journal = {Geosphere},
+    year = {2022},
+    month = {02},
+    issn = {1553-040X},
+    doi = {10.1130/GES02455.1},
+    url = {https://doi.org/10.1130/GES02455.1},
+    eprint = {https://pubs.geoscienceworld.org/gsa/geosphere/article-pdf/doi/10.1130/GES02455.1/5541527/ges02455.pdf},
+}
+```
+
+
+Feel free to download and use the Open AR-Sandbox software! We do not provide any
 warranty and any guarantee for the use. We also do not provide professional
 support, but we aim to answer questions posted as Issues on the github page as
 quickly as possible.
 
-Open_AR_Sandbox is published under an **GNU Lesser General Public License v3.0**, which
+Open AR-Sandbox is published under an **GNU Lesser General Public License v3.0**, which
 means that you are
 free to use it, if you do not do any modifications, in a wide variety of ways
 (even commercially). However, if you plan to _modify and redistribute_ the
@@ -112,13 +140,10 @@ These are the main conditions for using this library:
 
 For more details on the licsense, please see provided license file.
 
-If you use Open-AR-Sandbox in a scientific abstract or publication, please
-include appropriate recognition of the original work. For the time being,
-please cite:
-
-Virgo, S., De La Varga Hormazabal, M., & Wellmann, F. (2019).
-Open-AR-Sandbox: An open-source Augmented Reality platform for geoscience.
-In Geophysical Research Abstracts (Vol. 21).
+:warning: **Warning!** It is unfortunate that we have to state this here, but: downloading the software and presenting it somewhere as your 
+own work is serious **scientific fraud**! And if you develop content further, then please push these developments
+back to this repostory - in the very interest of scientific development (and also a requirement of the license).
+For more details, please consult the information below and the license.
 
 
 Requirements
@@ -148,11 +173,15 @@ Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-
 ```
 git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
 ```
-2. Create a new anaconda environment
+2. Enter the new downloaded project folder:
 ```
-conda create -n sandbox-env python=3.7
+cd open_AR_Sandbox
 ```
-3. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
+3. Create a new anaconda environment
+```
+conda create -n sandbox-env python=3.8
+```
+4. Now when you want to use the sandbox and the packages we are about to installl you will have to activate the 
 environment before starting anything
 ```
 conda activate sandbox-env
@@ -161,11 +190,39 @@ conda activate sandbox-env
 
 To install all the standard packages please use the  `requirements.txt` file:
 
-```pip install -r requirements.txt```
+```
+pip install -r requirements.txt
+```
 
-You can also have a local installation of the sandbox by using the File "setup.py" by doing:
+[RECOMMENDED] You can also have a local installation of the sandbox by using the File "setup.py" by doing:
 
-`pip install -e . `
+```
+pip install -e . 
+```
+
+[ALTERNATIVELY] You can use our `sandbox-environment.yml` file to instantly install all the dependencies with the 
+extensions. Beware that you  still need to install the kinect sensors by yourself according to your operative system.
+```
+conda env create -f sandbox_environment.yml
+```
+
+### Download sample data
+
+You have the option to download some publicly shared files from our Open AR-Sandbox project shared folder. 
+You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
+the use of the Landscape generation module.
+
+In the terminal type:
+
+```
+python3 sandbox/utils/download_sample_datasets.py
+```
+
+and follow the instruction on the terminal to download the specific files you need. We use 
+[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
+to their respective folders. Running this code a second time will not trigger a download since the file already exists.
+
+You can also follow the Jupyter Notebook ['Download_datasets.ipynb'](notebooks/tutorials/) and follow the commands. 
 
 ### Kinect Installation 
  
@@ -206,7 +263,7 @@ assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 
 #### Kinect v1 - libfreenect
 
-To make open_AR_Sandbox talk to the first generation kinect you will need the
+To make Open AR-Sandbox talk to the first generation kinect you will need the
 [Libfreenect Drivers](https://github.com/OpenKinect/libfreenect) with
 [Python Wrappers](https://openkinect.org/wiki/Python_Wrapper). 
 The installation is kind of straight forward for Linux and MacOS but 
@@ -321,7 +378,7 @@ and download and execute the file:
 
 ```Intel.RealSense.Viewer.exe```
 
-Follow the instructions for the installation and update the Firmware of your sensor.  You should be able to use and see the depth and RGB image.
+Follow the instructions for the installation and update the firmware of your sensor.  You should be able to use and see the depth and RGB image.
 
 #### Installing in Linux 
 
@@ -357,22 +414,6 @@ After the sensor is installed on your pltaform, the Python wrapper can be easily
 If any problems with the installation reference to 
 [Intel RealSense Python Installation](https://github.com/IntelRealSense/librealsense/tree/master/wrappers/python#installation)
 
-Download sample data
--------
-
-You have the option to download some publicly shared files from our open_AR_Sandbox shared folder. 
-You will need to do this if you want to run the tests, use the landslides simulations and/or get the trained models for 
-the the use of the Landscape generation module.
-
-In the terminal type:
-
-```
-python3 sandbox/utils/download_sample_datasets.py
-```
-
-and follow the instruction on the terminal to download the specific files you need. We use 
-[Pooch](https://github.com/fatiando/pooch) to help us fetch our data files and store them locally in your computer 
-to their respective folders. Running this code a second time will not trigger a download since the file already exists.
 
 External Packages
 ---------
@@ -390,6 +431,15 @@ conda install mingw libpython m2w64-toolchain
 conda install theano
 pip install theano --force-reinstall
 ```
+
+Optional: 
+Gempy will print some output each time a frame is calculated, which can fill up the console. to supress this, go to your gempy installation and comment out line 381 in ```
+gempy/core/model.py```
+
+```
+# print(f'Active grids: {self._grid.grid_types[self._grid.active_grids]}')
+```
+
 ### Devito
 
 This package uses the power of [Devito](https://github.com/devitocodes/devito) to run wave proppagation simmulations.
@@ -405,7 +455,7 @@ This library is a powerful tool for Geophysical inversion and Modelling. Some ex
 [PyGimli](https://www.pygimli.org/) can be installed following the installation intructions 
 [here](https://www.pygimli.org/installation.html)
 
-We recomend creating a new environment where PyGimli is already installed and over that one install the sandbox 
+We recommend creating a new environment where PyGimli is already installed and over that one install the sandbox 
 dependencies.
 ```
 conda create -n sandbox-env -c gimli -c conda-forge pygimli=1.1.0
@@ -441,7 +491,7 @@ Get in contact with us to provide you with the train model for this module.
 Project Development
 -------------------
 
-Open-AR-Sandbox is developed at the research unit [Computational Geoscience
+Open AR-Sandbox is developed at the research unit [Computational Geoscience
 and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aachen University, Germany.
 
 [![CGRE](https://www.cgre.rwth-aachen.de/global/show_picture.asp?id=aaaaaaaaabaxmhn)](https://www.cgre.rwth-aachen.de/)
