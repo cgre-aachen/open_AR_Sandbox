@@ -208,7 +208,7 @@ class PynoddyModule(ModuleTemplate):
             self.hill = None
 
         [fill.remove() for fill in reversed(ax.collections) if isinstance(fill, matplotlib.collections.PathCollection)]
-        [text.remove() for text in reversed(ax.artists) if isinstance(text, matplotlib.text.Text)]
+        [text.remove() for text in reversed(ax.texts) if isinstance(text, matplotlib.text.Text)]
         [coll.remove() for coll in reversed(ax.collections) if isinstance(coll, matplotlib.collections.LineCollection)]
         return ax
 
