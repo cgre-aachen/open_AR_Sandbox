@@ -29,7 +29,9 @@ _test_data = {'topo': os.path.abspath(os.path.dirname(__file__) +
                                             'data_examples/')+os.sep,
               'test': os.path.abspath(os.path.dirname(__file__) + '/../tests/test_data/')+os.sep,
               'landscape_generation': os.path.abspath(os.path.dirname(__file__) +
-                                                      '/../notebooks/tutorials/09_LandscapeGeneration/')+os.sep
+                                                      '/../notebooks/tutorials/09_LandscapeGeneration/')+os.sep,
+              'pynoddy_data': os.path.abspath(os.path.dirname(__file__) +
+                                                      '/../notebooks/tutorials/12_PynoddyModule/output/')+os.sep
               }
 
 # Create folders if not existing
@@ -49,6 +51,7 @@ if not os.path.isdir(_test_data.get("landslide_simulation")):
 if not os.path.isdir(_test_data.get("test")):
     os.mkdir(_test_data.get("test"))
     os.mkdir(_test_data.get("test")+"temp")
+    os.mkdir(_test_data.get("test") + "noddy")
 
 # Landscape folders
 if not os.path.isdir(_test_data.get("landscape_generation")+"checkpoints"):
@@ -65,6 +68,10 @@ if not os.path.isdir(_test_data.get("gempy_data")):
 
 if not os.path.isdir(_test_data.get("gempy_example_data")):
     os.mkdir(_test_data.get("gempy_example_data"))
+
+# Pynoddy folders
+if not os.path.isdir(_test_data.get("pynoddy_data")):
+    os.mkdir(_test_data.get("pynoddy_data"))
 
 # logging and exception handling
 from sandbox.utils.logger import set_logger
