@@ -124,6 +124,6 @@ notebooks/tutorials/09_LandscapeGeneration/checkpoints/
 notebooks/tutorials/04_GempyModule/Model_Construction/Bennisson_model/data/
 notebooks/tutorials/04_GempyModule/Example_Models/data_examples/
 
-#Pynoddy Data
+# Pynoddy Data
 notebooks/tutorials/12_PynoddyModule/*.txt
 notebooks/tutorials/12_PynoddyModule/output/
