@@ -1,5 +1,6 @@
-from warnings import warn
+from sandbox import set_logger
+logger = set_logger(__name__)
 try:
     from .landscape_generation import LandscapeGeneration
 except:
-    warn("LandscapeGeneration module will not work. Dependencies not installed")
+    logger.warning("LandscapeGeneration module will not work. Dependencies not installed")

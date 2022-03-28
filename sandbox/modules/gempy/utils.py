@@ -1,4 +1,6 @@
 import numpy
+from sandbox import set_logger
+logger = set_logger(__name__)
 
 
 def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy_isometric: bool = False):
@@ -29,19 +31,19 @@ def get_scale(physical_extent: list, model_extent: list, sensor_extent: list, xy
     # TODO: change the extent in place!! or create a new extent object that stores the extent after that modification.
     if xy_isometric:  # model is extended in one horizontal direction to fit  into box while the scale
         # in both directions is maintained
-        print("Aspect ratio of the model is fixed in XY")
+        logger.info("Aspect ratio of the model is fixed in XY")
         if pixel_scale[0] >= pixel_scale[1]:
             pixel_scale[1] = pixel_scale[0]
-            print("Model size is limited by X dimension")
+            logger.info("Model size is limited by X dimension")
         else:
             pixel_scale[0] = pixel_scale[1]
-            print("Model size is limited by Y dimension")
+            logger.info("Model size is limited by Y dimension")
 
     scale[0] = pixel_scale[0] / pixel_size[0]
     scale[1] = pixel_scale[1] / pixel_size[1]
     # Vertical scaling
     scale[2] = float(model_extent[5] - model_extent[4]) / (sensor_extent[5] - sensor_extent[4])
-    print("scale in Model units/ mm (X,Y,Z): " + str(scale))
+    logger.info("scale in Model units/ mm (X,Y,Z): " + str(scale))
     return scale, pixel_scale, pixel_size
 
 
@@ -84,7 +86,7 @@ class Grid(object):
         xx, yy = numpy.meshgrid(width, height)
         self.empty_depth_grid = numpy.vstack([xx.ravel(), yy.ravel()]).T
 
-        print("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
+        logger.info("the shown extent is [" + str(self.empty_depth_grid[0, 0]) + ", " +
               str(self.empty_depth_grid[-1, 0]) + ", " +
               str(self.empty_depth_grid[0, 1]) + ", " +
               str(self.empty_depth_grid[-1, 1]) + "] "
