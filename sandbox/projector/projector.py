@@ -138,7 +138,7 @@ class Projector(object):
         self.frame = pn.pane.Matplotlib(self.figure,
                                         width=self.p_frame_width,
                                         height=self.p_frame_height,
-                                        margin=[self.p_frame_top, 0, 0, self.p_frame_left],
+                                        margin=(self.p_frame_top, 0, 0, self.p_frame_left),
                                         tight=False,
                                         dpi=self.dpi,
                                         css_classes=['frame']
@@ -160,7 +160,7 @@ class Projector(object):
         # Combine panel and deploy bokeh server
         if self.pos_colorbar == "vertical":
             self.sidebar = pn.Column(self.colorbar, self.legend, self.hot, self.profile,
-                                     margin=[self.p_frame_top, 0, 0, 0],
+                                     margin=(self.p_frame_top, 0, 0, 0),
                                      )
 
             self.panel = pn.Row(pn.Column(self.frame, None),
@@ -172,7 +172,7 @@ class Projector(object):
                                 )
         elif self.pos_colorbar == "horizontal":
             self.sidebar = pn.Column(self.legend, self.hot, self.profile,
-                                     margin=[self.p_frame_top, 0, 0, 0],
+                                     margin=(self.p_frame_top, 0, 0, 0),
                                      )
             self.panel = pn.Row(pn.Column(self.frame, self.colorbar),
                                 self.sidebar,
@@ -191,7 +191,7 @@ class Projector(object):
         self.colorbar = pn.pane.Matplotlib(empty_fig_bg_cb,
                                            width= self.col_width,
                                            height= self.col_height,
-                                           margin=[self.col_top, 0, 0, self.col_left],
+                                           margin=(self.col_top, 0, 0, self.col_left),
                                            dpi=self.dpi*2,
                                            css_classes=['colorbar'],
                                            tight=True)
@@ -201,7 +201,7 @@ class Projector(object):
         self.legend = pn.pane.Matplotlib(empty_fig_bg_ld,
                                            width=self.leg_width,
                                            height=self.leg_height,
-                                           margin=[self.leg_top, 0, 0, self.leg_left],
+                                           margin=(self.leg_top, 0, 0, self.leg_left),
                                            dpi=self.dpi*2,
                                            css_classes=['legend'],
                                            tight=True)
@@ -210,7 +210,7 @@ class Projector(object):
         self.hot = pn.Column("### Hot area",
                              width=100,
                              height=100,
-                             margin=[0, 0, 0, 0],
+                             margin=(0, 0, 0, 0),
                              css_classes=['hot']
                              )
 
@@ -218,7 +218,7 @@ class Projector(object):
         self.profile = pn.Column("### Profile",
                                  width=100,
                                  height=100,
-                                 margin=[0, 0, 0, 0],
+                                 margin=(0, 0, 0, 0),
                                  css_classes=['profile']
                                  )
 
@@ -612,7 +612,7 @@ class Projector(object):
         if self.enable_colorbar:
             if self.pos_colorbar == "horizontal":
                 self.create_colorbar()
-                self.colorbar.margin = [0, 0, 0, self.p_frame_left]
+                self.colorbar.margin = (0, 0, 0, self.p_frame_left)
                 self.panel[0].insert(1, self.colorbar)
             elif self.pos_colorbar == "vertical":
                 self.create_colorbar()
@@ -629,11 +629,17 @@ class Projector(object):
         self.set_colorbar_widget()
 
     def _callback_top_colorbar(self, event):
-        self.colorbar.margin[0] = event.new
+        # Margins need to be tuple
+        mr = list(self.colorbar.margin)
+        mr[0] = event.new
+        self.colorbar.margin = tuple(mr)
         self.colorbar.param.trigger('object')
 
     def _callback_left_colorbar(self, event):
-        self.colorbar.margin[-1] = event.new
+        # Margins need to be tuple
+        mr = list(self.colorbar.margin)
+        mr[-1] = event.new
+        self.colorbar.margin = tuple(mr)
         self.colorbar.param.trigger('object')
 
     def _callback_width_colorbar(self, event):
@@ -646,12 +652,17 @@ class Projector(object):
 
     def _callback_top_legend(self, event):
         self.leg_top = event.new
-        self.legend.margin[0] = event.new
+        # Margins need to be tuple
+        mr = list(self.legend.margin)
+        mr[0] = event.new
+        self.legend.margin = tuple(mr)
         self.legend.param.trigger('object')
 
     def _callback_left_legend(self, event):
         self.leg_left = event.new
-        self.legend.margin[-1] = event.new
+        mr = list(self.legend.margin)
+        mr[-1] = event.new
+        self.legend.margin = tuple(mr)
         self.legend.param.trigger('object')
 
     def _callback_width_legend(self, event):
@@ -669,13 +680,13 @@ class Projector(object):
         m = target.margin
         n = event.new
         # just changing single indices does not trigger updating of pane
-        target.margin = [n, m[1], m[2], m[3]]
+        target.margin = (n, m[1], m[2], m[3])
 
     def _callback_p_frame_left(self, target, event):
         self.p_frame_left = event.new
         m = target.margin
         n = event.new
-        target.margin = [m[0], m[1], m[2], n]
+        target.margin = (m[0], m[1], m[2], n)
 
     def _callback_p_frame_width(self, target, event):
         self.p_frame_width = event.new
