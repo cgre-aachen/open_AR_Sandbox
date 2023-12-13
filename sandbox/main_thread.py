@@ -28,7 +28,7 @@ class MainThread:
     """
 
     def __init__(self, sensor: Sensor, projector: Projector, aruco: MarkerDetection = None,
-                 check_change: bool = False, kwargs_contourlines: dict = {}, kwargs_cmap: dict = {},
+                 check_change: bool = True, kwargs_contourlines: dict = {}, kwargs_cmap: dict = {},
                  **kwargs):
         """
 
@@ -145,7 +145,6 @@ class MainThread:
                 self.previous_frame = frame
                 self.sb_params['same_frame'] = False
         self.sb_params['frame'] = frame
-
         # filter
         self.lock.acquire()
         if self.ARUCO_ACTIVE:
@@ -312,7 +311,7 @@ class MainThread:
     async def thread_loop(self):
         while self.thread_status == 'running':
             self.update()
-            await asyncio.sleep(0.1) #give other threads a chance to run
+            await asyncio.sleep(0.1) #give other threads a chance to run <<
 
     def run(self):
         if self.thread_status != 'running':
@@ -321,8 +320,8 @@ class MainThread:
                     self.sensor.Sensor._run()
             self.thread_status = 'running'
             self.main_task = asyncio.create_task(self.thread_loop())
-            #self.thread = threading.Thread(target=self.thread_loop, daemon=True, )
-            #self.thread.start()
+            # self.thread = threading.Thread(target=self.thread_loop, daemon=True)
+            # self.thread.start()
             logger.info('Thread started or resumed...')
 
         else:

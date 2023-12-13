@@ -247,7 +247,7 @@ wrappers which can be easily installed via:
 ```pip install pykinect2```
 
 Unfortunately, the configuration of PyKinect2 needs to be adjusted to work on a 64 bit System.  Therefore, edit the
- _Lib/site-packages/pykinect2/PyKinectV2.py_ file, go to line **2216** and comment it:
+ _Lib/site-packages/pykinect2/PyKinectV2.py_ file (in the environment folder), go to line **2216** and comment it:
 
 ```python
 # assert sizeof(tagSTATSTG) == 72, sizeof(tagSTATSTG)
@@ -260,6 +260,19 @@ import numpy.distutils.system_info as sysinfo
 required_size = 64 + sysinfo.platform_bits / 4
 assert sizeof(tagSTATSTG) == required_size, sizeof(tagSTATSTG)
 ```
+
+Comment the line **2866**:
+
+```python
+#from comtypes import _check_version; _check_version('')
+```
+
+An additional step has to be carried out in the _Lib/site-packages/pykinect2/PyKinectRuntime.py_ file. Replace the function time.clock() for time.perf_counter() in the lines 154, 234,243, 252, 260, 312, 330, 350, 374.
+
+```python
+start_clock = time.perf_counter() # Line 154
+```
+
 
 ### For Linux
 
