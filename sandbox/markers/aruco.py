@@ -156,8 +156,8 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             rejectedImgPoints: show x, y coordinates of searches for aruco markers but not successful
        """
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        aruco_dict = aruco.Dictionary_get(self.aruco_dict)
-        parameters = aruco.DetectorParameters_create()
+        aruco_dict = aruco.getPredefinedDictionary(self.aruco_dict) # Update in cv2.aruco libray. .GetDictionary for getPredefinedDictionary
+        parameters = aruco.DetectorParameters() # Update in cv2.aruco libray.  .DetectorParameters_create for DetectorParameters.
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         return corners, ids, rejectedImgPoints
 
@@ -193,9 +193,11 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             frame = self.kinect.get_color()
         corners, ids, rejectedImgPoints = self.aruco_detect(frame)
         if ids is not None:
-            labels = {"ids", "x", "y", "Counter"}
+            labels = ("ids", "x", "y", "Counter") # Change of curly braquets for parentheses.
             df = pd.DataFrame(columns=labels)
+            n=0
             for j in range(len(ids)):
+                n+=1
                 if ids[j] not in df.ids.values:
                     x_loc, y_loc = self.get_location_marker(corners[j][0])
                     df_temp = pd.DataFrame(
@@ -203,6 +205,7 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
                     df = pd.concat([df, df_temp], sort=False)
 
             df = df.reset_index(drop=True)
+            
             self.markers_in_frame = self.convert_color_to_depth(None, self.CoordinateMap, data=df)
             self.markers_in_frame.insert(0, 'counter', 0)
             self.markers_in_frame.insert(1, 'box_x', numpy.NaN)
@@ -211,10 +214,11 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
             self.markers_in_frame = self.markers_in_frame.set_index(self.markers_in_frame['ids'], drop=True)
             self.markers_in_frame = self.markers_in_frame.drop(columns=['ids'])
         else:
-            labels = {"ids", "x", "y", "Counter"}
+            labels = ("ids", "x", "y", "Counter") # Change of curly braquets for parentheses.
             self.markers_in_frame = pd.DataFrame(columns=labels)
         return self.markers_in_frame
 
+    
     def update_marker_dict(self):
         """
         updates existing marker points in self.aruco_markers. new found markers are automatically added.
@@ -223,22 +227,23 @@ class ArucoMarkers(object):  # TODO: Include widgets to calibrate arucos
         Returns:
             changes in place
         """
+        flag = True # Conditional to make sure the structure of the aurco_markers dataframe is the correct.
+        if flag:
+            self.aruco_markers = pd.DataFrame(columns=self.markers_in_frame.columns)
+            flag = False
         for j in self.markers_in_frame.index:
             if j not in self.aruco_markers.index:
                 # add new aruco
-                self.aruco_markers = self.aruco_markers.append(self.markers_in_frame.loc[j])
+                # self.aruco_markers = self.aruco_markers.append(self.markers_in_frame.loc[j]) # Append function deprecated in DataFrame.
+                self.aruco_markers.loc[j] = self.markers_in_frame.loc[j] # Append function deprecated in DataFrame.
             else:
                 # Update aruco
-                df_temp = self.markers_in_frame.loc[j]
-                self.aruco_markers.at[j] = df_temp
-
+                self.aruco_markers.loc[j] = self.markers_in_frame.loc[j] # No need for auxiliary df.
         for i in self.aruco_markers.index:  # increment counter for not found arucos
             if i not in self.markers_in_frame.index:
                 self.aruco_markers.at[i, 'counter'] += 1.0
-
             if self.aruco_markers.loc[i]['counter'] >= self._threshold:
                 self.aruco_markers = self.aruco_markers.drop(i)
-
         # return self.aruco_markers
 
     def transform_to_box_coordinates(self):
