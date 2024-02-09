@@ -2,6 +2,14 @@
 
 * Check the complete and up-to-date documentation on [read the docs](https://open-ar-sandbox.readthedocs.io/en/latest/)
 
+* Quick installation note
+
+There seems to be a problem with bokeh/ panel and Python at the moment. These versions seem to work:
+
+```pip install panel==0.14.4 bokeh==2.4.3 jupyter-bokeh==2.0.4```
+
+
+
 Welcome to the# Open AR-Sandbox repository. If you do not know what this is all about, have a look at this video:
 
 [![The CGRE Sandbox in action](https://img.youtube.com/vi/oE3Atw-YvSA/0.jpg)](https://www.youtube.com/watch?v=oE3Atw-YvSA)
