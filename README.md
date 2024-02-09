@@ -512,6 +512,7 @@ and Reservoir Engineering (CGRE)](https://www.cgre.rwth-aachen.de/) at RWTH Aach
 
 * Daniel Escallón 
 * Simon Virgo
+* Nils Chudalla
 * Miguel de la Varga
 
 Obtaining a full system
