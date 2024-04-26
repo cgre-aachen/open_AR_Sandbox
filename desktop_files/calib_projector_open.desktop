@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Terminal=true
+Icon=None
+Exec= <Path to the project>open_AR_Sandbox/start_projector_calibration.sh
+Name=Projector Calibration
+Comment=Open AR SandBox

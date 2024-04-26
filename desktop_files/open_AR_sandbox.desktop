@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Terminal=true
+Icon=None
+Exec= <Path to the project>/open_AR_Sandbox/start_sandbox.sh
+Name=Open AR Sandbox
+Comment=Open AR Sandbox
