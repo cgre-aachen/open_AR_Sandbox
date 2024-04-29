@@ -1,2 +1,2 @@
-panel serve start_sandbox_server.py --show
+panel serve sandbox_server.py --show
 
