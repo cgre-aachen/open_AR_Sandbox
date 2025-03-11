@@ -1,0 +1,12 @@
+1. Python=3.7.12
+2. pip install panel==0.14.4 bokeh==2.4.3 jupyter-bokeh==2.0.4
+3. pip install matplotlib==3.5.0
+4. pip install -r requirements.txt
+5. pip install pykinect2
+6. change pykinect2 file in site packages according to readme
+7. Comment out line 2867 (from comtypes import _check_version,.....)
+8. Check all 3 relevant bat files if paths are defined correctly
+How to run panel from Terminal:
+- Set use_panel=False
+- Mark "projector.panel.servable()"
+- panel serve file.ipynb

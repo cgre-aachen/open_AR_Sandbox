@@ -305,7 +305,8 @@ class Projector(object):
 
         """
         # Check for instances and close them?
-        self.panel.show(threaded=False)  # , title="Sandbox frame!")#, port = 4242, use_reloader = False)
+        #self.panel.show(threaded=False#), port = 4244)  # , title="Sandbox frame!")#, use_reloader = False)
+        #pn.serve(self.panel, port=4242, show=False)
         # TODO: check how can check if the port exist/open and overwrite it
         logger.info('Projector initialized and server started.\n'
               'Please position the browser window accordingly and enter fullscreen!')

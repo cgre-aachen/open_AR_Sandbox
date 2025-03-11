@@ -13,10 +13,6 @@ from sandbox import set_logger
 logger = set_logger(__name__)
 _platform = platform.system()
 
-try:
-    import torch
-except ImportError as e:
-    logger.error(e, exc_info=True)
 
 
 class LandscapeGeneration(ModuleTemplate):
